@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shattered Crown — Playtest Tool</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1117;color:#e8e0d0;font-family:Georgia,serif;min-height:100vh;overflow-x:hidden}
+
+/* HEADER */
+header{background:#1a1f3c;border-bottom:2px solid #c9a84c;padding:10px 16px;display:flex;justify-content:space-between;align-items:center}
+header h1{color:#c9a84c;font-size:1.2rem;letter-spacing:1px}
+.header-meta{font-size:0.7rem;color:#888}
+.round-badge{background:#2a2f5c;border:1px solid #c9a84c;color:#c9a84c;padding:4px 12px;border-radius:12px;font-size:0.85rem}
+
+/* LAYOUT */
+.layout{display:flex;gap:12px;padding:12px;align-items:flex-start}
+.panel{background:#111827;border:1px solid #1e2540;border-radius:8px;padding:10px}
+.panel-left{width:210px;flex-shrink:0;display:flex;flex-direction:column;gap:8px}
+.panel-center{flex:1;display:flex;flex-direction:column;align-items:center;gap:10px}
+.panel-right{width:210px;flex-shrink:0;display:flex;flex-direction:column;gap:8px}
+.panel h3{color:#c9a84c;font-size:0.8rem;letter-spacing:1px;text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid #1e2540;margin-bottom:8px}
+
+/* GRID */
+.grid-container{position:relative}
+.grid{display:grid;grid-template-columns:repeat(8,60px);grid-template-rows:repeat(8,60px);border:2px solid #c9a84c;gap:1px;background:#c9a84c44}
+.cell{width:60px;height:60px;background:#12192a;position:relative;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.1s}
+.cell:hover{background:#1a2540}
+.cell.high-ground{background:#0e1e10}
+.cell.high-ground:hover{background:#162a18}
+.cell.fire{background:#1f1008}
+.cell.fire:hover{background:#2a1a0a}
+.cell.crack{background:#1a1510}
+.cell.crack:hover{background:#221d15}
+.cell.ledge{background:#080d18}
+.cell.ledge:hover{background:#0c1422}
+.cell.wall{background:#050508;cursor:not-allowed}
+.cell.in-range{background:#142414;outline:1px solid #2d6a2d}
+.cell.target-range{background:#241414;outline:1px solid #6a2d2d}
+.cell.selected-cell{outline:2px solid #c9a84c;z-index:5}
+.coord{position:absolute;top:2px;left:3px;font-size:0.5rem;color:#2a3050;pointer-events:none}
+.terrain-icon{position:absolute;bottom:2px;right:3px;font-size:0.75rem;pointer-events:none;line-height:1}
+.flanked-icon{position:absolute;top:2px;right:3px;font-size:0.6rem;color:#e05555;pointer-events:none}
+
+/* TOKEN */
+.token{width:46px;height:46px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid;cursor:pointer;user-select:none;position:relative;z-index:3;line-height:1.1}
+.token.ally{background:#0e2240;border-color:#4a8fbf;color:#c8e8ff}
+.token.enemy-tok{background:#2a0a0a;border-color:#8b3030;color:#ffcccc}
+.token.selected-tok{border-color:#c9a84c;box-shadow:0 0 10px #c9a84c66}
+.token.dead-tok{opacity:0.25;border-style:dashed}
+.tok-name{font-size:0.58rem;font-weight:bold;text-align:center;max-width:42px;overflow:hidden;white-space:nowrap}
+.tok-hp{font-size:0.6rem;color:#7fb87f}
+.tok-hp.low{color:#c9a84c}
+.tok-hp.crit{color:#e05555}
+
+/* CHARACTER CARDS */
+.char-card{background:#0d1420;border:1px solid #1e2540;border-radius:6px;padding:8px;cursor:pointer;transition:border-color 0.15s}
+.char-card:hover{border-color:#2a3a6a}
+.char-card.selected-card{border-color:#c9a84c;background:#12192a}
+.char-card.enemy-card{border-color:#3a1515}
+.char-card.enemy-card.selected-card{border-color:#e05555}
+.char-card.dead-card{opacity:0.4}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.card-name{font-size:0.8rem;font-weight:bold;color:#c9a84c}
+.card-name.ename{color:#e05555}
+.card-class{font-size:0.65rem;color:#666}
+.hp-row{display:flex;align-items:center;gap:4px;margin:4px 0}
+.hp-bar-bg{flex:1;background:#060a10;height:6px;border-radius:3px;overflow:hidden}
+.hp-bar-fill{height:100%;border-radius:3px;background:#2d7a2d;transition:width 0.3s}
+.hp-bar-fill.low{background:#c9a84c}
+.hp-bar-fill.crit{background:#8b1a1a}
+.hp-nums{font-size:0.65rem;color:#888;white-space:nowrap}
+.ctrl-row{display:flex;gap:3px;margin-top:4px}
+.mini-btn{flex:1;background:#1a1f3c;border:1px solid #2a2f5c;color:#e8e0d0;padding:2px 0;border-radius:3px;cursor:pointer;font-size:0.7rem}
+.mini-btn:hover{border-color:#c9a84c;color:#c9a84c}
+.mini-btn.danger:hover{border-color:#8b1a1a;color:#e05555}
+.mini-input{width:36px;background:#060a10;border:1px solid #2a2f5c;color:#e8e0d0;text-align:center;border-radius:3px;font-size:0.7rem;padding:1px}
+.actions-row{display:flex;gap:3px;margin-top:5px;flex-wrap:wrap}
+.a-pip{font-size:0.6rem;padding:1px 5px;border-radius:3px;border:1px solid;cursor:pointer;user-select:none}
+.a-pip.act{border-color:#c9a84c;color:#c9a84c}
+.a-pip.bon{border-color:#6699cc;color:#6699cc}
+.a-pip.rea{border-color:#cc9966;color:#cc9966}
+.a-pip.used{opacity:0.35;text-decoration:line-through}
+.status-row{display:flex;flex-wrap:wrap;gap:2px;margin-top:4px}
+.s-tag{font-size:0.58rem;padding:1px 4px;border-radius:2px;cursor:pointer;user-select:none}
+.s-tag.bleeding{background:#5a1010;color:#ffaaaa}
+.s-tag.burning{background:#5a3010;color:#ffccaa}
+.s-tag.flanked{background:#10305a;color:#aaccff}
+.s-tag.distrust{background:#30105a;color:#ccaaff}
+.s-tag.rattled{background:#3a3a10;color:#ffeeaa}
+
+/* TERRAIN TOOLBAR */
+.terrain-bar{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
+.t-btn{padding:4px 8px;border-radius:4px;border:1px solid #2a2f5c;background:#0d1117;color:#888;cursor:pointer;font-size:0.7rem}
+.t-btn:hover{border-color:#c9a84c;color:#c9a84c}
+.t-btn.t-active{border-color:#c9a84c;background:#1a1f3c;color:#c9a84c}
+.place-bar{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:4px}
+.p-btn{padding:4px 8px;border-radius:4px;border:1px solid;cursor:pointer;font-size:0.7rem}
+.p-btn.ally-p{border-color:#4a8fbf;color:#4a8fbf;background:#060d14}
+.p-btn.enemy-p{border-color:#8b3030;color:#e05555;background:#140606}
+.p-btn.ally-p:hover,.p-btn.ally-p.p-active{background:#0e2240}
+.p-btn.enemy-p:hover,.p-btn.enemy-p.p-active{background:#2a0a0a}
+.mode-label{font-size:0.65rem;color:#c9a84c;text-align:center;margin-top:3px;min-height:14px}
+
+/* DICE */
+.dice-widget{display:flex;flex-direction:column;gap:6px}
+.dice-row{display:flex;align-items:center;gap:5px}
+.dice-lbl{font-size:0.7rem;color:#888;width:60px}
+select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e0d0;padding:3px 6px;border-radius:3px;font-size:0.75rem;font-family:Georgia,serif}
+.adv-row{display:flex;gap:4px}
+.adv-btn{flex:1;padding:3px;border-radius:3px;border:1px solid #2a2f5c;background:#060a10;color:#666;cursor:pointer;font-size:0.65rem;text-align:center}
+.adv-btn.adv-on{border-color:#2d7a2d;color:#2d7a2d;background:#0a1a0a}
+.adv-btn.dis-on{border-color:#8b1a1a;color:#e05555;background:#1a0a0a}
+.roll-btn{background:#1a1050;border:1px solid #c9a84c;color:#c9a84c;padding:8px;border-radius:4px;cursor:pointer;font-size:0.9rem;width:100%}
+.roll-btn:hover{background:#2a2060}
+.result-box{background:#060a10;border:1px solid #1e2540;border-radius:4px;padding:10px;text-align:center;min-height:70px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.result-num{font-size:2.2rem;color:#c9a84c;line-height:1}
+.result-detail{font-size:0.65rem;color:#666;margin-top:2px}
+.result-vs{font-size:0.75rem;margin-top:3px}
+.r-hit{color:#2d7a2d}
+.r-miss{color:#8b1a1a}
+.r-crit{color:#ffd700}
+.r-fumble{color:#e05555}
+
+/* SWORD */
+.sword-section{text-align:center}
+.soul-num{font-size:2.4rem;color:#c9a84c;line-height:1}
+.soul-sub{font-size:0.65rem;color:#666;margin-bottom:6px}
+.soul-track{display:flex;gap:3px;justify-content:center;margin:6px 0;flex-wrap:wrap}
+.soul-pip{width:14px;height:14px;border-radius:50%;border:1px solid #2a2f5c;background:#060a10;transition:background 0.3s}
+.soul-pip.filled{background:#c9a84c;border-color:#c9a84c}
+.soul-pip.threshold{border-color:#e05555}
+.soul-pip.threshold.filled{background:#e05555}
+.threshold-labels{display:flex;justify-content:space-between;font-size:0.6rem;color:#666;margin-top:2px}
+.soul-ctrl{display:flex;gap:5px;margin-top:6px}
+.vision-box{background:#120810;border:1px solid #4a1a8b;border-radius:4px;padding:6px;font-size:0.65rem;color:#ccaaff;margin-top:6px;display:none}
+
+/* TRUST */
+.trust-section{text-align:center}
+.trust-num{font-size:2rem;line-height:1;font-weight:bold}
+.trust-neg{color:#8b1a1a}
+.trust-zero{color:#888}
+.trust-pos{color:#2d7a2d}
+.trust-label{font-size:0.65rem;color:#666;margin:3px 0 6px}
+.trust-ctrl{display:flex;gap:5px}
+.trust-bar-bg{background:#060a10;height:6px;border-radius:3px;margin:6px 0;position:relative;overflow:visible}
+.trust-bar-fill{height:100%;border-radius:3px;transition:width 0.3s;position:absolute;top:0}
+
+/* TURN ORDER */
+.turn-list{display:flex;flex-direction:column;gap:3px}
+.turn-item{display:flex;align-items:center;gap:5px;padding:3px 6px;border-radius:3px;font-size:0.72rem;cursor:pointer}
+.turn-item.cur-turn{background:#1a1f3c;color:#c9a84c;border:1px solid #c9a84c}
+.t-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.t-dot.ally-dot{background:#4a8fbf}
+.t-dot.enemy-dot{background:#bf4a4a}
+
+/* LOG */
+.log-box{height:100px;overflow-y:auto;background:#060a10;border:1px solid #1e2540;border-radius:4px;padding:5px;font-size:0.65rem;color:#666}
+.log-entry{margin-bottom:2px;line-height:1.4}
+.le-hit{color:#c9a84c}
+.le-miss{color:#444}
+.le-death{color:#e05555}
+.le-sys{color:#4a8fbf}
+.le-vision{color:#ccaaff}
+
+/* BOTTOM TOOLBAR */
+.btoolbar{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.tool-btn{padding:5px 12px;border-radius:4px;border:1px solid #2a2f5c;background:#0d1117;color:#888;cursor:pointer;font-size:0.72rem}
+.tool-btn:hover{border-color:#c9a84c;color:#c9a84c}
+.tool-btn.danger-tb{border-color:#8b1a1a;color:#8b1a1a}
+.tool-btn.danger-tb:hover{color:#e05555}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:#060a10}
+::-webkit-scrollbar-thumb{background:#2a2f5c;border-radius:3px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚔ Shattered Crown — Playtest Tool</h1>
+  <div style="display:flex;gap:12px;align-items:center">
+    <span class="header-meta">Alpha v0.1 · Internal Only</span>
+    <span class="round-badge">Round <span id="roundNum">1</span></span>
+  </div>
+</header>
+
+<div class="layout">
+
+<!-- LEFT PANEL: CHARACTERS -->
+<div class="panel-left">
+  <div class="panel">
+    <h3>⚔ Allies</h3>
+    <div id="allyCards"></div>
+  </div>
+  <div class="panel">
+    <h3>☠ Enemies</h3>
+    <div id="enemyCards"></div>
+  </div>
+</div>
+
+<!-- CENTER: GRID -->
+<div class="panel-center">
+
+  <!-- Toolbar -->
+  <div class="panel" style="width:100%">
+    <div class="terrain-bar" id="terrainBar">
+      <button class="t-btn t-active" data-terrain="normal" onclick="setTerrainMode('normal',this)">◻ Normal</button>
+      <button class="t-btn" data-terrain="high-ground" onclick="setTerrainMode('high-ground',this)">▲ High Ground</button>
+      <button class="t-btn" data-terrain="fire" onclick="setTerrainMode('fire',this)">🔥 Fire Barrel</button>
+      <button class="t-btn" data-terrain="crack" onclick="setTerrainMode('crack',this)">💀 Cracked Floor</button>
+      <button class="t-btn" data-terrain="ledge" onclick="setTerrainMode('ledge',this)">⬇ Ledge</button>
+      <button class="t-btn" data-terrain="wall" onclick="setTerrainMode('wall',this)">■ Wall</button>
+      <button class="t-btn t-active" style="border-color:#4a8fbf;color:#4a8fbf" onclick="setMode('select',this)" id="selectModeBtn">◎ Select/Move</button>
+    </div>
+    <div class="place-bar" id="placeBar"></div>
+    <div class="mode-label" id="modeLabel">Click a token to select · Click empty cell to move</div>
+  </div>
+
+  <!-- Grid -->
+  <div class="grid-container">
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <!-- Bottom actions -->
+  <div class="panel" style="width:100%">
+    <div class="btoolbar">
+      <button class="tool-btn" onclick="nextTurn()">▶ Next Turn</button>
+      <button class="tool-btn" onclick="resetActions()">↺ Reset Actions</button>
+      <button class="tool-btn" onclick="nextRound()">⏭ Next Round</button>
+      <button class="tool-btn" onclick="rollInitiative()">🎲 Roll Initiative</button>
+      <button class="tool-btn danger-tb" onclick="clearTokens()">✕ Clear Tokens</button>
+      <button class="tool-btn danger-tb" onclick="resetAll()">⚠ Reset All</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- RIGHT PANEL -->
+<div class="panel-right">
+
+  <!-- DICE ROLLER -->
+  <div class="panel">
+    <h3>🎲 Dice Roller</h3>
+    <div class="dice-widget">
+      <div class="dice-row">
+        <span class="dice-lbl">Die</span>
+        <select id="dieType">
+          <option value="20">d20</option>
+          <option value="12">d12</option>
+          <option value="10">d10</option>
+          <option value="8">d8</option>
+          <option value="6">d6</option>
+          <option value="4">d4</option>
+        </select>
+        <span style="font-size:0.7rem;color:#666;margin-left:2px">× </span>
+        <input type="number" id="dieCount" value="1" min="1" max="10" style="width:36px">
+      </div>
+      <div class="dice-row">
+        <span class="dice-lbl">Modifier</span>
+        <input type="number" id="dieMod" value="0" min="-10" max="20" style="width:50px">
+      </div>
+      <div class="dice-row">
+        <span class="dice-lbl">vs Defence</span>
+        <input type="number" id="targetDef" value="12" min="1" max="30" style="width:50px">
+      </div>
+      <div class="adv-row">
+        <div class="adv-btn" id="advBtn" onclick="toggleAdv()">Advantage</div>
+        <div class="adv-btn" id="disBtn" onclick="toggleDis()">Disadvantage</div>
+      </div>
+      <button class="roll-btn" onclick="rollDice()">Roll!</button>
+      <div class="result-box" id="resultBox">
+        <div class="result-num" id="resultNum">—</div>
+        <div class="result-detail" id="resultDetail"></div>
+        <div class="result-vs" id="resultVs"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SWORD / SOUL TRACKER -->
+  <div class="panel">
+    <h3>🗡 Demon Lord's Sword</h3>
+    <div class="sword-section">
+      <div class="soul-num" id="soulCount">0</div>
+      <div class="soul-sub">Souls Absorbed</div>
+      <div class="soul-track" id="soulPips"></div>
+      <div class="threshold-labels">
+        <span>3</span><span>7</span><span>12</span><span>20</span>
+      </div>
+      <div class="soul-ctrl">
+        <button class="mini-btn" onclick="changeSouls(-1)">− Soul</button>
+        <button class="mini-btn" style="border-color:#8b1a1a;color:#e05555" onclick="changeSouls(1)">+ Soul</button>
+      </div>
+      <div class="vision-box" id="visionBox"></div>
+    </div>
+  </div>
+
+  <!-- TRUST TRACKER -->
+  <div class="panel">
+    <h3>🤝 Team Trust</h3>
+    <div class="trust-section">
+      <div class="trust-num" id="trustNum">−2</div>
+      <div class="trust-label" id="trustLabel">Distrust — penalties active</div>
+      <div class="trust-bar-bg" style="height:8px">
+        <div class="trust-bar-fill" id="trustBar"></div>
+      </div>
+      <div class="trust-ctrl">
+        <button class="mini-btn danger" onclick="changeTrust(-1)">− Trust</button>
+        <button class="mini-btn" onclick="changeTrust(1)">+ Trust</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TURN ORDER -->
+  <div class="panel">
+    <h3>⚡ Turn Order</h3>
+    <div class="turn-list" id="turnList"></div>
+    <button class="tool-btn" style="width:100%;margin-top:6px" onclick="nextTurn()">▶ Next Turn</button>
+  </div>
+
+  <!-- COMBAT LOG -->
+  <div class="panel">
+    <h3>📜 Combat Log</h3>
+    <div class="log-box" id="combatLog"></div>
+    <button class="tool-btn" style="width:100%;margin-top:6px" onclick="clearLog()">Clear Log</button>
+  </div>
+
+</div>
+</div>
+
+<script>
+// ============================================================
+// GAME STATE
+// ============================================================
+const GRID_SIZE = 8;
+const MAX_SOULS = 20;
+const THRESHOLDS = [3, 7, 12, 20];
+const VISIONS = {
+  3: "Vision: A voice that sounds like two people speaking at once. Aldric's eyes, too cold for someone who just saved the world.",
+  7: "Vision: The final battle chamber. Something transfers — not victory, but absorption. Aldric kneeling over a body that slowly becomes his shadow.",
+  12: "Vision: Aldric's coronation. Aelindra's face in the crowd — she sees it too. The moment she chooses silence.",
+  20: "FINAL VISION: The complete truth. Aldric did not defeat the Demon Lord. He became him. The Sword has shown everything."
+};
+
+let terrain = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill('normal'));
+let tokens = []; // {id, name, class, hp, maxHp, side, row, col, actions, bonusAction, reaction, statuses, dead, speed, atk, def, range}
+let selectedId = null;
+let terrainMode = 'normal';
+let placeMode = null; // 'Fighter','Rogue','Ranger','Cleric','Soldier','Elite','Hunter'
+let mode = 'select'; // 'select','terrain','place'
+let souls = 0;
+let trust = -2;
+let round = 1;
+let turnOrder = [];
+let turnIndex = 0;
+let tokenIdCounter = 1;
+
+const ALLY_CLASSES = [
+  {name:'Fighter', hp:20, speed:3, atk:5, def:14, range:1, color:'#0e2240', bcolor:'#4a8fbf'},
+  {name:'Rogue',   hp:14, speed:4, atk:7, def:12, range:1, color:'#0e2040', bcolor:'#6a6abf'},
+  {name:'Ranger',  hp:16, speed:3, atk:5, def:13, range:4, color:'#0e2028', bcolor:'#4a9f8f'},
+  {name:'Cleric',  hp:16, speed:3, atk:3, def:13, range:1, color:'#201020', bcolor:'#9f4abf'},
+];
+const ENEMY_CLASSES = [
+  {name:'Soldier', hp:12, speed:3, atk:3, def:12, range:1, color:'#2a0a0a', bcolor:'#8b3030'},
+  {name:'Elite',   hp:18, speed:3, atk:5, def:14, range:1, color:'#2a0a0a', bcolor:'#bf3030'},
+  {name:'Hunter',  hp:20, speed:4, atk:6, def:15, range:3, color:'#200010', bcolor:'#bf2060'},
+];
+
+// ============================================================
+// INIT
+// ============================================================
+function init() {
+  buildGrid();
+  buildPlaceBar();
+  renderAll();
+  updateSouls();
+  updateTrust();
+}
+
+function buildGrid() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  for (let r = 0; r < GRID_SIZE; r++) {
+    for (let c = 0; c < GRID_SIZE; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.id = `cell-${r}-${c}`;
+      cell.innerHTML = `<span class="coord">${String.fromCharCode(65+c)}${r+1}</span>`;
+      cell.onclick = () => cellClick(r, c);
+      grid.appendChild(cell);
+    }
+  }
+}
+
+function buildPlaceBar() {
+  const bar = document.getElementById('placeBar');
+  bar.innerHTML = '';
+  ALLY_CLASSES.forEach(cls => {
+    const btn = document.createElement('button');
+    btn.className = 'p-btn ally-p';
+    btn.textContent = '+ ' + cls.name;
+    btn.onclick = () => setPlaceMode(cls.name, 'ally', btn);
+    bar.appendChild(btn);
+  });
+  ENEMY_CLASSES.forEach(cls => {
+    const btn = document.createElement('button');
+    btn.className = 'p-btn enemy-p';
+    btn.textContent = '+ ' + cls.name;
+    btn.onclick = () => setPlaceMode(cls.name, 'enemy', btn);
+    bar.appendChild(btn);
+  });
+}
+
+// ============================================================
+// MODES
+// ============================================================
+function setTerrainMode(t, el) {
+  terrainMode = t;
+  mode = 'terrain';
+  placeMode = null;
+  document.querySelectorAll('.t-btn').forEach(b => b.classList.remove('t-active'));
+  el.classList.add('t-active');
+  document.getElementById('modeLabel').textContent = `Click cells to paint: ${t}`;
+  clearHighlights();
+}
+
+function setPlaceMode(cls, side, el) {
+  placeMode = {cls, side};
+  mode = 'place';
+  document.querySelectorAll('.p-btn').forEach(b => b.classList.remove('p-active'));
+  el.classList.add('p-active');
+  document.getElementById('modeLabel').textContent = `Click cell to place ${cls}`;
+  clearHighlights();
+}
+
+function setMode(m, el) {
+  mode = m; placeMode = null; terrainMode = 'normal';
+  document.querySelectorAll('.t-btn').forEach(b => b.classList.remove('t-active'));
+  if(el) el.classList.add('t-active');
+  document.querySelectorAll('.p-btn').forEach(b => b.classList.remove('p-active'));
+  document.getElementById('modeLabel').textContent = 'Click a token to select · Click empty cell to move';
+  clearHighlights();
+}
+
+// ============================================================
+// CELL CLICK
+// ============================================================
+function cellClick(r, c) {
+  if (mode === 'terrain') {
+    terrain[r][c] = terrainMode;
+    renderGrid();
+    return;
+  }
+  if (mode === 'place' && placeMode) {
+    const exists = tokens.find(t => t.row===r && t.col===c && !t.dead);
+    if (exists) return;
+    placeToken(placeMode.cls, placeMode.side, r, c);
+    return;
+  }
+  // select/move mode
+  const tok = tokens.find(t => t.row===r && t.col===c && !t.dead);
+  if (tok) {
+    selectedId = tok.id;
+    renderAll();
+    showMoveRange(tok);
+    document.getElementById('modeLabel').textContent = `Selected: ${tok.name} (${tok.class}) · Click cell to move`;
+  } else if (selectedId !== null) {
+    const sel = tokens.find(t => t.id === selectedId);
+    if (sel && !sel.dead) {
+      const dist = Math.abs(sel.row - r) + Math.abs(sel.col - c);
+      if (dist <= sel.speed) {
+        log(`${sel.name} moves from ${coord(sel.row,sel.col)} to ${coord(r,c)}`, 'sys');
+        sel.row = r; sel.col = c;
+        detectFlanking();
+        renderAll();
+        clearHighlights();
+        document.getElementById('modeLabel').textContent = 'Click a token to select · Click empty cell to move';
+      } else {
+        log(`${sel.name} can't reach ${coord(r,c)} — too far (${dist} > ${sel.speed})`, 'miss');
+      }
+    }
+  }
+}
+
+function coord(r,c) { return String.fromCharCode(65+c)+(r+1); }
+
+function placeToken(cls, side, r, c) {
+  const template = (side==='ally' ? ALLY_CLASSES : ENEMY_CLASSES).find(x=>x.name===cls);
+  const existingCount = tokens.filter(t=>t.class===cls && t.side===side).length;
+  const tok = {
+    id: tokenIdCounter++,
+    name: cls + (existingCount > 0 ? ` ${existingCount+1}` : ''),
+    class: cls,
+    hp: template.hp, maxHp: template.hp,
+    side, row: r, col: c,
+    actions: true, bonusAction: true, reaction: true,
+    statuses: [], dead: false,
+    speed: template.speed, atk: template.atk, def: template.def, range: template.range,
+    color: template.color, bcolor: template.bcolor
+  };
+  tokens.push(tok);
+  rebuildTurnOrder();
+  renderAll();
+  log(`${tok.name} placed at ${coord(r,c)}`, 'sys');
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function renderAll() {
+  renderGrid();
+  renderCards();
+  renderTurnOrder();
+}
+
+function renderGrid() {
+  for (let r = 0; r < GRID_SIZE; r++) {
+    for (let c = 0; c < GRID_SIZE; c++) {
+      const cell = document.getElementById(`cell-${r}-${c}`);
+      const t = terrain[r][c];
+      cell.className = `cell ${t==='normal'?'':t}`;
+      let icon = '';
+      if (t==='high-ground') icon = '▲';
+      else if (t==='fire') icon = '🔥';
+      else if (t==='crack') icon = '💀';
+      else if (t==='ledge') icon = '⬇';
+      else if (t==='wall') icon = '■';
+      const tok = tokens.find(tk=>tk.row===r&&tk.col===c&&!tk.dead);
+      const deadTok = tokens.find(tk=>tk.row===r&&tk.col===c&&tk.dead);
+      let content = `<span class="coord">${String.fromCharCode(65+c)}${r+1}</span>`;
+      if (icon) content += `<span class="terrain-icon">${icon}</span>`;
+      if (tok) {
+        const sel = tok.id === selectedId;
+        const hpPct = tok.hp/tok.maxHp;
+        const hpColor = hpPct>0.5?'#7fb87f':hpPct>0.25?'#c9a84c':'#e05555';
+        const flanked = tok.statuses.includes('flanked') ? '<span class="flanked-icon">!</span>' : '';
+        content += `<div class="token ${tok.side==='ally'?'ally':'enemy-tok'}${sel?' selected-tok':''}"
+          style="border-color:${sel?'#c9a84c':tok.bcolor};background:${tok.color}"
+          onclick="event.stopPropagation();selectToken(${tok.id})">
+          ${flanked}
+          <span class="tok-name">${tok.name}</span>
+          <span class="tok-hp ${hpPct>0.5?'':hpPct>0.25?'low':'crit'}">${tok.hp}/${tok.maxHp}</span>
+        </div>`;
+      } else if (deadTok) {
+        content += `<div class="token dead-tok ${deadTok.side==='ally'?'ally':'enemy-tok'}" style="font-size:0.6rem">✝</div>`;
+      }
+      cell.innerHTML = content;
+      cell.onclick = () => cellClick(r, c);
+    }
+  }
+}
+
+function selectToken(id) {
+  if (mode !== 'select') { setMode('select',null); }
+  selectedId = id;
+  const tok = tokens.find(t=>t.id===id);
+  renderAll();
+  if (tok && !tok.dead) showMoveRange(tok);
+  document.getElementById('modeLabel').textContent = tok ? `Selected: ${tok.name} · ATK+${tok.atk} · DEF ${tok.def} · SPD ${tok.speed} · RNG ${tok.range}` : '';
+}
+
+function showMoveRange(tok) {
+  clearHighlights();
+  for (let r=0;r<GRID_SIZE;r++) for (let c=0;c<GRID_SIZE;c++) {
+    if (terrain[r][c]==='wall') continue;
+    const dist = Math.abs(tok.row-r)+Math.abs(tok.col-c);
+    const cell = document.getElementById(`cell-${r}-${c}`);
+    const hasToken = tokens.find(t=>t.row===r&&t.col===c&&!t.dead&&t.id!==tok.id);
+    if (dist>0 && dist<=tok.speed && !hasToken) {
+      cell.classList.add('in-range');
+    }
+    // Show attack range for ranged units
+    if (tok.range>1 && dist>0 && dist<=tok.range && hasToken && hasToken.side!==tok.side) {
+      cell.classList.add('target-range');
+    }
+  }
+}
+
+function clearHighlights() {
+  for (let r=0;r<GRID_SIZE;r++) for (let c=0;c<GRID_SIZE;c++) {
+    const cell = document.getElementById(`cell-${r}-${c}`);
+    cell.classList.remove('in-range','target-range','selected-cell');
+  }
+}
+
+function renderCards() {
+  const allies = tokens.filter(t=>t.side==='ally');
+  const enemies = tokens.filter(t=>t.side==='enemy');
+  document.getElementById('allyCards').innerHTML = allies.map(t=>cardHTML(t)).join('');
+  document.getElementById('enemyCards').innerHTML = enemies.map(t=>cardHTML(t)).join('');
+}
+
+function cardHTML(tok) {
+  const pct = tok.hp/tok.maxHp;
+  const barClass = pct>0.5?'':'pct>0.25?\'low\':\'crit\'';
+  const bc = pct>0.5?'#2d7a2d':pct>0.25?'#c9a84c':'#8b1a1a';
+  const sel = tok.id===selectedId;
+  const statuses = ['bleeding','burning','flanked','distrust','rattled'];
+  const statusHTML = statuses.map(s=>`<span class="s-tag ${s}${tok.statuses.includes(s)?'':' s-inactive'}"
+    onclick="toggleStatus(${tok.id},'${s}')"
+    style="${tok.statuses.includes(s)?'':'opacity:0.25'}">${s}</span>`).join('');
+  return `<div class="char-card ${tok.side==='enemy'?'enemy-card':''}${sel?' selected-card':''}${tok.dead?' dead-card':''}"
+    onclick="selectToken(${tok.id})" id="card-${tok.id}">
+    <div class="card-header">
+      <span class="card-name ${tok.side==='enemy'?'ename':''}">${tok.name}</span>
+      <span class="card-class">${tok.class}</span>
+    </div>
+    <div class="hp-row">
+      <div class="hp-bar-bg"><div class="hp-bar-fill" style="width:${Math.max(0,pct*100)}%;background:${bc}"></div></div>
+      <span class="hp-nums">${tok.hp}/${tok.maxHp}</span>
+    </div>
+    <div class="ctrl-row">
+      <button class="mini-btn" onclick="event.stopPropagation();changeHp(${tok.id},-1)">−1</button>
+      <input class="mini-input" type="number" value="5" min="1" max="99" id="dmgInput-${tok.id}" onclick="event.stopPropagation()">
+      <button class="mini-btn danger" onclick="event.stopPropagation();applyDmg(${tok.id},-1)">DMG</button>
+      <button class="mini-btn" onclick="event.stopPropagation();applyDmg(${tok.id},1)">HEAL</button>
+      <button class="mini-btn" onclick="event.stopPropagation();changeHp(${tok.id},1)">+1</button>
+    </div>
+    <div class="actions-row">
+      <span class="a-pip act${tok.actions?'':' used'}" onclick="event.stopPropagation();toggleAction(${tok.id},'actions')">Action</span>
+      <span class="a-pip bon${tok.bonusAction?'':' used'}" onclick="event.stopPropagation();toggleAction(${tok.id},'bonusAction')">Bonus</span>
+      <span class="a-pip rea${tok.reaction?'':' used'}" onclick="event.stopPropagation();toggleAction(${tok.id},'reaction')">React</span>
+    </div>
+    <div class="status-row">${statusHTML}</div>
+    ${tok.dead?'<div style="color:#e05555;font-size:0.65rem;margin-top:4px">✝ Dead — Soul fed to Sword</div>':''}
+  </div>`;
+}
+
+// ============================================================
+// HP / ACTIONS / STATUS
+// ============================================================
+function changeHp(id, delta) {
+  const tok = tokens.find(t=>t.id===id);
+  if (!tok) return;
+  tok.hp = Math.max(0, Math.min(tok.maxHp, tok.hp+delta));
+  checkDeath(tok);
+  renderAll();
+}
+
+function applyDmg(id, sign) {
+  const tok = tokens.find(t=>t.id===id);
+  if (!tok) return;
+  const input = document.getElementById(`dmgInput-${id}`);
+  const amount = parseInt(input.value)||1;
+  const delta = sign * amount;
+  tok.hp = Math.max(0, Math.min(tok.maxHp, tok.hp+delta));
+  if (delta < 0) log(`${tok.name} takes ${amount} damage → ${tok.hp}/${tok.maxHp} HP`, 'hit');
+  else log(`${tok.name} heals ${amount} → ${tok.hp}/${tok.maxHp} HP`, 'sys');
+  checkDeath(tok);
+  renderAll();
+}
+
+function checkDeath(tok) {
+  if (tok.hp <= 0 && !tok.dead) {
+    tok.dead = true;
+    log(`☠ ${tok.name} has fallen! Soul fed to the Sword.`, 'death');
+    if (tok.side==='ally') { changeSouls(1); }
+    rebuildTurnOrder();
+  }
+}
+
+function toggleAction(id, type) {
+  const tok = tokens.find(t=>t.id===id);
+  if (!tok) return;
+  tok[type] = !tok[type];
+  renderCards();
+}
+
+function toggleStatus(id, status) {
+  const tok = tokens.find(t=>t.id===id);
+  if (!tok) return;
+  const idx = tok.statuses.indexOf(status);
+  if (idx>=0) tok.statuses.splice(idx,1);
+  else tok.statuses.push(status);
+  renderCards();
+}
+
+// ============================================================
+// FLANKING DETECTION
+// ============================================================
+function detectFlanking() {
+  tokens.forEach(tok => {
+    if (tok.dead) return;
+    const flanked = isFlanked(tok);
+    const idx = tok.statuses.indexOf('flanked');
+    if (flanked && idx<0) tok.statuses.push('flanked');
+    else if (!flanked && idx>=0) tok.statuses.splice(idx,1);
+  });
+}
+
+function isFlanked(tok) {
+  const opp = tokens.filter(t=>!t.dead&&t.side!==tok.side);
+  const dirs = [[0,1],[0,-1],[1,0],[-1,0]];
+  for (const [dr,dc] of dirs) {
+    const a = opp.find(t=>t.row===tok.row+dr&&t.col===tok.col+dc);
+    const b = opp.find(t=>t.row===tok.row-dr&&t.col===tok.col-dc);
+    if (a&&b) return true;
+  }
+  return false;
+}
+
+// ============================================================
+// DICE
+// ============================================================
+let advMode = 'none'; // 'none','adv','dis'
+
+function toggleAdv() {
+  advMode = advMode==='adv'?'none':'adv';
+  if (advMode==='adv') { document.getElementById('advBtn').className='adv-btn adv-on'; document.getElementById('disBtn').className='adv-btn'; }
+  else { document.getElementById('advBtn').className='adv-btn'; }
+}
+function toggleDis() {
+  advMode = advMode==='dis'?'none':'dis';
+  if (advMode==='dis') { document.getElementById('disBtn').className='adv-btn dis-on'; document.getElementById('advBtn').className='adv-btn'; }
+  else { document.getElementById('disBtn').className='adv-btn'; }
+}
+
+function rollDice() {
+  const sides = parseInt(document.getElementById('dieType').value);
+  const count = parseInt(document.getElementById('dieCount').value)||1;
+  const mod = parseInt(document.getElementById('dieMod').value)||0;
+  const def = parseInt(document.getElementById('targetDef').value)||12;
+
+  let rolls = [];
+  for (let i=0;i<count;i++) rolls.push(Math.floor(Math.random()*sides)+1);
+
+  let displayRolls = [...rolls];
+  let chosenRoll;
+
+  if (sides===20 && count===1) {
+    // Advantage/Disadvantage on d20
+    if (advMode==='adv') {
+      const r2 = Math.floor(Math.random()*20)+1;
+      displayRolls = [rolls[0], r2];
+      chosenRoll = Math.max(rolls[0], r2);
+    } else if (advMode==='dis') {
+      const r2 = Math.floor(Math.random()*20)+1;
+      displayRolls = [rolls[0], r2];
+      chosenRoll = Math.min(rolls[0], r2);
+    } else {
+      chosenRoll = rolls[0];
+    }
+  } else {
+    chosenRoll = rolls.reduce((a,b)=>a+b,0);
+  }
+
+  const total = chosenRoll + mod;
+  const isCrit = (sides===20 && count===1 && chosenRoll===20);
+  const isFumble = (sides===20 && count===1 && chosenRoll===1);
+  const hits = total >= def;
+
+  document.getElementById('resultNum').textContent = total;
+  document.getElementById('resultNum').className = `result-num ${isCrit?'r-crit':isFumble?'r-fumble':''}`;
+
+  let detail = `[${displayRolls.join(', ')}]`;
+  if (advMode!=='none') detail += ` (${advMode==='adv'?'adv':'dis'}, chose ${chosenRoll})`;
+  if (mod!==0) detail += ` ${mod>=0?'+':''}${mod} mod`;
+  document.getElementById('resultDetail').textContent = detail;
+
+  let vsText = '';
+  if (isCrit) vsText = '⭐ CRITICAL HIT!';
+  else if (isFumble) vsText = '💀 CRITICAL MISS!';
+  else if (sides===20) vsText = `${total} vs DC ${def} — ${hits?'HIT':'MISS'}`;
+  document.getElementById('resultVs').textContent = vsText;
+  document.getElementById('resultVs').className = `result-vs ${isCrit?'r-crit':isFumble?'r-fumble':hits?'r-hit':'r-miss'}`;
+
+  const sel = tokens.find(t=>t.id===selectedId);
+  const attacker = sel ? sel.name : 'Unknown';
+  if (isCrit) log(`${attacker} rolls ${total} — CRITICAL HIT! (${detail})`, 'crit');
+  else if (isFumble) log(`${attacker} rolls ${total} — CRITICAL MISS! (${detail})`, 'death');
+  else if (sides===20) log(`${attacker} rolls ${total} vs DC ${def} — ${hits?'HIT':'MISS'} (${detail})`, hits?'hit':'miss');
+  else log(`${attacker} rolls ${displayRolls.join('+')} + ${mod} = ${total}`, 'hit');
+}
+
+// ============================================================
+// SOUL / TRUST
+// ============================================================
+function changeSouls(delta) {
+  souls = Math.max(0, Math.min(MAX_SOULS, souls+delta));
+  updateSouls();
+}
+
+function updateSouls() {
+  document.getElementById('soulCount').textContent = souls;
+  const pips = document.getElementById('soulPips');
+  pips.innerHTML = '';
+  for (let i=1;i<=MAX_SOULS;i++) {
+    const pip = document.createElement('div');
+    pip.className = `soul-pip ${i<=souls?'filled':''} ${THRESHOLDS.includes(i)?'threshold':''}`;
+    pip.title = THRESHOLDS.includes(i) ? `Threshold: ${i} souls` : '';
+    pips.appendChild(pip);
+  }
+  // Check thresholds
+  const reached = THRESHOLDS.filter(t=>souls>=t);
+  const latest = reached[reached.length-1];
+  const visionBox = document.getElementById('visionBox');
+  if (latest && VISIONS[latest]) {
+    visionBox.style.display='block';
+    visionBox.textContent = VISIONS[latest];
+    if (souls===latest) log(`⚡ VISION UNLOCKED at ${latest} souls`, 'vision');
+  } else {
+    visionBox.style.display='none';
+  }
+}
+
+function changeTrust(delta) {
+  trust = Math.max(-5, Math.min(5, trust+delta));
+  updateTrust();
+}
+
+function updateTrust() {
+  const el = document.getElementById('trustNum');
+  el.textContent = trust >= 0 ? `+${trust}` : trust;
+  el.className = `trust-num ${trust<0?'trust-neg':trust===0?'trust-zero':'trust-pos'}`;
+
+  let label = '';
+  if (trust<=-2) label='Distrust — no Joint Abilities';
+  else if (trust<0) label='Tense — working together';
+  else if (trust===0) label='Neutral';
+  else if (trust<3) label='Building trust';
+  else label='✓ Joint Abilities UNLOCKED!';
+  document.getElementById('trustLabel').textContent = label;
+
+  // Trust bar: -5 to +5 mapped to 0-100%
+  const pct = ((trust+5)/10)*100;
+  const bar = document.getElementById('trustBar');
+  bar.style.left = '50%'; bar.style.width = Math.abs(trust)/5*50+'%';
+  if (trust>=0) { bar.style.left='50%'; bar.style.background='#2d7a2d'; }
+  else { bar.style.left=(50-Math.abs(trust)/5*50)+'%'; bar.style.background='#8b1a1a'; }
+}
+
+// ============================================================
+// TURN ORDER
+// ============================================================
+function rebuildTurnOrder() {
+  turnOrder = tokens.filter(t=>!t.dead).map(t=>({id:t.id,name:t.name,side:t.side,init:0}));
+  if (turnIndex>=turnOrder.length) turnIndex=0;
+  renderTurnOrder();
+}
+
+function rollInitiative() {
+  turnOrder = tokens.filter(t=>!t.dead).map(t=>({
+    id:t.id, name:t.name, side:t.side,
+    init: Math.floor(Math.random()*20)+1
+  }));
+  turnOrder.sort((a,b)=>b.init-a.init);
+  turnIndex=0;
+  renderTurnOrder();
+  log(`Initiative rolled: ${turnOrder.map(t=>t.name+' ('+t.init+')').join(', ')}`, 'sys');
+}
+
+function renderTurnOrder() {
+  const list = document.getElementById('turnList');
+  if (turnOrder.length===0) { list.innerHTML='<div style="font-size:0.7rem;color:#444">No tokens — place characters to begin</div>'; return; }
+  list.innerHTML = turnOrder.map((t,i)=>`
+    <div class="turn-item ${t.side==='ally'?'ally-turn':'enemy-turn'}${i===turnIndex?' cur-turn':''}">
+      <div class="t-dot ${t.side==='ally'?'ally-dot':'enemy-dot'}"></div>
+      <span>${t.name}</span>
+      ${t.init>0?`<span style="color:#666;font-size:0.6rem;margin-left:auto">${t.init}</span>`:''}
+    </div>`).join('');
+}
+
+function nextTurn() {
+  if (turnOrder.length===0) return;
+  turnIndex=(turnIndex+1)%turnOrder.length;
+  const cur = turnOrder[turnIndex];
+  log(`→ ${cur.name}'s turn`, 'sys');
+  renderTurnOrder();
+  // Select that token
+  selectedId = cur.id;
+  const tok = tokens.find(t=>t.id===cur.id);
+  if (tok) showMoveRange(tok);
+  renderAll();
+}
+
+function nextRound() {
+  round++;
+  document.getElementById('roundNum').textContent = round;
+  log(`=== Round ${round} begins ===`, 'sys');
+  resetActions();
+  rebuildTurnOrder();
+  turnIndex=0;
+  detectFlanking();
+  renderAll();
+}
+
+function resetActions() {
+  tokens.forEach(t=>{ if(!t.dead){ t.actions=true; t.bonusAction=true; t.reaction=true; } });
+  renderCards();
+  log('Actions reset for all characters', 'sys');
+}
+
+// ============================================================
+// UTILITY
+// ============================================================
+function clearTokens() {
+  if (!confirm('Remove all tokens from the map?')) return;
+  tokens=[];selectedId=null;turnOrder=[];turnIndex=0;
+  renderAll();
+}
+
+function resetAll() {
+  if (!confirm('Reset everything including terrain, tokens, souls, and trust?')) return;
+  tokens=[];selectedId=null;turnOrder=[];turnIndex=0;
+  terrain=Array(GRID_SIZE).fill(null).map(()=>Array(GRID_SIZE).fill('normal'));
+  souls=0;trust=-2;round=1;
+  document.getElementById('roundNum').textContent='1';
+  tokenIdCounter=1;
+  buildGrid();
+  renderAll();
+  updateSouls();
+  updateTrust();
+  clearLog();
+}
+
+function clearLog() { document.getElementById('combatLog').innerHTML=''; }
+
+function log(msg, type='sys') {
+  const box = document.getElementById('combatLog');
+  const entry = document.createElement('div');
+  entry.className = `log-entry le-${type}`;
+  const time = new Date().toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  entry.textContent = `[${time}] ${msg}`;
+  box.insertBefore(entry, box.firstChild);
+}
+
+// ============================================================
+// START
+// ============================================================
+init();
+log('Shattered Crown Playtest Tool loaded. Place tokens to begin.', 'sys');
+</script>
+</body>
+</html>
+</html>

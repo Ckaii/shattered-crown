@@ -2,98 +2,89 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Shattered Crown — Playtest Tool</title>
+<title>Shattered Crown — Playtest Tool v2</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#0d1117;color:#e8e0d0;font-family:Georgia,serif;min-height:100vh;overflow-x:hidden}
-
-/* HEADER */
 header{background:#1a1f3c;border-bottom:2px solid #c9a84c;padding:10px 16px;display:flex;justify-content:space-between;align-items:center}
 header h1{color:#c9a84c;font-size:1.2rem;letter-spacing:1px}
 .header-meta{font-size:0.7rem;color:#888}
 .round-badge{background:#2a2f5c;border:1px solid #c9a84c;color:#c9a84c;padding:4px 12px;border-radius:12px;font-size:0.85rem}
-
-/* LAYOUT */
 .layout{display:flex;gap:12px;padding:12px;align-items:flex-start}
 .panel{background:#111827;border:1px solid #1e2540;border-radius:8px;padding:10px}
-.panel-left{width:210px;flex-shrink:0;display:flex;flex-direction:column;gap:8px}
+.panel-left{width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:8px}
 .panel-center{flex:1;display:flex;flex-direction:column;align-items:center;gap:10px}
-.panel-right{width:210px;flex-shrink:0;display:flex;flex-direction:column;gap:8px}
+.panel-right{width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:8px}
 .panel h3{color:#c9a84c;font-size:0.8rem;letter-spacing:1px;text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid #1e2540;margin-bottom:8px}
-
 /* GRID */
 .grid-container{position:relative}
 .grid{display:grid;grid-template-columns:repeat(8,60px);grid-template-rows:repeat(8,60px);border:2px solid #c9a84c;gap:1px;background:#c9a84c44}
 .cell{width:60px;height:60px;background:#12192a;position:relative;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.1s}
 .cell:hover{background:#1a2540}
-.cell.high-ground{background:#0e1e10}
-.cell.high-ground:hover{background:#162a18}
-.cell.fire{background:#1f1008}
-.cell.fire:hover{background:#2a1a0a}
-.cell.crack{background:#1a1510}
-.cell.crack:hover{background:#221d15}
-.cell.ledge{background:#080d18}
-.cell.ledge:hover{background:#0c1422}
-.cell.wall{background:#050508;cursor:not-allowed}
+.cell.high-ground{background:#0e1e10}.cell.fire{background:#1f1008}.cell.crack{background:#1a1510}.cell.ledge{background:#080d18}.cell.wall{background:#050508;cursor:not-allowed}
 .cell.in-range{background:#142414;outline:1px solid #2d6a2d}
 .cell.target-range{background:#241414;outline:1px solid #6a2d2d}
+.cell.atk-range{background:#2a0e0e;outline:2px solid #c04040;cursor:crosshair}
+.cell.skill-range{background:#1a0e2a;outline:2px solid #9f4abf;cursor:crosshair}
 .cell.selected-cell{outline:2px solid #c9a84c;z-index:5}
 .coord{position:absolute;top:2px;left:3px;font-size:0.5rem;color:#2a3050;pointer-events:none}
-.terrain-icon{position:absolute;bottom:2px;right:3px;font-size:0.75rem;pointer-events:none;line-height:1}
+.terrain-icon{position:absolute;bottom:2px;right:3px;font-size:0.75rem;pointer-events:none}
 .flanked-icon{position:absolute;top:2px;right:3px;font-size:0.6rem;color:#e05555;pointer-events:none}
-
 /* TOKEN */
 .token{width:46px;height:46px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid;cursor:pointer;user-select:none;position:relative;z-index:3;line-height:1.1}
 .token.ally{background:#0e2240;border-color:#4a8fbf;color:#c8e8ff}
 .token.enemy-tok{background:#2a0a0a;border-color:#8b3030;color:#ffcccc}
 .token.selected-tok{border-color:#c9a84c;box-shadow:0 0 10px #c9a84c66}
 .token.dead-tok{opacity:0.25;border-style:dashed}
-.tok-name{font-size:0.58rem;font-weight:bold;text-align:center;max-width:42px;overflow:hidden;white-space:nowrap}
-.tok-hp{font-size:0.6rem;color:#7fb87f}
-.tok-hp.low{color:#c9a84c}
-.tok-hp.crit{color:#e05555}
-
-/* CHARACTER CARDS */
-.char-card{background:#0d1420;border:1px solid #1e2540;border-radius:6px;padding:8px;cursor:pointer;transition:border-color 0.15s}
+.tok-name{font-size:0.55rem;font-weight:bold;text-align:center;max-width:42px;overflow:hidden;white-space:nowrap}
+.tok-hp{font-size:0.6rem;color:#7fb87f}.tok-hp.low{color:#c9a84c}.tok-hp.crit{color:#e05555}
+/* CHAR CARDS */
+.char-card{background:#0d1420;border:1px solid #1e2540;border-radius:6px;padding:8px;cursor:pointer;transition:border-color 0.15s;margin-bottom:6px}
 .char-card:hover{border-color:#2a3a6a}
 .char-card.selected-card{border-color:#c9a84c;background:#12192a}
 .char-card.enemy-card{border-color:#3a1515}
 .char-card.enemy-card.selected-card{border-color:#e05555}
 .char-card.dead-card{opacity:0.4}
+.char-card.home-card{opacity:0.6;border-color:#4a6a4a;border-style:dashed}
 .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
 .card-name{font-size:0.8rem;font-weight:bold;color:#c9a84c}
 .card-name.ename{color:#e05555}
-.card-class{font-size:0.65rem;color:#666}
-.hp-row{display:flex;align-items:center;gap:4px;margin:4px 0}
+.card-class{font-size:0.6rem;color:#666}
+.card-trait{font-size:0.58rem;color:#9966cc;margin-bottom:3px;font-style:italic}
+.hp-row{display:flex;align-items:center;gap:4px;margin:3px 0}
 .hp-bar-bg{flex:1;background:#060a10;height:6px;border-radius:3px;overflow:hidden}
 .hp-bar-fill{height:100%;border-radius:3px;background:#2d7a2d;transition:width 0.3s}
-.hp-bar-fill.low{background:#c9a84c}
-.hp-bar-fill.crit{background:#8b1a1a}
+.hp-bar-fill.low{background:#c9a84c}.hp-bar-fill.crit{background:#8b1a1a}
 .hp-nums{font-size:0.65rem;color:#888;white-space:nowrap}
-.ctrl-row{display:flex;gap:3px;margin-top:4px}
-.mini-btn{flex:1;background:#1a1f3c;border:1px solid #2a2f5c;color:#e8e0d0;padding:2px 0;border-radius:3px;cursor:pointer;font-size:0.7rem}
+.ctrl-row{display:flex;gap:3px;margin-top:3px}
+.mini-btn{flex:1;background:#1a1f3c;border:1px solid #2a2f5c;color:#e8e0d0;padding:2px 0;border-radius:3px;cursor:pointer;font-size:0.65rem}
 .mini-btn:hover{border-color:#c9a84c;color:#c9a84c}
 .mini-btn.danger:hover{border-color:#8b1a1a;color:#e05555}
-.mini-input{width:36px;background:#060a10;border:1px solid #2a2f5c;color:#e8e0d0;text-align:center;border-radius:3px;font-size:0.7rem;padding:1px}
-.actions-row{display:flex;gap:3px;margin-top:5px;flex-wrap:wrap}
-.a-pip{font-size:0.6rem;padding:1px 5px;border-radius:3px;border:1px solid;cursor:pointer;user-select:none}
-.a-pip.act{border-color:#c9a84c;color:#c9a84c}
-.a-pip.bon{border-color:#6699cc;color:#6699cc}
-.a-pip.rea{border-color:#cc9966;color:#cc9966}
-.a-pip.used{opacity:0.35;text-decoration:line-through}
-.status-row{display:flex;flex-wrap:wrap;gap:2px;margin-top:4px}
-.s-tag{font-size:0.58rem;padding:1px 4px;border-radius:2px;cursor:pointer;user-select:none}
-.s-tag.bleeding{background:#5a1010;color:#ffaaaa}
-.s-tag.burning{background:#5a3010;color:#ffccaa}
-.s-tag.flanked{background:#10305a;color:#aaccff}
-.s-tag.distrust{background:#30105a;color:#ccaaff}
-.s-tag.rattled{background:#3a3a10;color:#ffeeaa}
-
+.mini-btn.atk-btn{border-color:#8b3030;color:#e88888}
+.mini-btn.atk-btn:hover,.mini-btn.atk-btn.active{background:#2a0a0a;border-color:#e05555;color:#ffcccc}
+.mini-btn.home-btn{border-color:#4a6a4a;color:#8ab88a}
+.mini-btn.home-btn:hover{border-color:#8ab88a;color:#ccffcc}
+.mini-input{width:34px;background:#060a10;border:1px solid #2a2f5c;color:#e8e0d0;text-align:center;border-radius:3px;font-size:0.65rem;padding:1px}
+.actions-row{display:flex;gap:3px;margin-top:4px;flex-wrap:wrap}
+.a-pip{font-size:0.58rem;padding:1px 4px;border-radius:3px;border:1px solid;cursor:pointer;user-select:none}
+.a-pip.act{border-color:#c9a84c;color:#c9a84c}.a-pip.bon{border-color:#6699cc;color:#6699cc}.a-pip.rea{border-color:#cc9966;color:#cc9966}
+.a-pip.used{opacity:0.3;text-decoration:line-through}
+.status-row{display:flex;flex-wrap:wrap;gap:2px;margin-top:3px}
+.s-tag{font-size:0.55rem;padding:1px 4px;border-radius:2px;cursor:pointer;user-select:none}
+.s-tag.bleeding{background:#5a1010;color:#ffaaaa}.s-tag.burning{background:#5a3010;color:#ffccaa}
+.s-tag.flanked{background:#10305a;color:#aaccff}.s-tag.distrust{background:#30105a;color:#ccaaff}
+.s-tag.rattled{background:#3a3a10;color:#ffeeaa}.s-tag.pinned{background:#103a10;color:#aaffaa}
+/* SKILL ROWS ON CARDS */
+.skill-row{display:flex;gap:3px;margin-top:4px;flex-wrap:wrap}
+.skill-pip{font-size:0.58rem;padding:2px 5px;border-radius:3px;border:1px solid #2a3050;color:#8899bb;cursor:pointer;background:#0a1020}
+.skill-pip:hover{border-color:#9966cc;color:#ccaaff}
+.skill-pip.class-skill{border-color:#c9a84c44;color:#c9a84c99}
+.skill-pip.class-skill:hover{border-color:#c9a84c;color:#c9a84c}
+.skill-pip.empty{border-style:dashed;color:#2a3050;cursor:default}
 /* TERRAIN TOOLBAR */
 .terrain-bar{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
 .t-btn{padding:4px 8px;border-radius:4px;border:1px solid #2a2f5c;background:#0d1117;color:#888;cursor:pointer;font-size:0.7rem}
-.t-btn:hover{border-color:#c9a84c;color:#c9a84c}
-.t-btn.t-active{border-color:#c9a84c;background:#1a1f3c;color:#c9a84c}
+.t-btn:hover{border-color:#c9a84c;color:#c9a84c}.t-btn.t-active{border-color:#c9a84c;background:#1a1f3c;color:#c9a84c}
 .place-bar{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:4px}
 .p-btn{padding:4px 8px;border-radius:4px;border:1px solid;cursor:pointer;font-size:0.7rem}
 .p-btn.ally-p{border-color:#4a8fbf;color:#4a8fbf;background:#060d14}
@@ -101,7 +92,6 @@ header h1{color:#c9a84c;font-size:1.2rem;letter-spacing:1px}
 .p-btn.ally-p:hover,.p-btn.ally-p.p-active{background:#0e2240}
 .p-btn.enemy-p:hover,.p-btn.enemy-p.p-active{background:#2a0a0a}
 .mode-label{font-size:0.65rem;color:#c9a84c;text-align:center;margin-top:3px;min-height:14px}
-
 /* DICE */
 .dice-widget{display:flex;flex-direction:column;gap:6px}
 .dice-row{display:flex;align-items:center;gap:5px}
@@ -113,272 +103,467 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
 .adv-btn.dis-on{border-color:#8b1a1a;color:#e05555;background:#1a0a0a}
 .roll-btn{background:#1a1050;border:1px solid #c9a84c;color:#c9a84c;padding:8px;border-radius:4px;cursor:pointer;font-size:0.9rem;width:100%}
 .roll-btn:hover{background:#2a2060}
-.result-box{background:#060a10;border:1px solid #1e2540;border-radius:4px;padding:10px;text-align:center;min-height:70px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.result-box{background:#060a10;border:1px solid #1e2540;border-radius:4px;padding:10px;text-align:center;min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .result-num{font-size:2.2rem;color:#c9a84c;line-height:1}
 .result-detail{font-size:0.65rem;color:#666;margin-top:2px}
 .result-vs{font-size:0.75rem;margin-top:3px}
-.r-hit{color:#2d7a2d}
-.r-miss{color:#8b1a1a}
-.r-crit{color:#ffd700}
-.r-fumble{color:#e05555}
-
-/* SWORD */
-.sword-section{text-align:center}
+.r-hit{color:#2d7a2d}.r-miss{color:#8b1a1a}.r-crit{color:#ffd700}.r-fumble{color:#e05555}
+/* SWORD / TRUST */
+.sword-section,.trust-section{text-align:center}
 .soul-num{font-size:2.4rem;color:#c9a84c;line-height:1}
 .soul-sub{font-size:0.65rem;color:#666;margin-bottom:6px}
 .soul-track{display:flex;gap:3px;justify-content:center;margin:6px 0;flex-wrap:wrap}
 .soul-pip{width:14px;height:14px;border-radius:50%;border:1px solid #2a2f5c;background:#060a10;transition:background 0.3s}
 .soul-pip.filled{background:#c9a84c;border-color:#c9a84c}
-.soul-pip.threshold{border-color:#e05555}
-.soul-pip.threshold.filled{background:#e05555}
+.soul-pip.threshold{border-color:#e05555}.soul-pip.threshold.filled{background:#e05555}
 .threshold-labels{display:flex;justify-content:space-between;font-size:0.6rem;color:#666;margin-top:2px}
 .soul-ctrl{display:flex;gap:5px;margin-top:6px}
 .vision-box{background:#120810;border:1px solid #4a1a8b;border-radius:4px;padding:6px;font-size:0.65rem;color:#ccaaff;margin-top:6px;display:none}
-
-/* TRUST */
-.trust-section{text-align:center}
 .trust-num{font-size:2rem;line-height:1;font-weight:bold}
-.trust-neg{color:#8b1a1a}
-.trust-zero{color:#888}
-.trust-pos{color:#2d7a2d}
+.trust-neg{color:#8b1a1a}.trust-zero{color:#888}.trust-pos{color:#2d7a2d}
 .trust-label{font-size:0.65rem;color:#666;margin:3px 0 6px}
 .trust-ctrl{display:flex;gap:5px}
 .trust-bar-bg{background:#060a10;height:6px;border-radius:3px;margin:6px 0;position:relative;overflow:visible}
 .trust-bar-fill{height:100%;border-radius:3px;transition:width 0.3s;position:absolute;top:0}
-
 /* TURN ORDER */
 .turn-list{display:flex;flex-direction:column;gap:3px}
 .turn-item{display:flex;align-items:center;gap:5px;padding:3px 6px;border-radius:3px;font-size:0.72rem;cursor:pointer}
 .turn-item.cur-turn{background:#1a1f3c;color:#c9a84c;border:1px solid #c9a84c}
 .t-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.t-dot.ally-dot{background:#4a8fbf}
-.t-dot.enemy-dot{background:#bf4a4a}
-
+.t-dot.ally-dot{background:#4a8fbf}.t-dot.enemy-dot{background:#bf4a4a}
 /* LOG */
 .log-box{height:100px;overflow-y:auto;background:#060a10;border:1px solid #1e2540;border-radius:4px;padding:5px;font-size:0.65rem;color:#666}
 .log-entry{margin-bottom:2px;line-height:1.4}
-.le-hit{color:#c9a84c}
-.le-miss{color:#444}
-.le-death{color:#e05555}
-.le-sys{color:#4a8fbf}
-.le-vision{color:#ccaaff}
-
+.le-hit{color:#c9a84c}.le-miss{color:#444}.le-death{color:#e05555}.le-sys{color:#4a8fbf}.le-vision{color:#ccaaff}.le-crit{color:#ffd700}.le-heal{color:#4a9f4a}.le-skill{color:#9966cc}
 /* BOTTOM TOOLBAR */
 .btoolbar{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
 .tool-btn{padding:5px 12px;border-radius:4px;border:1px solid #2a2f5c;background:#0d1117;color:#888;cursor:pointer;font-size:0.72rem}
 .tool-btn:hover{border-color:#c9a84c;color:#c9a84c}
 .tool-btn.danger-tb{border-color:#8b1a1a;color:#8b1a1a}
 .tool-btn.danger-tb:hover{color:#e05555}
-
-/* SCROLLBAR */
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-track{background:#060a10}
-::-webkit-scrollbar-thumb{background:#2a2f5c;border-radius:3px}
+.tool-btn.purple-tb{border-color:#4a1a8b;color:#9966cc}
+.tool-btn.purple-tb:hover{border-color:#9966cc}
+/* BARRACKS */
+.barracks-item{background:#0a1208;border:1px solid #2a4a2a;border-radius:4px;padding:6px;margin-bottom:4px;font-size:0.72rem}
+.barracks-name{color:#8ab88a;font-weight:bold}
+.barracks-meta{color:#4a6a4a;font-size:0.6rem;margin-top:2px}
+.barracks-return{margin-top:4px;background:#0a1a0a;border:1px solid #4a8a4a;color:#8ab88a;padding:2px 6px;border-radius:3px;cursor:pointer;font-size:0.65rem}
+.barracks-return:hover{background:#1a2a1a;border-color:#8ab88a}
+/* FLOATING DAMAGE */
+.float-dmg{position:absolute;pointer-events:none;font-weight:bold;font-size:1.1rem;z-index:100;animation:floatUp 1.2s ease-out forwards}
+@keyframes floatUp{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-48px)}}
+.fdmg-hit{color:#e05555}.fdmg-crit{color:#ffd700;font-size:1.4rem}.fdmg-miss{color:#555}.fdmg-heal{color:#4a9f4a}
+/* SKILL POOL PANEL */
+.skill-pool-wrap{background:#0d1117;border-top:2px solid #4a1a8b;padding:0}
+.skill-pool-header{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;cursor:pointer;background:#111827}
+.skill-pool-header:hover{background:#151e30}
+.skill-pool-header h3{color:#9966cc;font-size:0.8rem;letter-spacing:1px;text-transform:uppercase;border:none;margin:0;padding:0}
+.skill-pool-body{padding:10px 14px;display:none}
+.skill-pool-body.open{display:block}
+.skill-cards-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.skill-card{background:#111827;border:1px solid #2a1a4a;border-radius:6px;padding:8px 10px;min-width:160px;max-width:200px}
+.skill-card-name{color:#ccaaff;font-size:0.8rem;font-weight:bold;margin-bottom:4px}
+.skill-badge{display:inline-block;font-size:0.55rem;padding:1px 5px;border-radius:2px;letter-spacing:1px;text-transform:uppercase;margin-right:4px;margin-bottom:4px}
+.badge-action{background:#1a1040;color:#c9a84c;border:1px solid #c9a84c44}
+.badge-bonus{background:#0a1840;color:#6699cc;border:1px solid #6699cc44}
+.badge-reaction{background:#1a0a10;color:#cc9966;border:1px solid #cc9966}
+.badge-passive{background:#0a1a0a;color:#4a9f4a;border:1px solid #4a9f4a44}
+.skill-card-desc{font-size:0.68rem;color:#666;line-height:1.4;margin-bottom:6px}
+.skill-assign-row{display:flex;gap:4px;align-items:center}
+.skill-assign-row select{font-size:0.65rem;padding:2px;flex:1}
+.skill-assign-btn{background:#1a0a2a;border:1px solid #4a1a8b;color:#9966cc;padding:2px 6px;border-radius:3px;cursor:pointer;font-size:0.65rem}
+.skill-assign-btn:hover{border-color:#9966cc}
+.skill-del-btn{background:none;border:none;color:#4a2a2a;cursor:pointer;font-size:0.7rem;padding:2px}
+.skill-del-btn:hover{color:#e05555}
+/* MODALS */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;display:flex;align-items:center;justify-content:center}
+.modal-box{background:#111827;border:1px solid #c9a84c;padding:24px;max-width:580px;width:92%;position:relative;border-radius:4px}
+.modal-box h2{color:#c9a84c;font-size:1.1rem;margin-bottom:16px;letter-spacing:1px}
+.modal-close{position:absolute;top:12px;right:14px;background:none;border:none;color:#666;cursor:pointer;font-size:1.1rem}
+.modal-close:hover{color:#e05555}
+/* ROLL MODAL */
+.roll-name-row{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.roll-name-display{font-size:1.4rem;color:#e8e0d0;font-style:italic;flex:1}
+.roll-name-btn{background:#1a1f3c;border:1px solid #2a2f5c;color:#888;padding:4px 10px;border-radius:3px;cursor:pointer;font-size:0.7rem}
+.roll-name-btn:hover{border-color:#c9a84c;color:#c9a84c}
+.trait-cards{display:flex;gap:12px;margin-bottom:16px}
+.trait-card-opt{flex:1;background:#0d1420;border:2px solid #1e2540;border-radius:6px;padding:14px;cursor:pointer;transition:border-color 0.2s,background 0.2s}
+.trait-card-opt:hover{border-color:#9966cc;background:#14112a}
+.trait-card-opt.selected{border-color:#c9a84c;background:#1a1830}
+.trait-card-name{color:#ccaaff;font-size:0.9rem;font-weight:bold;margin-bottom:6px}
+.trait-card-stats{font-size:0.72rem;color:#c9a84c;margin-bottom:6px}
+.trait-card-desc{font-size:0.7rem;color:#666;line-height:1.5}
+.roll-actions{display:flex;gap:8px;justify-content:flex-end}
+.btn-confirm{background:#1a1050;border:1px solid #c9a84c;color:#c9a84c;padding:8px 20px;border-radius:4px;cursor:pointer;font-size:0.8rem}
+.btn-confirm:hover{background:#2a2060}
+.btn-skip{background:none;border:1px solid #2a2f5c;color:#666;padding:8px 14px;border-radius:4px;cursor:pointer;font-size:0.8rem}
+.btn-skip:hover{border-color:#666;color:#888}
+/* SKILL DESIGNER */
+.form-row{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.form-row label{font-size:0.7rem;color:#888;letter-spacing:1px;text-transform:uppercase}
+.form-row input[type=text],.form-row select,.form-row textarea{background:#060a10;border:1px solid #2a2f5c;color:#e8e0d0;padding:6px 8px;border-radius:3px;font-size:0.8rem;font-family:Georgia,serif;width:100%}
+.form-row textarea{height:60px;resize:vertical}
+.type-btns{display:flex;gap:6px}
+.type-btn{flex:1;padding:5px;border-radius:3px;border:1px solid #2a2f5c;background:#060a10;color:#555;cursor:pointer;font-size:0.68rem;text-align:center}
+.type-btn.selected{border-color:#9966cc;color:#ccaaff;background:#1a0a2a}
+.effect-row{display:flex;gap:8px}
+.effect-row select{flex:2}.effect-row input{flex:1;width:60px}
+/* ATTACK CONFIRM */
+.atk-preview{background:#0a0608;border:1px solid #3a1515;border-radius:4px;padding:10px;margin:12px 0;font-size:0.8rem;color:#e8e0d0}
+.atk-preview strong{color:#e05555}
+.atk-preview .result-line{font-size:1.1rem;color:#c9a84c;font-weight:bold;margin-top:6px}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:#060a10}::-webkit-scrollbar-thumb{background:#2a2f5c;border-radius:3px}
 </style>
 </head>
 <body>
 
 <header>
-  <h1>⚔ Shattered Crown — Playtest Tool</h1>
+  <h1>&#9876; Shattered Crown &mdash; Playtest Tool v2</h1>
   <div style="display:flex;gap:12px;align-items:center">
-    <span class="header-meta">Alpha v0.1 · Internal Only</span>
+    <span class="header-meta">Alpha v2 &middot; Internal Only</span>
     <span class="round-badge">Round <span id="roundNum">1</span></span>
   </div>
 </header>
 
 <div class="layout">
-
-<!-- LEFT PANEL: CHARACTERS -->
+<!-- LEFT: CHARACTERS -->
 <div class="panel-left">
   <div class="panel">
-    <h3>⚔ Allies</h3>
+    <h3>&#9876; Allies</h3>
     <div id="allyCards"></div>
   </div>
   <div class="panel">
-    <h3>☠ Enemies</h3>
+    <h3>&#9760; Enemies</h3>
     <div id="enemyCards"></div>
+  </div>
+  <div class="panel" id="barracksPanel" style="display:none">
+    <h3>&#127968; Barracks</h3>
+    <div id="barracksCards"></div>
   </div>
 </div>
 
 <!-- CENTER: GRID -->
 <div class="panel-center">
-
-  <!-- Toolbar -->
   <div class="panel" style="width:100%">
     <div class="terrain-bar" id="terrainBar">
-      <button class="t-btn t-active" data-terrain="normal" onclick="setTerrainMode('normal',this)">◻ Normal</button>
-      <button class="t-btn" data-terrain="high-ground" onclick="setTerrainMode('high-ground',this)">▲ High Ground</button>
-      <button class="t-btn" data-terrain="fire" onclick="setTerrainMode('fire',this)">🔥 Fire Barrel</button>
-      <button class="t-btn" data-terrain="crack" onclick="setTerrainMode('crack',this)">💀 Cracked Floor</button>
-      <button class="t-btn" data-terrain="ledge" onclick="setTerrainMode('ledge',this)">⬇ Ledge</button>
-      <button class="t-btn" data-terrain="wall" onclick="setTerrainMode('wall',this)">■ Wall</button>
-      <button class="t-btn t-active" style="border-color:#4a8fbf;color:#4a8fbf" onclick="setMode('select',this)" id="selectModeBtn">◎ Select/Move</button>
+      <button class="t-btn t-active" onclick="setTerrainMode('normal',this)">&#9633; Normal</button>
+      <button class="t-btn" onclick="setTerrainMode('high-ground',this)">&#9650; High Ground</button>
+      <button class="t-btn" onclick="setTerrainMode('fire',this)">Fire Barrel</button>
+      <button class="t-btn" onclick="setTerrainMode('crack',this)">Cracked Floor</button>
+      <button class="t-btn" onclick="setTerrainMode('ledge',this)">Ledge</button>
+      <button class="t-btn" onclick="setTerrainMode('wall',this)">&#9632; Wall</button>
+      <button class="t-btn t-active" style="border-color:#4a8fbf;color:#4a8fbf" onclick="setMode('select',this)" id="selectModeBtn">&#9678; Select/Move</button>
     </div>
     <div class="place-bar" id="placeBar"></div>
-    <div class="mode-label" id="modeLabel">Click a token to select · Click empty cell to move</div>
+    <div class="mode-label" id="modeLabel">Click a token to select &middot; Click empty cell to move</div>
   </div>
-
-  <!-- Grid -->
   <div class="grid-container">
     <div class="grid" id="grid"></div>
   </div>
-
-  <!-- Bottom actions -->
   <div class="panel" style="width:100%">
     <div class="btoolbar">
-      <button class="tool-btn" onclick="nextTurn()">▶ Next Turn</button>
-      <button class="tool-btn" onclick="resetActions()">↺ Reset Actions</button>
-      <button class="tool-btn" onclick="nextRound()">⏭ Next Round</button>
-      <button class="tool-btn" onclick="rollInitiative()">🎲 Roll Initiative</button>
-      <button class="tool-btn danger-tb" onclick="clearTokens()">✕ Clear Tokens</button>
-      <button class="tool-btn danger-tb" onclick="resetAll()">⚠ Reset All</button>
+      <button class="tool-btn" onclick="nextTurn()">&#9654; Next Turn</button>
+      <button class="tool-btn" onclick="resetActions()">&#8634; Reset Actions</button>
+      <button class="tool-btn" onclick="nextRound()">&#9197; Next Round</button>
+      <button class="tool-btn" onclick="rollInitiative()">&#127922; Roll Initiative</button>
+      <button class="tool-btn purple-tb" onclick="toggleSkillPool()">&#9670; Skill Pool</button>
+      <button class="tool-btn danger-tb" onclick="clearTokens()">&#10005; Clear Tokens</button>
+      <button class="tool-btn danger-tb" onclick="resetAll()">&#9888; Reset All</button>
     </div>
   </div>
-
 </div>
 
 <!-- RIGHT PANEL -->
 <div class="panel-right">
-
-  <!-- DICE ROLLER -->
   <div class="panel">
-    <h3>🎲 Dice Roller</h3>
+    <h3>&#127922; Dice Roller</h3>
     <div class="dice-widget">
-      <div class="dice-row">
-        <span class="dice-lbl">Die</span>
-        <select id="dieType">
-          <option value="20">d20</option>
-          <option value="12">d12</option>
-          <option value="10">d10</option>
-          <option value="8">d8</option>
-          <option value="6">d6</option>
-          <option value="4">d4</option>
-        </select>
-        <span style="font-size:0.7rem;color:#666;margin-left:2px">× </span>
+      <div class="dice-row"><span class="dice-lbl">Die</span>
+        <select id="dieType"><option value="20">d20</option><option value="12">d12</option><option value="10">d10</option><option value="8">d8</option><option value="6">d6</option><option value="4">d4</option></select>
+        <span style="font-size:0.7rem;color:#666;margin-left:2px">&times;</span>
         <input type="number" id="dieCount" value="1" min="1" max="10" style="width:36px">
       </div>
-      <div class="dice-row">
-        <span class="dice-lbl">Modifier</span>
-        <input type="number" id="dieMod" value="0" min="-10" max="20" style="width:50px">
-      </div>
-      <div class="dice-row">
-        <span class="dice-lbl">vs Defence</span>
-        <input type="number" id="targetDef" value="12" min="1" max="30" style="width:50px">
-      </div>
+      <div class="dice-row"><span class="dice-lbl">Modifier</span><input type="number" id="dieMod" value="0" min="-10" max="20" style="width:50px"></div>
+      <div class="dice-row"><span class="dice-lbl">vs DC</span><input type="number" id="targetDef" value="12" min="1" max="30" style="width:50px"></div>
       <div class="adv-row">
         <div class="adv-btn" id="advBtn" onclick="toggleAdv()">Advantage</div>
         <div class="adv-btn" id="disBtn" onclick="toggleDis()">Disadvantage</div>
       </div>
       <button class="roll-btn" onclick="rollDice()">Roll!</button>
-      <div class="result-box" id="resultBox">
-        <div class="result-num" id="resultNum">—</div>
+      <div class="result-box">
+        <div class="result-num" id="resultNum">&mdash;</div>
         <div class="result-detail" id="resultDetail"></div>
         <div class="result-vs" id="resultVs"></div>
       </div>
     </div>
   </div>
-
-  <!-- SWORD / SOUL TRACKER -->
   <div class="panel">
-    <h3>🗡 Demon Lord's Sword</h3>
+    <h3>&#9876; Demon Lord's Sword</h3>
     <div class="sword-section">
       <div class="soul-num" id="soulCount">0</div>
       <div class="soul-sub">Souls Absorbed</div>
       <div class="soul-track" id="soulPips"></div>
-      <div class="threshold-labels">
-        <span>3</span><span>7</span><span>12</span><span>20</span>
-      </div>
+      <div class="threshold-labels"><span>3</span><span>7</span><span>12</span><span>20</span></div>
       <div class="soul-ctrl">
-        <button class="mini-btn" onclick="changeSouls(-1)">− Soul</button>
+        <button class="mini-btn" onclick="changeSouls(-1)">&minus; Soul</button>
         <button class="mini-btn" style="border-color:#8b1a1a;color:#e05555" onclick="changeSouls(1)">+ Soul</button>
       </div>
       <div class="vision-box" id="visionBox"></div>
     </div>
   </div>
-
-  <!-- TRUST TRACKER -->
   <div class="panel">
-    <h3>🤝 Team Trust</h3>
+    <h3>&#129309; Team Trust</h3>
     <div class="trust-section">
-      <div class="trust-num" id="trustNum">−2</div>
-      <div class="trust-label" id="trustLabel">Distrust — penalties active</div>
-      <div class="trust-bar-bg" style="height:8px">
-        <div class="trust-bar-fill" id="trustBar"></div>
-      </div>
+      <div class="trust-num" id="trustNum">&minus;2</div>
+      <div class="trust-label" id="trustLabel">Distrust &mdash; penalties active</div>
+      <div class="trust-bar-bg" style="height:8px"><div class="trust-bar-fill" id="trustBar"></div></div>
       <div class="trust-ctrl">
-        <button class="mini-btn danger" onclick="changeTrust(-1)">− Trust</button>
+        <button class="mini-btn danger" onclick="changeTrust(-1)">&minus; Trust</button>
         <button class="mini-btn" onclick="changeTrust(1)">+ Trust</button>
       </div>
     </div>
   </div>
-
-  <!-- TURN ORDER -->
   <div class="panel">
-    <h3>⚡ Turn Order</h3>
+    <h3>&#9889; Turn Order</h3>
     <div class="turn-list" id="turnList"></div>
-    <button class="tool-btn" style="width:100%;margin-top:6px" onclick="nextTurn()">▶ Next Turn</button>
+    <button class="tool-btn" style="width:100%;margin-top:6px" onclick="nextTurn()">&#9654; Next Turn</button>
   </div>
-
-  <!-- COMBAT LOG -->
   <div class="panel">
-    <h3>📜 Combat Log</h3>
+    <h3>&#128220; Combat Log</h3>
     <div class="log-box" id="combatLog"></div>
     <button class="tool-btn" style="width:100%;margin-top:6px" onclick="clearLog()">Clear Log</button>
   </div>
-
 </div>
+</div>
+
+<!-- SKILL POOL PANEL -->
+<div class="skill-pool-wrap" id="skillPoolWrap">
+  <div class="skill-pool-header" onclick="toggleSkillPool()">
+    <h3>&#9670; Skill Pool &mdash; Design &amp; Assign Skills</h3>
+    <span style="color:#9966cc;font-size:0.75rem" id="skillPoolToggleLabel">&#9650; Expand</span>
+  </div>
+  <div class="skill-pool-body" id="skillPoolBody">
+    <div class="skill-cards-grid" id="skillCards"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+      <button class="tool-btn purple-tb" onclick="openSkillDesigner()">+ New Skill</button>
+      <button class="tool-btn" style="background:#0a1e0e;border-color:#2d6a2d;color:#6abf6a" onclick="exportSkillPool()">&#8681; Export JSON</button>
+      <label class="tool-btn" style="background:#0e1a0a;border-color:#2d6a2d;color:#6abf6a;cursor:pointer">
+        &#8679; Import JSON<input type="file" accept=".json" style="display:none" onchange="importSkillPool(event)">
+      </label>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CHARACTER ROLL -->
+<div class="modal-overlay" id="rollModal" style="display:none">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeRollModal()">&times;</button>
+    <h2 id="rollModalTitle">Recruiting Fighter...</h2>
+    <div class="roll-name-row">
+      <div class="roll-name-display" id="rolledName">Aldric</div>
+      <button class="roll-name-btn" onclick="rerollName()">&#8634; Re-roll Name</button>
+    </div>
+    <div style="font-size:0.7rem;color:#888;margin-bottom:12px">Choose a trait for this character:</div>
+    <div class="trait-cards" id="traitChoices"></div>
+    <div class="roll-actions">
+      <button class="btn-skip" onclick="confirmCharacter(false)">No Trait</button>
+      <button class="btn-confirm" onclick="confirmCharacter(true)">Recruit &rarr;</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: SKILL DESIGNER -->
+<div class="modal-overlay" id="skillModal" style="display:none">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeSkillDesigner()">&times;</button>
+    <h2>Design a Skill</h2>
+    <div class="form-row">
+      <label>Skill Name</label>
+      <input type="text" id="sk-name" placeholder="e.g. Shadow Lunge">
+    </div>
+    <div class="form-row">
+      <label>Action Type</label>
+      <div class="type-btns">
+        <div class="type-btn selected" data-type="action" onclick="selectSkillType(this)">Action</div>
+        <div class="type-btn" data-type="bonus" onclick="selectSkillType(this)">Bonus</div>
+        <div class="type-btn" data-type="reaction" onclick="selectSkillType(this)">Reaction</div>
+        <div class="type-btn" data-type="passive" onclick="selectSkillType(this)">Passive</div>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Target</label>
+      <select id="sk-target">
+        <option value="self">Self</option>
+        <option value="ally-adj">Adjacent Ally</option>
+        <option value="enemy-adj">Adjacent Enemy</option>
+        <option value="enemy-range">Enemy in Range</option>
+        <option value="ally-range">Ally in Range</option>
+        <option value="all-enemies">All Enemies</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Effect &amp; Value</label>
+      <div class="effect-row">
+        <select id="sk-effect">
+          <option value="damage">Damage (ATK vs DEF)</option>
+          <option value="damage-flat">Flat Damage</option>
+          <option value="heal">Heal</option>
+          <option value="push">Push (squares)</option>
+          <option value="status-add">Apply Status</option>
+          <option value="status-remove">Remove Status</option>
+          <option value="buff-atk">Buff ATK</option>
+          <option value="buff-def">Buff DEF</option>
+          <option value="soul">Add Souls</option>
+          <option value="trust">Change Trust</option>
+          <option value="flavor">Flavor (no effect)</option>
+        </select>
+        <input type="number" id="sk-value" value="1" min="0" max="99" style="width:60px">
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Status (if apply/remove status)</label>
+      <select id="sk-status">
+        <option value="bleeding">Bleeding</option>
+        <option value="burning">Burning</option>
+        <option value="flanked">Flanked</option>
+        <option value="distrust">Distrust</option>
+        <option value="rattled">Rattled</option>
+        <option value="pinned">Pinned</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Range (squares)</label>
+      <input type="number" id="sk-range" value="1" min="1" max="8" style="width:60px">
+    </div>
+    <div class="form-row">
+      <label>Description (flavour text)</label>
+      <textarea id="sk-desc" placeholder="Describe what this skill does visually or narratively..."></textarea>
+    </div>
+    <div class="roll-actions">
+      <button class="btn-skip" onclick="closeSkillDesigner()">Cancel</button>
+      <button class="btn-confirm" onclick="createSkill()">Create Skill</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: VISION POPUP -->
+<div class="modal-overlay" id="visionModal" style="display:none">
+  <div class="modal-box" style="border-color:#4a1a8b;max-width:480px;text-align:center">
+    <h2 style="color:#ccaaff" id="visionModalTitle">Vision Unlocked</h2>
+    <div style="font-size:0.9rem;color:#e8e0d0;line-height:1.8;margin:16px 0;font-style:italic" id="visionModalText"></div>
+    <button class="btn-confirm" onclick="closeVisionModal()" style="border-color:#4a1a8b;color:#ccaaff">Continue</button>
+  </div>
 </div>
 
 <script>
-// ============================================================
-// GAME STATE
-// ============================================================
+// =============================================================================
+// CONSTANTS & DATA
+// =============================================================================
 const GRID_SIZE = 8;
 const MAX_SOULS = 20;
 const THRESHOLDS = [3, 7, 12, 20];
 const VISIONS = {
-  3: "Vision: A voice that sounds like two people speaking at once. Aldric's eyes, too cold for someone who just saved the world.",
-  7: "Vision: The final battle chamber. Something transfers — not victory, but absorption. Aldric kneeling over a body that slowly becomes his shadow.",
-  12: "Vision: Aldric's coronation. Aelindra's face in the crowd — she sees it too. The moment she chooses silence.",
-  20: "FINAL VISION: The complete truth. Aldric did not defeat the Demon Lord. He became him. The Sword has shown everything."
+  3:  'A voice that sounds like two people speaking at once. Aldric\'s eyes, too cold for someone who just saved the world.',
+  7:  'The final battle chamber. Something transfers -- not victory, but absorption. Aldric kneeling over a body that slowly becomes his shadow.',
+  12: 'Aldric\'s coronation. Aelindra\'s face in the crowd -- she sees it too. The moment she chooses silence.',
+  20: 'FINAL VISION: The complete truth. Aldric did not defeat the Demon Lord. He became him. The Sword has shown everything.'
 };
 
-let terrain = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill('normal'));
-let tokens = []; // {id, name, class, hp, maxHp, side, row, col, actions, bonusAction, reaction, statuses, dead, speed, atk, def, range}
+const ALLY_CLASSES = [
+  {name:'Fighter', hp:20, speed:3, atk:5, def:14, range:1, color:'#0e2240', bcolor:'#4a8fbf',
+   classSkill:{name:'Shield Bash', actionType:'bonus', targetType:'enemy-adj', effectType:'push', effectValue:1, desc:'Push adjacent enemy 1 square. They lose their Reaction this turn.'}},
+  {name:'Rogue',   hp:14, speed:4, atk:7, def:12, range:1, color:'#0e2040', bcolor:'#6a6abf',
+   classSkill:{name:'Sneak Attack', actionType:'passive', targetType:'enemy-adj', effectType:'damage-flat', effectValue:6, desc:'When attacking a Flanked target, deal +1d6 bonus damage automatically.'}},
+  {name:'Ranger',  hp:16, speed:3, atk:5, def:13, range:4, color:'#0e2028', bcolor:'#4a9f8f',
+   classSkill:{name:'Volley', actionType:'bonus', targetType:'enemy-range', effectType:'damage', effectValue:-2, desc:'Attack two different targets in range. Each attack is made at -2 ATK.'}},
+  {name:'Cleric',  hp:16, speed:3, atk:3, def:13, range:1, color:'#201020', bcolor:'#9f4abf',
+   classSkill:{name:'Heal', actionType:'action', targetType:'ally-adj', effectType:'heal', effectValue:8, desc:'Restore 1d8 HP to self or an adjacent ally.'}},
+];
+const ENEMY_CLASSES = [
+  {name:'Soldier', hp:12, speed:3, atk:3, def:12, range:1, color:'#2a0a0a', bcolor:'#8b3030',
+   classSkill:{name:'Pack Tactics', actionType:'passive', targetType:'self', effectType:'flavor', effectValue:0, desc:'Gains Advantage when another Soldier is adjacent to the same target.'}},
+  {name:'Elite',   hp:18, speed:3, atk:5, def:14, range:1, color:'#2a0a0a', bcolor:'#bf3030',
+   classSkill:{name:'Taunt', actionType:'bonus', targetType:'enemy-adj', effectType:'status-add', effectValue:0, desc:'Target must attack the Elite on their next turn. DC 12 to resist.'}},
+  {name:'Hunter',  hp:20, speed:4, atk:6, def:15, range:3, color:'#200010', bcolor:'#bf2060',
+   classSkill:{name:'Pinning Shot', actionType:'passive', targetType:'enemy-range', effectType:'status-add', effectValue:0, desc:'On a successful hit, target cannot move on their next turn (no save).'}},
+];
+
+const TRAITS = [
+  {name:'Brave',     stats:'+1 ATK',            desc:'Immune to morale breaks. Attacks never suffer Disadvantage from low Trust.', apply:t=>{t.atk+=1; t.moralImmune=true;}},
+  {name:'Reckless',  stats:'+2 ATK, -2 DEF',    desc:'Hits hard, guards poorly. High-risk striker.', apply:t=>{t.atk+=2; t.def-=2;}},
+  {name:'Cautious',  stats:'+2 DEF, -1 Speed',  desc:'Careful and measured. Hard to kill but slow.', apply:t=>{t.def+=2; t.speed-=1;}},
+  {name:'Swift',     stats:'+1 Speed',           desc:'Always moves first in a tie. Covers ground quickly.', apply:t=>{t.speed+=1;}},
+  {name:'Veteran',   stats:'+4 max HP',          desc:'Scarred but durable. Has survived worse.', apply:t=>{t.hp+=4; t.maxHp+=4;}},
+  {name:'Lucky',     stats:'Re-roll 1s',         desc:'Once per turn, may re-roll a natural 1.', apply:t=>{t.lucky=true;}},
+  {name:'Loyal',     stats:'+1 Trust on kill',   desc:'When this character kills an enemy, gain +1 Trust.', apply:t=>{t.loyal=true;}},
+  {name:'Haunted',   stats:'+1 ATK per threshold',desc:'Each Soul threshold reached grants +1 ATK permanently.', apply:t=>{t.haunted=true;}},
+  {name:'Stoic',     stats:'Immune to statuses', desc:'Cannot gain Bleeding, Burning, Rattled, Distrust, or Pinned.', apply:t=>{t.stoic=true;}},
+  {name:'Berserker', stats:'+3 ATK below 50% HP',desc:'When HP drops below half, gains +3 ATK until end of combat.', apply:t=>{t.berserker=true;}},
+];
+
+const NAMES = {
+  Fighter: ['Aldric','Brand','Dorn','Kira','Tomas','Sera','Voss','Holt','Cara','Bren','Mira','Thane'],
+  Rogue:   ['Nyx','Pip','Crow','Dash','Lithe','Fen','Wren','Trix','Vex','Sela','Swift','Mire'],
+  Ranger:  ['Asha','Leif','Ryn','Sable','Aerin','Cord','Drift','Fenn','Hunt','Talon','Wisp','Reed'],
+  Cleric:  ['Aelindra','Sael','Maeve','Thom','Rin','Cael','Oryn','Piety','Dusk','Ava','Lumen','Briar'],
+  Soldier: ['Grak','Keth','Drav','Orsk','Varn','Mett','Brul','Sorn'],
+  Elite:   ['Corsair','Ironclad','Wraithblade','Thornwall','Reckoner'],
+  Hunter:  ['Spectre','Quill','Feathermark','Longstride','Silentshot'],
+};
+
+// =============================================================================
+// STATE
+// =============================================================================
+const GRID_SIZE8 = 8;
+let terrain = Array(GRID_SIZE).fill(null).map(()=>Array(GRID_SIZE).fill('normal'));
+let tokens = [];
 let selectedId = null;
 let terrainMode = 'normal';
-let placeMode = null; // 'Fighter','Rogue','Ranger','Cleric','Soldier','Elite','Hunter'
-let mode = 'select'; // 'select','terrain','place'
+let placeMode = null;
+let mode = 'select';
 let souls = 0;
 let trust = -2;
 let round = 1;
 let turnOrder = [];
 let turnIndex = 0;
 let tokenIdCounter = 1;
+let advMode = 'none';
 
-const ALLY_CLASSES = [
-  {name:'Fighter', hp:20, speed:3, atk:5, def:14, range:1, color:'#0e2240', bcolor:'#4a8fbf'},
-  {name:'Rogue',   hp:14, speed:4, atk:7, def:12, range:1, color:'#0e2040', bcolor:'#6a6abf'},
-  {name:'Ranger',  hp:16, speed:3, atk:5, def:13, range:4, color:'#0e2028', bcolor:'#4a9f8f'},
-  {name:'Cleric',  hp:16, speed:3, atk:3, def:13, range:1, color:'#201020', bcolor:'#9f4abf'},
-];
-const ENEMY_CLASSES = [
-  {name:'Soldier', hp:12, speed:3, atk:3, def:12, range:1, color:'#2a0a0a', bcolor:'#8b3030'},
-  {name:'Elite',   hp:18, speed:3, atk:5, def:14, range:1, color:'#2a0a0a', bcolor:'#bf3030'},
-  {name:'Hunter',  hp:20, speed:4, atk:6, def:15, range:3, color:'#200010', bcolor:'#bf2060'},
-];
+// New state
+let skillPool = [];
+let skillIdCounter = 1;
+let barracks = [];
+let attackMode = false;
+let attackingId = null;
+let skillTargetMode = null; // {skillId, tokenId}
 
-// ============================================================
+// Roll modal state
+let pendingCls = null;
+let pendingSide = null;
+let pendingTraitIndex = null;
+let currentTraits = [];
+let currentName = '';
+let skillPoolOpen = false;
+let currentSkillType = 'action';
+
+// Thresholds already passed (to avoid re-triggering vision)
+let triggeredThresholds = new Set();
+
+// =============================================================================
 // INIT
-// ============================================================
+// =============================================================================
 function init() {
   buildGrid();
   buildPlaceBar();
   renderAll();
   updateSouls();
   updateTrust();
+  renderSkillPool();
 }
 
+// =============================================================================
+// GRID
+// =============================================================================
 function buildGrid() {
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
@@ -401,164 +586,592 @@ function buildPlaceBar() {
     const btn = document.createElement('button');
     btn.className = 'p-btn ally-p';
     btn.textContent = '+ ' + cls.name;
-    btn.onclick = () => setPlaceMode(cls.name, 'ally', btn);
+    btn.onclick = () => openRollModal(cls.name, 'ally', btn);
     bar.appendChild(btn);
   });
   ENEMY_CLASSES.forEach(cls => {
     const btn = document.createElement('button');
     btn.className = 'p-btn enemy-p';
     btn.textContent = '+ ' + cls.name;
-    btn.onclick = () => setPlaceMode(cls.name, 'enemy', btn);
+    btn.onclick = () => { setPlaceMode(cls.name, 'enemy', btn); };
     bar.appendChild(btn);
   });
 }
 
-// ============================================================
+// =============================================================================
 // MODES
-// ============================================================
+// =============================================================================
 function setTerrainMode(t, el) {
-  terrainMode = t;
-  mode = 'terrain';
-  placeMode = null;
-  document.querySelectorAll('.t-btn').forEach(b => b.classList.remove('t-active'));
+  cancelTargetMode();
+  terrainMode = t; mode = 'terrain'; placeMode = null;
+  document.querySelectorAll('.t-btn').forEach(b=>b.classList.remove('t-active'));
   el.classList.add('t-active');
-  document.getElementById('modeLabel').textContent = `Click cells to paint: ${t}`;
+  document.getElementById('modeLabel').textContent = `Painting terrain: ${t}`;
   clearHighlights();
 }
 
 function setPlaceMode(cls, side, el) {
-  placeMode = {cls, side};
-  mode = 'place';
-  document.querySelectorAll('.p-btn').forEach(b => b.classList.remove('p-active'));
-  el.classList.add('p-active');
+  cancelTargetMode();
+  placeMode = {cls, side}; mode = 'place';
+  document.querySelectorAll('.p-btn').forEach(b=>b.classList.remove('p-active'));
+  if(el) el.classList.add('p-active');
   document.getElementById('modeLabel').textContent = `Click cell to place ${cls}`;
   clearHighlights();
 }
 
 function setMode(m, el) {
+  cancelTargetMode();
   mode = m; placeMode = null; terrainMode = 'normal';
-  document.querySelectorAll('.t-btn').forEach(b => b.classList.remove('t-active'));
+  document.querySelectorAll('.t-btn').forEach(b=>b.classList.remove('t-active'));
   if(el) el.classList.add('t-active');
-  document.querySelectorAll('.p-btn').forEach(b => b.classList.remove('p-active'));
+  document.querySelectorAll('.p-btn').forEach(b=>b.classList.remove('p-active'));
   document.getElementById('modeLabel').textContent = 'Click a token to select · Click empty cell to move';
   clearHighlights();
 }
 
-// ============================================================
-// CELL CLICK
-// ============================================================
-function cellClick(r, c) {
-  if (mode === 'terrain') {
-    terrain[r][c] = terrainMode;
-    renderGrid();
+function enterAttackMode(id) {
+  cancelTargetMode();
+  const tok = tokens.find(t=>t.id===id);
+  if (!tok || tok.dead || !tok.actions) { log('No action available to attack.','miss'); return; }
+  attackMode = true; attackingId = id;
+  mode = 'attack';
+  document.getElementById('modeLabel').textContent = `[ATTACK] ${tok.name}: click an enemy to resolve attack -- ESC to cancel`;
+  showAttackRange(tok);
+  renderCards();
+}
+
+function enterSkillTargetMode(skillId, tokenId) {
+  cancelTargetMode();
+  const skill = skillPool.find(s=>s.id===skillId);
+  const tok = tokens.find(t=>t.id===tokenId);
+  if (!skill || !tok) return;
+  if (skill.actionType === 'passive') { applySkillEffect(skill, tok, null); return; }
+  if (skill.targetType === 'self') { applySkillEffect(skill, tok, tok); return; }
+  skillTargetMode = {skillId, tokenId};
+  mode = 'skill';
+  document.getElementById('modeLabel').textContent = `[${skill.name}] Click a target -- ESC to cancel`;
+  showSkillRange(tok, skill.range);
+  renderCards();
+}
+
+function enterClassSkillMode(tokenId) {
+  const tok = tokens.find(t=>t.id===tokenId);
+  if (!tok) return;
+  const template = (tok.side==='ally' ? ALLY_CLASSES : ENEMY_CLASSES).find(c=>c.name===tok.class);
+  if (!template) return;
+  const sk = template.classSkill;
+  if (sk.actionType === 'passive') { log(`${tok.name}: ${sk.name} is a passive ability.`,'skill'); return; }
+  const actionKey = sk.actionType === 'action' ? 'actions' : sk.actionType === 'bonus' ? 'bonusAction' : 'reaction';
+  if (!tok[actionKey]) { log(`${tok.name} has no ${sk.actionType} remaining.`,'miss'); return; }
+  if (sk.targetType === 'self') {
+    applyClassSkillEffect(sk, tok, tok, actionKey);
     return;
   }
+  // Quick direct application for adjacents
+  skillTargetMode = {classSkill: sk, tokenId, actionKey};
+  mode = 'skill';
+  document.getElementById('modeLabel').textContent = `[${sk.name}] Click target -- ESC to cancel`;
+  showSkillRange(tok, 1);
+  renderCards();
+}
+
+function cancelTargetMode() {
+  attackMode = false; attackingId = null; skillTargetMode = null;
+  if (mode === 'attack' || mode === 'skill') mode = 'select';
+  clearHighlights();
+}
+
+// ESC key
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { cancelTargetMode(); setMode('select', document.getElementById('selectModeBtn')); renderCards(); }
+});
+
+// =============================================================================
+// CELL CLICK
+// =============================================================================
+function cellClick(r, c) {
+  if (mode === 'terrain') { terrain[r][c] = terrainMode; renderGrid(); return; }
   if (mode === 'place' && placeMode) {
-    const exists = tokens.find(t => t.row===r && t.col===c && !t.dead);
-    if (exists) return;
+    if (tokens.find(t=>t.row===r&&t.col===c&&!t.dead)) return;
     placeToken(placeMode.cls, placeMode.side, r, c);
     return;
   }
-  // select/move mode
-  const tok = tokens.find(t => t.row===r && t.col===c && !t.dead);
-  if (tok) {
-    selectedId = tok.id;
-    renderAll();
-    showMoveRange(tok);
-    document.getElementById('modeLabel').textContent = `Selected: ${tok.name} (${tok.class}) · Click cell to move`;
-  } else if (selectedId !== null) {
-    const sel = tokens.find(t => t.id === selectedId);
-    if (sel && !sel.dead) {
-      const dist = Math.abs(sel.row - r) + Math.abs(sel.col - c);
-      if (dist <= sel.speed) {
-        log(`${sel.name} moves from ${coord(sel.row,sel.col)} to ${coord(r,c)}`, 'sys');
-        sel.row = r; sel.col = c;
-        detectFlanking();
-        renderAll();
-        clearHighlights();
-        document.getElementById('modeLabel').textContent = 'Click a token to select · Click empty cell to move';
+  if (mode === 'attack') {
+    const target = tokens.find(t=>t.row===r&&t.col===c&&!t.dead);
+    const attacker = tokens.find(t=>t.id===attackingId);
+    if (target && attacker && target.side !== attacker.side) {
+      resolveAttack(attacker, target);
+      cancelTargetMode();
+      setMode('select', document.getElementById('selectModeBtn'));
+    } else {
+      cancelTargetMode(); setMode('select', document.getElementById('selectModeBtn'));
+    }
+    return;
+  }
+  if (mode === 'skill') {
+    const target = tokens.find(t=>t.row===r&&t.col===c&&!t.dead);
+    if (skillTargetMode) {
+      if (skillTargetMode.classSkill) {
+        applyClassSkillEffect(skillTargetMode.classSkill, tokens.find(t=>t.id===skillTargetMode.tokenId), target, skillTargetMode.actionKey);
       } else {
-        log(`${sel.name} can't reach ${coord(r,c)} — too far (${dist} > ${sel.speed})`, 'miss');
+        const skill = skillPool.find(s=>s.id===skillTargetMode.skillId);
+        const user = tokens.find(t=>t.id===skillTargetMode.tokenId);
+        if (skill && user && target) applySkillEffect(skill, user, target);
       }
+    }
+    cancelTargetMode(); setMode('select', document.getElementById('selectModeBtn'));
+    return;
+  }
+  // SELECT / MOVE
+  const tok = tokens.find(t=>t.row===r&&t.col===c&&!t.dead);
+  if (tok) {
+    selectedId = tok.id; renderAll(); showMoveRange(tok);
+    document.getElementById('modeLabel').textContent = `Selected: ${tok.name} (${tok.class}) · ATK+${tok.atk} DEF${tok.def} SPD${tok.speed} RNG${tok.range}`;
+  } else if (selectedId !== null) {
+    const sel = tokens.find(t=>t.id===selectedId);
+    if (sel && !sel.dead) {
+      const dist = Math.abs(sel.row-r)+Math.abs(sel.col-c);
+      if (terrain[r][c]==='wall') { log(`${sel.name} can't enter wall.`,'miss'); return; }
+      if (dist <= sel.speed) {
+        log(`${sel.name} moves ${coord(sel.row,sel.col)} -> ${coord(r,c)}`,'sys');
+        sel.row = r; sel.col = c;
+        triggerTerrainEffect(sel, r, c);
+        detectFlanking(); renderAll(); clearHighlights();
+        document.getElementById('modeLabel').textContent = 'Click a token to select · Click empty cell to move';
+      } else { log(`${sel.name} can't reach ${coord(r,c)} (${dist} > ${sel.speed})`,'miss'); }
     }
   }
 }
 
 function coord(r,c) { return String.fromCharCode(65+c)+(r+1); }
 
-function placeToken(cls, side, r, c) {
+// =============================================================================
+// TERRAIN EFFECTS ON MOVE
+// =============================================================================
+function triggerTerrainEffect(tok, r, c) {
+  const t = terrain[r][c];
+  if (t === 'fire') {
+    const dmg = Math.floor(Math.random()*4)+1;
+    tok.hp = Math.max(0, tok.hp - dmg);
+    spawnFloat(r, c, `-${dmg}`, 'fdmg-hit');
+    log(`${tok.name} enters Fire Barrel! Takes ${dmg} fire damage.`, 'hit');
+    checkDeath(tok);
+  } else if (t === 'crack') {
+    const roll = Math.floor(Math.random()*20)+1;
+    if (roll <= 5) {
+      const dmg = Math.floor(Math.random()*6)+Math.floor(Math.random()*6)+2;
+      tok.hp = Math.max(0, tok.hp - dmg);
+      if (!tok.statuses.includes('pinned')) tok.statuses.push('pinned');
+      spawnFloat(r, c, `-${dmg}!`, 'fdmg-crit');
+      log(`${tok.name} falls through cracked floor! Roll ${roll} <= 5. Takes ${dmg} damage. PINNED.`, 'death');
+      checkDeath(tok);
+    } else {
+      log(`${tok.name} crosses cracked floor safely. (roll ${roll})`, 'sys');
+    }
+  }
+}
+
+// =============================================================================
+// PLACE TOKEN
+// =============================================================================
+function placeToken(cls, side, r, c, name, trait) {
   const template = (side==='ally' ? ALLY_CLASSES : ENEMY_CLASSES).find(x=>x.name===cls);
-  const existingCount = tokens.filter(t=>t.class===cls && t.side===side).length;
+  const existingCount = tokens.filter(t=>t.class===cls&&t.side===side).length;
+  const names = NAMES[cls] || [cls];
+  const defaultName = name || names[Math.floor(Math.random()*names.length)] + (existingCount>0?' '+(existingCount+1):'');
   const tok = {
     id: tokenIdCounter++,
-    name: cls + (existingCount > 0 ? ` ${existingCount+1}` : ''),
+    name: defaultName,
     class: cls,
     hp: template.hp, maxHp: template.hp,
     side, row: r, col: c,
     actions: true, bonusAction: true, reaction: true,
     statuses: [], dead: false,
     speed: template.speed, atk: template.atk, def: template.def, range: template.range,
-    color: template.color, bcolor: template.bcolor
+    color: template.color, bcolor: template.bcolor,
+    trait: trait || null,
+    skills: [null, null], // 2 assignable skill slots
+    moralImmune: false, lucky: false, loyal: false, haunted: false, stoic: false, berserker: false,
   };
+  if (trait) trait.apply(tok);
   tokens.push(tok);
   rebuildTurnOrder();
   renderAll();
-  log(`${tok.name} placed at ${coord(r,c)}`, 'sys');
+  log(`${tok.name} (${cls}${trait?' ['+trait.name+']':''}) placed at ${coord(r,c)}.`, 'sys');
 }
 
-// ============================================================
-// RENDER
-// ============================================================
-function renderAll() {
-  renderGrid();
-  renderCards();
-  renderTurnOrder();
+// =============================================================================
+// CHARACTER ROLL MODAL
+// =============================================================================
+function openRollModal(cls, side, btn) {
+  pendingCls = cls; pendingSide = side; pendingTraitIndex = null;
+  document.querySelectorAll('.p-btn').forEach(b=>b.classList.remove('p-active'));
+  if(btn) btn.classList.add('p-active');
+  // Pick 2 random traits
+  const shuffled = [...TRAITS].sort(()=>Math.random()-0.5);
+  currentTraits = shuffled.slice(0,2);
+  currentName = rollName(cls);
+  document.getElementById('rollModalTitle').textContent = `Recruiting ${cls}...`;
+  document.getElementById('rolledName').textContent = currentName;
+  renderTraitChoices();
+  document.getElementById('rollModal').style.display = 'flex';
 }
+
+function rollName(cls) {
+  const pool = NAMES[cls] || [cls];
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+
+function rerollName() {
+  currentName = rollName(pendingCls);
+  document.getElementById('rolledName').textContent = currentName;
+}
+
+function renderTraitChoices() {
+  document.getElementById('traitChoices').innerHTML = currentTraits.map((tr, i) => `
+    <div class="trait-card-opt ${pendingTraitIndex===i?'selected':''}" onclick="selectTrait(${i})">
+      <div class="trait-card-name">${tr.name}</div>
+      <div class="trait-card-stats">${tr.stats}</div>
+      <div class="trait-card-desc">${tr.desc}</div>
+    </div>`).join('');
+}
+
+function selectTrait(i) {
+  pendingTraitIndex = i;
+  renderTraitChoices();
+}
+
+function confirmCharacter(useTrait) {
+  const trait = (useTrait && pendingTraitIndex !== null) ? currentTraits[pendingTraitIndex] : null;
+  closeRollModal();
+  setPlaceMode(pendingCls, pendingSide, null);
+  document.getElementById('modeLabel').textContent = `Click grid to place ${currentName} (${pendingCls})${trait?' ['+trait.name+']':''}`;
+  // Store pending name+trait for placeToken
+  window._pendingRollName = currentName;
+  window._pendingRollTrait = trait;
+}
+
+function closeRollModal() {
+  document.getElementById('rollModal').style.display = 'none';
+}
+
+// Override placeToken call from cellClick to use pending name/trait
+const _origCellClick = cellClick;
+// (handled inline in cellClick via placeTokenWithPending)
+function placeTokenWithPending(cls, side, r, c) {
+  const name = window._pendingRollName || null;
+  const trait = window._pendingRollTrait || null;
+  window._pendingRollName = null; window._pendingRollTrait = null;
+  placeToken(cls, side, r, c, name, trait);
+}
+
+// Patch cellClick place branch
+const _origPlaceToken = placeToken;
+// handled inline below -- override the place call in cellClick:
+const _cellClickPatch = () => {
+  const orig = cellClick;
+};
+
+// =============================================================================
+// BARRACKS / GOING HOME
+// =============================================================================
+function sendHome(id) {
+  const tok = tokens.find(t=>t.id===id);
+  if (!tok || tok.dead) return;
+  tok.row = -1; tok.col = -1; // off board
+  barracks.push({tok, sentRound: round});
+  // don't remove from tokens array, just mark as off-board
+  tok._home = true;
+  rebuildTurnOrder();
+  renderAll();
+  renderBarracks();
+  document.getElementById('barracksPanel').style.display = 'block';
+  log(`${tok.name} sent home to rest. Returns in 2 rounds.`, 'sys');
+}
+
+function returnFromBarracks(id) {
+  const entry = barracks.find(b=>b.tok.id===id);
+  if (!entry) return;
+  const tok = entry.tok;
+  // Heal to full + rested bonus
+  tok.hp = tok.maxHp;
+  tok.atk += 1;
+  tok._home = false;
+  barracks = barracks.filter(b=>b.tok.id!==id);
+  // Enter place mode to put them back
+  placeMode = {cls: tok.class, side: tok.side};
+  mode = 'place';
+  window._pendingRollName = tok.name;
+  window._pendingRollTrait = null;
+  document.getElementById('modeLabel').textContent = `Return ${tok.name} to the board -- click a cell`;
+  renderAll();
+  renderBarracks();
+  log(`${tok.name} returns from barracks rested (+1 ATK, full HP).`, 'heal');
+}
+
+function renderBarracks() {
+  const panel = document.getElementById('barracksCards');
+  if (barracks.length === 0) { document.getElementById('barracksPanel').style.display='none'; panel.innerHTML=''; return; }
+  document.getElementById('barracksPanel').style.display='block';
+  panel.innerHTML = barracks.map(b => {
+    const ready = (round - b.sentRound) >= 2;
+    return `<div class="barracks-item">
+      <div class="barracks-name">${b.tok.name} <span style="color:#666;font-size:0.6rem">(${b.tok.class}${b.tok.trait?' · '+b.tok.trait.name:''})</span></div>
+      <div class="barracks-meta">HP ${b.tok.hp}/${b.tok.maxHp} · Sent Round ${b.sentRound}</div>
+      ${ready ? `<button class="barracks-return" onclick="returnFromBarracks(${b.tok.id})">Return (+1 ATK, Full HP)</button>` : `<div class="barracks-meta" style="margin-top:4px">Returns Round ${b.sentRound+2}</div>`}
+    </div>`;
+  }).join('');
+}
+
+// =============================================================================
+// ATTACK RESOLUTION
+// =============================================================================
+function resolveAttack(attacker, target) {
+  if (!attacker.actions) { log(`${attacker.name} has no Action left.`, 'miss'); return; }
+  // Advantage/Disadvantage detection
+  let adv = false, dis = false;
+  if (isFlankedBy(target, attacker)) adv = true; // attacker is flanking
+  if (terrain[attacker.row][attacker.col]==='high-ground' && attacker.range>1) adv = true;
+  if (attacker.statuses.includes('distrust')) dis = true;
+  if (attacker.statuses.includes('rattled')) dis = true;
+
+  // Roll d20
+  let r1 = Math.floor(Math.random()*20)+1;
+  let r2 = Math.floor(Math.random()*20)+1;
+  let raw;
+  if (adv && !dis) raw = Math.max(r1,r2);
+  else if (dis && !adv) raw = Math.min(r1,r2);
+  else raw = r1;
+
+  // Lucky: reroll 1
+  if (attacker.lucky && raw === 1) {
+    raw = Math.floor(Math.random()*20)+1;
+    log(`${attacker.name} Lucky trait -- rerolled 1, got ${raw}.`,'sys');
+  }
+
+  const isCrit = raw === 20;
+  const isFumble = raw === 1;
+  const total = raw + attacker.atk;
+
+  let atk = attacker.atk;
+  // Berserker trait
+  if (attacker.berserker && attacker.hp < attacker.maxHp/2) atk += 3;
+
+  let dmg = 0;
+  let resultType = '';
+
+  if (isFumble) {
+    resultType = 'fumble';
+    attacker.bonusAction = false;
+    log(`${attacker.name} FUMBLES! (rolled 1) Loses Bonus Action.`, 'death');
+    spawnFloat(target.row, target.col, 'MISS!', 'fdmg-miss');
+  } else if (isCrit) {
+    dmg = atk * 2;
+    // Rogue sneak attack on crit flanked
+    if (attacker.class==='Rogue' && target.statuses.includes('flanked')) dmg += Math.floor(Math.random()*6)+1;
+    target.hp = Math.max(0, target.hp - dmg);
+    resultType = 'crit';
+    spawnFloat(target.row, target.col, `CRIT! -${dmg}`, 'fdmg-crit');
+    log(`${attacker.name} CRITICAL HIT on ${target.name}! Rolls ${raw}+${atk}=${total} vs DEF${target.def}. Deals ${dmg} damage.`, 'crit');
+    if (attacker.loyal) { changeTrust(1); }
+  } else if (total >= target.def) {
+    dmg = atk;
+    if (attacker.class==='Rogue' && target.statuses.includes('flanked')) {
+      const bonus = Math.floor(Math.random()*6)+1;
+      dmg += bonus;
+      log(`${attacker.name} Sneak Attack! +${bonus} bonus damage.`,'skill');
+    }
+    target.hp = Math.max(0, target.hp - dmg);
+    resultType = 'hit';
+    spawnFloat(target.row, target.col, `-${dmg}`, 'fdmg-hit');
+    const advStr = adv&&!dis?' [Adv]':dis&&!adv?' [Dis]':'';
+    log(`${attacker.name} hits ${target.name}! Roll ${raw}${advStr}+${atk}=${total} vs DEF${target.def}. Deals ${dmg} damage. HP ${target.hp}/${target.maxHp}.`, 'hit');
+    if (attacker.loyal && target.hp <= 0) { changeTrust(1); }
+  } else {
+    resultType = 'miss';
+    spawnFloat(target.row, target.col, 'MISS', 'fdmg-miss');
+    const advStr = adv&&!dis?' [Adv]':dis&&!adv?' [Dis]':'';
+    log(`${attacker.name} misses ${target.name}. Roll ${raw}${advStr}+${atk}=${total} vs DEF${target.def}.`, 'miss');
+  }
+
+  // Mark action used
+  attacker.actions = false;
+
+  // Hunter Pinning Shot
+  if (attacker.class==='Hunter' && resultType==='hit' && !target.statuses.includes('pinned')) {
+    target.statuses.push('pinned');
+    log(`${target.name} is PINNED by Hunter shot.`, 'skill');
+  }
+
+  checkDeath(target);
+  detectFlanking();
+  renderAll();
+}
+
+function isFlankedBy(target, attacker) {
+  // Is target flanked by attacker + any other same-side token?
+  const opp = tokens.filter(t=>!t.dead&&t.side===attacker.side&&t.id!==attacker.id);
+  const dr = attacker.row - target.row;
+  const dc = attacker.col - target.col;
+  if (Math.abs(dr)+Math.abs(dc) !== 1) return false; // must be adjacent
+  return opp.some(o => o.row===target.row-dr && o.col===target.col-dc);
+}
+
+// =============================================================================
+// SKILL EFFECTS
+// =============================================================================
+function applySkillEffect(skill, user, target) {
+  const actionKey = skill.actionType==='action'?'actions':skill.actionType==='bonus'?'bonusAction':'reaction';
+  if (skill.actionType !== 'passive' && !user[actionKey]) {
+    log(`${user.name} has no ${skill.actionType} left.`, 'miss'); return;
+  }
+  if (skill.actionType !== 'passive') user[actionKey] = false;
+  _executeEffect(skill, user, target);
+  renderAll();
+}
+
+function applyClassSkillEffect(sk, user, target, actionKey) {
+  if (actionKey && !user[actionKey]) { log(`${user.name} has no ${sk.actionType} left.`,'miss'); return; }
+  if (actionKey) user[actionKey] = false;
+  _executeEffect(sk, user, target);
+  renderAll();
+}
+
+function _executeEffect(sk, user, target) {
+  const v = sk.effectValue || 0;
+  log(`${user.name} uses ${sk.name}${target&&target!==user?' on '+target.name:''}.`, 'skill');
+  switch(sk.effectType) {
+    case 'damage': {
+      if (!target) break;
+      const roll = Math.floor(Math.random()*20)+1;
+      const atk = user.atk + (v < 0 ? v : 0);
+      if (roll + atk >= target.def) {
+        const d = Math.max(0, user.atk + v);
+        target.hp = Math.max(0, target.hp - d);
+        spawnFloat(target.row, target.col, `-${d}`, 'fdmg-hit');
+        log(`Skill hit! ${roll}+${atk}=${roll+atk} vs DEF${target.def}. Deals ${d} damage.`, 'hit');
+        checkDeath(target);
+      } else {
+        log(`Skill misses. ${roll}+${atk}=${roll+atk} vs DEF${target.def}.`, 'miss');
+      }
+      break;
+    }
+    case 'damage-flat': {
+      if (!target) break;
+      target.hp = Math.max(0, target.hp - v);
+      spawnFloat(target.row, target.col, `-${v}`, 'fdmg-hit');
+      log(`${target.name} takes ${v} damage from skill.`, 'hit');
+      checkDeath(target);
+      break;
+    }
+    case 'heal': {
+      const t = target || user;
+      const h = Math.floor(Math.random()*v)+1;
+      t.hp = Math.min(t.maxHp, t.hp + h);
+      spawnFloat(t.row, t.col, `+${h}`, 'fdmg-heal');
+      log(`${t.name} heals ${h} HP (${t.hp}/${t.maxHp}).`, 'heal');
+      break;
+    }
+    case 'push': {
+      if (!target) break;
+      log(`${target.name} is pushed ${v} square(s).`, 'skill');
+      break; // manual repositioning
+    }
+    case 'status-add': {
+      if (!target) break;
+      if (target.stoic) { log(`${target.name} is Stoic -- ignores status.`,'sys'); break; }
+      const s = sk.effectStatus || 'rattled';
+      if (!target.statuses.includes(s)) target.statuses.push(s);
+      log(`${target.name} gains [${s}].`, 'skill');
+      break;
+    }
+    case 'status-remove': {
+      if (!target) break;
+      const s = sk.effectStatus || 'bleeding';
+      target.statuses = target.statuses.filter(x=>x!==s);
+      log(`${target.name} loses [${s}].`, 'skill');
+      break;
+    }
+    case 'buff-atk': { user.atk += v; log(`${user.name} ATK +${v} this round.`, 'skill'); break; }
+    case 'buff-def': { user.def += v; log(`${user.name} DEF +${v} this round.`, 'skill'); break; }
+    case 'soul': { changeSouls(v); log(`Soul track +${v}.`, 'vision'); break; }
+    case 'trust': { changeTrust(v); log(`Trust ${v>=0?'+':''}${v}.`, 'sys'); break; }
+    case 'flavor': { log(`${sk.desc || sk.name + ' activates.'}`, 'skill'); break; }
+  }
+  detectFlanking();
+}
+
+// =============================================================================
+// FLOATING DAMAGE
+// =============================================================================
+function spawnFloat(row, col, text, cls) {
+  const grid = document.getElementById('grid');
+  const cell = document.getElementById(`cell-${row}-${col}`);
+  if (!cell) return;
+  const rect = cell.getBoundingClientRect();
+  const gridRect = grid.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = `float-dmg ${cls}`;
+  el.textContent = text;
+  el.style.left = (rect.left - gridRect.left + 15) + 'px';
+  el.style.top  = (rect.top - gridRect.top + 10) + 'px';
+  document.querySelector('.grid-container').appendChild(el);
+  setTimeout(()=>el.remove(), 1300);
+}
+
+// =============================================================================
+// RENDER
+// =============================================================================
+function renderAll() { renderGrid(); renderCards(); renderTurnOrder(); renderBarracks(); }
 
 function renderGrid() {
-  for (let r = 0; r < GRID_SIZE; r++) {
-    for (let c = 0; c < GRID_SIZE; c++) {
+  for (let r=0; r<GRID_SIZE; r++) {
+    for (let c=0; c<GRID_SIZE; c++) {
       const cell = document.getElementById(`cell-${r}-${c}`);
       const t = terrain[r][c];
       cell.className = `cell ${t==='normal'?'':t}`;
-      let icon = '';
-      if (t==='high-ground') icon = '▲';
-      else if (t==='fire') icon = '🔥';
-      else if (t==='crack') icon = '💀';
-      else if (t==='ledge') icon = '⬇';
-      else if (t==='wall') icon = '■';
-      const tok = tokens.find(tk=>tk.row===r&&tk.col===c&&!tk.dead);
-      const deadTok = tokens.find(tk=>tk.row===r&&tk.col===c&&tk.dead);
+      let icon = t==='high-ground'?'&#9650;':t==='fire'?'&#128293;':t==='crack'?'&#128128;':t==='ledge'?'&#11015;':t==='wall'?'&#9632;':'';
+      const tok = tokens.find(tk=>tk.row===r&&tk.col===c&&!tk.dead&&!tk._home);
+      const dead = tokens.find(tk=>tk.row===r&&tk.col===c&&tk.dead);
       let content = `<span class="coord">${String.fromCharCode(65+c)}${r+1}</span>`;
       if (icon) content += `<span class="terrain-icon">${icon}</span>`;
       if (tok) {
-        const sel = tok.id === selectedId;
-        const hpPct = tok.hp/tok.maxHp;
-        const hpColor = hpPct>0.5?'#7fb87f':hpPct>0.25?'#c9a84c':'#e05555';
-        const flanked = tok.statuses.includes('flanked') ? '<span class="flanked-icon">!</span>' : '';
+        const sel = tok.id===selectedId;
+        const atk = mode==='attack'&&attackingId&&attackingId!==tok.id;
+        const pct = tok.hp/tok.maxHp;
+        const flk = tok.statuses.includes('flanked')?'<span class="flanked-icon">!</span>':'';
         content += `<div class="token ${tok.side==='ally'?'ally':'enemy-tok'}${sel?' selected-tok':''}"
-          style="border-color:${sel?'#c9a84c':tok.bcolor};background:${tok.color}"
+          style="border-color:${mode==='attack'&&tok.side!==tokens.find(t=>t.id===attackingId)?.side?'#c04040':sel?'#c9a84c':tok.bcolor};background:${tok.color}"
           onclick="event.stopPropagation();selectToken(${tok.id})">
-          ${flanked}
+          ${flk}
           <span class="tok-name">${tok.name}</span>
-          <span class="tok-hp ${hpPct>0.5?'':hpPct>0.25?'low':'crit'}">${tok.hp}/${tok.maxHp}</span>
+          <span class="tok-hp ${pct>0.5?'':pct>0.25?'low':'crit'}">${tok.hp}/${tok.maxHp}</span>
         </div>`;
-      } else if (deadTok) {
-        content += `<div class="token dead-tok ${deadTok.side==='ally'?'ally':'enemy-tok'}" style="font-size:0.6rem">✝</div>`;
+      } else if (dead) {
+        content += `<div class="token dead-tok ${dead.side==='ally'?'ally':'enemy-tok'}" style="font-size:0.6rem">&#10013;</div>`;
       }
       cell.innerHTML = content;
-      cell.onclick = () => cellClick(r, c);
+      cell.onclick = ()=>cellClick(r,c);
     }
   }
 }
 
 function selectToken(id) {
-  if (mode !== 'select') { setMode('select',null); }
+  if (mode==='attack') {
+    const attacker = tokens.find(t=>t.id===attackingId);
+    const target = tokens.find(t=>t.id===id);
+    if (attacker && target && target.side!==attacker.side && !target.dead) {
+      resolveAttack(attacker, target);
+      cancelTargetMode(); setMode('select', document.getElementById('selectModeBtn'));
+    }
+    return;
+  }
+  if (mode!=='select') { setMode('select',null); }
   selectedId = id;
   const tok = tokens.find(t=>t.id===id);
   renderAll();
-  if (tok && !tok.dead) showMoveRange(tok);
-  document.getElementById('modeLabel').textContent = tok ? `Selected: ${tok.name} · ATK+${tok.atk} · DEF ${tok.def} · SPD ${tok.speed} · RNG ${tok.range}` : '';
+  if (tok&&!tok.dead&&!tok._home) showMoveRange(tok);
+  if (tok) document.getElementById('modeLabel').textContent = `Selected: ${tok.name} · ATK+${tok.atk} DEF${tok.def} SPD${tok.speed} RNG${tok.range}${tok.trait?' ['+tok.trait.name+']':''}`;
 }
 
 function showMoveRange(tok) {
@@ -567,371 +1180,472 @@ function showMoveRange(tok) {
     if (terrain[r][c]==='wall') continue;
     const dist = Math.abs(tok.row-r)+Math.abs(tok.col-c);
     const cell = document.getElementById(`cell-${r}-${c}`);
-    const hasToken = tokens.find(t=>t.row===r&&t.col===c&&!t.dead&&t.id!==tok.id);
-    if (dist>0 && dist<=tok.speed && !hasToken) {
-      cell.classList.add('in-range');
+    const occ = tokens.find(t=>t.row===r&&t.col===c&&!t.dead&&!t._home&&t.id!==tok.id);
+    if (dist>0&&dist<=tok.speed&&!occ) cell.classList.add('in-range');
+    if (tok.range>1&&dist>0&&dist<=tok.range&&occ&&occ.side!==tok.side) cell.classList.add('target-range');
+  }
+}
+
+function showAttackRange(tok) {
+  clearHighlights();
+  for (let r=0;r<GRID_SIZE;r++) for (let c=0;c<GRID_SIZE;c++) {
+    const dist = Math.abs(tok.row-r)+Math.abs(tok.col-c);
+    const occ = tokens.find(t=>t.row===r&&t.col===c&&!t.dead&&!t._home);
+    if (dist>0&&dist<=tok.range&&occ&&occ.side!==tok.side) {
+      document.getElementById(`cell-${r}-${c}`).classList.add('atk-range');
     }
-    // Show attack range for ranged units
-    if (tok.range>1 && dist>0 && dist<=tok.range && hasToken && hasToken.side!==tok.side) {
-      cell.classList.add('target-range');
-    }
+  }
+}
+
+function showSkillRange(tok, range) {
+  clearHighlights();
+  for (let r=0;r<GRID_SIZE;r++) for (let c=0;c<GRID_SIZE;c++) {
+    const dist = Math.abs(tok.row-r)+Math.abs(tok.col-c);
+    const occ = tokens.find(t=>t.row===r&&t.col===c&&!t.dead&&!t._home);
+    if (dist<=range&&occ&&occ.id!==tok.id) document.getElementById(`cell-${r}-${c}`).classList.add('skill-range');
+    if (dist<=range&&!occ&&dist>0) document.getElementById(`cell-${r}-${c}`).classList.add('in-range');
   }
 }
 
 function clearHighlights() {
   for (let r=0;r<GRID_SIZE;r++) for (let c=0;c<GRID_SIZE;c++) {
-    const cell = document.getElementById(`cell-${r}-${c}`);
-    cell.classList.remove('in-range','target-range','selected-cell');
+    document.getElementById(`cell-${r}-${c}`).classList.remove('in-range','target-range','selected-cell','atk-range','skill-range');
   }
 }
 
 function renderCards() {
-  const allies = tokens.filter(t=>t.side==='ally');
-  const enemies = tokens.filter(t=>t.side==='enemy');
-  document.getElementById('allyCards').innerHTML = allies.map(t=>cardHTML(t)).join('');
-  document.getElementById('enemyCards').innerHTML = enemies.map(t=>cardHTML(t)).join('');
+  const onBoard = tokens.filter(t=>!t._home);
+  document.getElementById('allyCards').innerHTML = onBoard.filter(t=>t.side==='ally').map(t=>cardHTML(t)).join('');
+  document.getElementById('enemyCards').innerHTML = onBoard.filter(t=>t.side==='enemy').map(t=>cardHTML(t)).join('');
 }
 
 function cardHTML(tok) {
   const pct = tok.hp/tok.maxHp;
-  const barClass = pct>0.5?'':'pct>0.25?\'low\':\'crit\'';
   const bc = pct>0.5?'#2d7a2d':pct>0.25?'#c9a84c':'#8b1a1a';
   const sel = tok.id===selectedId;
-  const statuses = ['bleeding','burning','flanked','distrust','rattled'];
-  const statusHTML = statuses.map(s=>`<span class="s-tag ${s}${tok.statuses.includes(s)?'':' s-inactive'}"
-    onclick="toggleStatus(${tok.id},'${s}')"
-    style="${tok.statuses.includes(s)?'':'opacity:0.25'}">${s}</span>`).join('');
+  const isAtking = attackMode && attackingId===tok.id;
+  const statuses = ['bleeding','burning','flanked','distrust','rattled','pinned'];
+  const statusHTML = statuses.map(s=>`<span class="s-tag ${s}" style="${tok.statuses.includes(s)?'':'opacity:0.2'}"
+    onclick="event.stopPropagation();toggleStatus(${tok.id},'${s}')">${s}</span>`).join('');
+
+  // Class skill
+  const tpl = (tok.side==='ally'?ALLY_CLASSES:ENEMY_CLASSES).find(c=>c.name===tok.class);
+  const cs = tpl ? tpl.classSkill : null;
+  const csBtn = cs ? `<span class="skill-pip class-skill" onclick="event.stopPropagation();enterClassSkillMode(${tok.id})" title="${cs.desc}">${cs.name} [${cs.actionType.slice(0,3).toUpperCase()}]</span>` : '';
+
+  // Pool skills
+  const poolSkills = tok.skills.map((s,i) => s
+    ? `<span class="skill-pip" onclick="event.stopPropagation();enterSkillTargetMode(${s.id},${tok.id})" title="${s.desc||''}">${s.name}</span>`
+    : `<span class="skill-pip empty" title="Assign from Skill Pool">+ slot ${i+1}</span>`
+  ).join('');
+
+  const traitLine = tok.trait ? `<div class="card-trait">${tok.trait.name}: ${tok.trait.stats}</div>` : '';
+
   return `<div class="char-card ${tok.side==='enemy'?'enemy-card':''}${sel?' selected-card':''}${tok.dead?' dead-card':''}"
     onclick="selectToken(${tok.id})" id="card-${tok.id}">
     <div class="card-header">
       <span class="card-name ${tok.side==='enemy'?'ename':''}">${tok.name}</span>
       <span class="card-class">${tok.class}</span>
     </div>
+    ${traitLine}
     <div class="hp-row">
-      <div class="hp-bar-bg"><div class="hp-bar-fill" style="width:${Math.max(0,pct*100)}%;background:${bc}"></div></div>
+      <div class="hp-bar-bg"><div class="hp-bar-fill ${pct>0.5?'':pct>0.25?'low':'crit'}" style="width:${Math.max(0,pct*100)}%;background:${bc}"></div></div>
       <span class="hp-nums">${tok.hp}/${tok.maxHp}</span>
     </div>
     <div class="ctrl-row">
-      <button class="mini-btn" onclick="event.stopPropagation();changeHp(${tok.id},-1)">−1</button>
+      <button class="mini-btn" onclick="event.stopPropagation();changeHp(${tok.id},-1)">&minus;1</button>
       <input class="mini-input" type="number" value="5" min="1" max="99" id="dmgInput-${tok.id}" onclick="event.stopPropagation()">
       <button class="mini-btn danger" onclick="event.stopPropagation();applyDmg(${tok.id},-1)">DMG</button>
       <button class="mini-btn" onclick="event.stopPropagation();applyDmg(${tok.id},1)">HEAL</button>
       <button class="mini-btn" onclick="event.stopPropagation();changeHp(${tok.id},1)">+1</button>
     </div>
+    ${!tok.dead?`<div class="ctrl-row" style="margin-top:3px">
+      <button class="mini-btn atk-btn ${isAtking?'active':''}" onclick="event.stopPropagation();enterAttackMode(${tok.id})">&#9876; ATTACK</button>
+      ${tok.side==='ally'?`<button class="mini-btn home-btn" onclick="event.stopPropagation();sendHome(${tok.id})">&#127968; Home</button>`:''}
+    </div>`:''}
     <div class="actions-row">
       <span class="a-pip act${tok.actions?'':' used'}" onclick="event.stopPropagation();toggleAction(${tok.id},'actions')">Action</span>
       <span class="a-pip bon${tok.bonusAction?'':' used'}" onclick="event.stopPropagation();toggleAction(${tok.id},'bonusAction')">Bonus</span>
       <span class="a-pip rea${tok.reaction?'':' used'}" onclick="event.stopPropagation();toggleAction(${tok.id},'reaction')">React</span>
     </div>
+    <div class="skill-row">${csBtn}${poolSkills}</div>
     <div class="status-row">${statusHTML}</div>
-    ${tok.dead?'<div style="color:#e05555;font-size:0.65rem;margin-top:4px">✝ Dead — Soul fed to Sword</div>':''}
+    ${tok.dead?'<div style="color:#e05555;font-size:0.65rem;margin-top:4px">&#10013; Dead</div>':''}
   </div>`;
 }
 
-// ============================================================
+// =============================================================================
+// SKILL POOL
+// =============================================================================
+function toggleSkillPool() {
+  skillPoolOpen = !skillPoolOpen;
+  document.getElementById('skillPoolBody').className = 'skill-pool-body' + (skillPoolOpen?' open':'');
+  document.getElementById('skillPoolToggleLabel').textContent = skillPoolOpen ? '&#9660; Collapse' : '&#9650; Expand';
+}
+
+function openSkillDesigner() {
+  skillPoolOpen = true;
+  document.getElementById('skillPoolBody').className = 'skill-pool-body open';
+  document.getElementById('skillModal').style.display = 'flex';
+}
+function closeSkillDesigner() { document.getElementById('skillModal').style.display = 'none'; }
+
+function selectSkillType(el) {
+  document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected');
+  currentSkillType = el.dataset.type;
+}
+
+function createSkill() {
+  const name = document.getElementById('sk-name').value.trim();
+  if (!name) { alert('Skill needs a name.'); return; }
+  const skill = {
+    id: skillIdCounter++,
+    name,
+    actionType: currentSkillType,
+    targetType: document.getElementById('sk-target').value,
+    effectType: document.getElementById('sk-effect').value,
+    effectValue: parseInt(document.getElementById('sk-value').value)||0,
+    effectStatus: document.getElementById('sk-status').value,
+    range: parseInt(document.getElementById('sk-range').value)||1,
+    desc: document.getElementById('sk-desc').value.trim(),
+  };
+  skillPool.push(skill);
+  closeSkillDesigner();
+  renderSkillPool();
+  log(`Skill created: ${skill.name} [${skill.actionType}]`, 'skill');
+}
+
+function deleteSkill(id) {
+  skillPool = skillPool.filter(s=>s.id!==id);
+  // Remove from all tokens
+  tokens.forEach(t=>{ t.skills = t.skills.map(s=>s&&s.id===id?null:s); });
+  renderSkillPool(); renderCards();
+}
+
+function assignSkill(skillId, tokenId) {
+  const tok = tokens.find(t=>t.id===parseInt(tokenId));
+  const skill = skillPool.find(s=>s.id===skillId);
+  if (!tok || !skill) return;
+  const emptySlot = tok.skills.findIndex(s=>!s);
+  if (emptySlot === -1) { tok.skills[0] = skill; }
+  else { tok.skills[emptySlot] = skill; }
+  renderCards();
+  renderSkillPool();
+  log(`Assigned "${skill.name}" to ${tok.name}.`, 'skill');
+}
+
+function renderSkillPool() {
+  const container = document.getElementById('skillCards');
+  if (skillPool.length === 0) {
+    container.innerHTML = '<div style="font-size:0.72rem;color:#4a2a6a;padding:8px">No skills yet. Click + New Skill to design one.</div>';
+    return;
+  }
+  const badgeClass = {action:'badge-action',bonus:'badge-bonus',reaction:'badge-reaction',passive:'badge-passive'};
+  const allyTokens = tokens.filter(t=>t.side==='ally'&&!t.dead&&!t._home);
+  container.innerHTML = skillPool.map(sk => `
+    <div class="skill-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div class="skill-card-name">${sk.name}</div>
+        <button class="skill-del-btn" onclick="deleteSkill(${sk.id})">&times;</button>
+      </div>
+      <div>
+        <span class="skill-badge ${badgeClass[sk.actionType]||'badge-action'}">${sk.actionType}</span>
+        <span class="skill-badge" style="background:#0a1020;color:#4a6a8a;border:1px solid #1a2a4a">${sk.targetType}</span>
+      </div>
+      <div class="skill-card-desc">${sk.effectType} ${sk.effectValue>0?'+'+sk.effectValue:''} &middot; Range ${sk.range}${sk.desc?'<br><em>'+sk.desc+'</em>':''}</div>
+      ${allyTokens.length>0?`<div class="skill-assign-row">
+        <select id="assign-sel-${sk.id}">
+          ${allyTokens.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}
+        </select>
+        <button class="skill-assign-btn" onclick="assignSkill(${sk.id},document.getElementById('assign-sel-${sk.id}').value)">Assign</button>
+      </div>`:'<div style="font-size:0.65rem;color:#3a2a5a;margin-top:4px">Place allies to assign</div>'}
+    </div>`).join('');
+}
+
+// =============================================================================
 // HP / ACTIONS / STATUS
-// ============================================================
+// =============================================================================
 function changeHp(id, delta) {
-  const tok = tokens.find(t=>t.id===id);
-  if (!tok) return;
+  const tok = tokens.find(t=>t.id===id); if(!tok) return;
   tok.hp = Math.max(0, Math.min(tok.maxHp, tok.hp+delta));
-  checkDeath(tok);
-  renderAll();
+  checkDeath(tok); renderAll();
 }
-
 function applyDmg(id, sign) {
-  const tok = tokens.find(t=>t.id===id);
-  if (!tok) return;
-  const input = document.getElementById(`dmgInput-${id}`);
-  const amount = parseInt(input.value)||1;
-  const delta = sign * amount;
-  tok.hp = Math.max(0, Math.min(tok.maxHp, tok.hp+delta));
-  if (delta < 0) log(`${tok.name} takes ${amount} damage → ${tok.hp}/${tok.maxHp} HP`, 'hit');
-  else log(`${tok.name} heals ${amount} → ${tok.hp}/${tok.maxHp} HP`, 'sys');
-  checkDeath(tok);
-  renderAll();
+  const tok = tokens.find(t=>t.id===id); if(!tok) return;
+  const amt = parseInt(document.getElementById(`dmgInput-${id}`)?.value)||1;
+  tok.hp = Math.max(0, Math.min(tok.maxHp, tok.hp + sign*amt));
+  if (sign<0) { log(`${tok.name} takes ${amt} damage -> ${tok.hp}/${tok.maxHp}`, 'hit'); spawnFloat(tok.row,tok.col,`-${amt}`,'fdmg-hit'); }
+  else { log(`${tok.name} heals ${amt} -> ${tok.hp}/${tok.maxHp}`, 'heal'); spawnFloat(tok.row,tok.col,`+${amt}`,'fdmg-heal'); }
+  checkDeath(tok); renderAll();
 }
-
 function checkDeath(tok) {
-  if (tok.hp <= 0 && !tok.dead) {
+  if (tok.hp<=0&&!tok.dead) {
     tok.dead = true;
-    log(`☠ ${tok.name} has fallen! Soul fed to the Sword.`, 'death');
-    if (tok.side==='ally') { changeSouls(1); }
+    log(`&#9760; ${tok.name} has fallen! Soul fed to the Sword.`, 'death');
+    changeSouls(1);
+    // Haunted trait: +1 ATK to all haunted allies at threshold
     rebuildTurnOrder();
   }
 }
-
 function toggleAction(id, type) {
-  const tok = tokens.find(t=>t.id===id);
-  if (!tok) return;
-  tok[type] = !tok[type];
-  renderCards();
+  const tok = tokens.find(t=>t.id===id); if(!tok) return;
+  tok[type]=!tok[type]; renderCards();
 }
-
 function toggleStatus(id, status) {
-  const tok = tokens.find(t=>t.id===id);
-  if (!tok) return;
+  const tok = tokens.find(t=>t.id===id); if(!tok) return;
+  if (tok.stoic&&['bleeding','burning','rattled','distrust','pinned'].includes(status)) { log(`${tok.name} is Stoic -- ignores status.`,'sys'); return; }
   const idx = tok.statuses.indexOf(status);
-  if (idx>=0) tok.statuses.splice(idx,1);
-  else tok.statuses.push(status);
+  if(idx>=0) tok.statuses.splice(idx,1); else tok.statuses.push(status);
   renderCards();
 }
 
-// ============================================================
-// FLANKING DETECTION
-// ============================================================
+// =============================================================================
+// FLANKING
+// =============================================================================
 function detectFlanking() {
-  tokens.forEach(tok => {
-    if (tok.dead) return;
-    const flanked = isFlanked(tok);
+  tokens.forEach(tok=>{
+    if(tok.dead||tok._home) return;
+    const flanked = _isFlanked(tok);
     const idx = tok.statuses.indexOf('flanked');
-    if (flanked && idx<0) tok.statuses.push('flanked');
-    else if (!flanked && idx>=0) tok.statuses.splice(idx,1);
+    if(flanked&&idx<0) tok.statuses.push('flanked');
+    else if(!flanked&&idx>=0) tok.statuses.splice(idx,1);
   });
 }
-
-function isFlanked(tok) {
-  const opp = tokens.filter(t=>!t.dead&&t.side!==tok.side);
-  const dirs = [[0,1],[0,-1],[1,0],[-1,0]];
-  for (const [dr,dc] of dirs) {
-    const a = opp.find(t=>t.row===tok.row+dr&&t.col===tok.col+dc);
-    const b = opp.find(t=>t.row===tok.row-dr&&t.col===tok.col-dc);
-    if (a&&b) return true;
+function _isFlanked(tok) {
+  const opp = tokens.filter(t=>!t.dead&&!t._home&&t.side!==tok.side);
+  for(const [dr,dc] of [[0,1],[0,-1],[1,0],[-1,0]]) {
+    if(opp.find(t=>t.row===tok.row+dr&&t.col===tok.col+dc)&&opp.find(t=>t.row===tok.row-dr&&t.col===tok.col-dc)) return true;
   }
   return false;
 }
 
-// ============================================================
+// =============================================================================
 // DICE
-// ============================================================
-let advMode = 'none'; // 'none','adv','dis'
-
-function toggleAdv() {
-  advMode = advMode==='adv'?'none':'adv';
-  if (advMode==='adv') { document.getElementById('advBtn').className='adv-btn adv-on'; document.getElementById('disBtn').className='adv-btn'; }
-  else { document.getElementById('advBtn').className='adv-btn'; }
-}
-function toggleDis() {
-  advMode = advMode==='dis'?'none':'dis';
-  if (advMode==='dis') { document.getElementById('disBtn').className='adv-btn dis-on'; document.getElementById('advBtn').className='adv-btn'; }
-  else { document.getElementById('disBtn').className='adv-btn'; }
-}
-
+// =============================================================================
+function toggleAdv(){advMode=advMode==='adv'?'none':'adv';document.getElementById('advBtn').className='adv-btn'+(advMode==='adv'?' adv-on':'');document.getElementById('disBtn').className='adv-btn';}
+function toggleDis(){advMode=advMode==='dis'?'none':'dis';document.getElementById('disBtn').className='adv-btn'+(advMode==='dis'?' dis-on':'');document.getElementById('advBtn').className='adv-btn';}
 function rollDice() {
-  const sides = parseInt(document.getElementById('dieType').value);
-  const count = parseInt(document.getElementById('dieCount').value)||1;
-  const mod = parseInt(document.getElementById('dieMod').value)||0;
-  const def = parseInt(document.getElementById('targetDef').value)||12;
-
-  let rolls = [];
-  for (let i=0;i<count;i++) rolls.push(Math.floor(Math.random()*sides)+1);
-
-  let displayRolls = [...rolls];
-  let chosenRoll;
-
-  if (sides===20 && count===1) {
-    // Advantage/Disadvantage on d20
-    if (advMode==='adv') {
-      const r2 = Math.floor(Math.random()*20)+1;
-      displayRolls = [rolls[0], r2];
-      chosenRoll = Math.max(rolls[0], r2);
-    } else if (advMode==='dis') {
-      const r2 = Math.floor(Math.random()*20)+1;
-      displayRolls = [rolls[0], r2];
-      chosenRoll = Math.min(rolls[0], r2);
-    } else {
-      chosenRoll = rolls[0];
-    }
-  } else {
-    chosenRoll = rolls.reduce((a,b)=>a+b,0);
-  }
-
-  const total = chosenRoll + mod;
-  const isCrit = (sides===20 && count===1 && chosenRoll===20);
-  const isFumble = (sides===20 && count===1 && chosenRoll===1);
-  const hits = total >= def;
-
-  document.getElementById('resultNum').textContent = total;
-  document.getElementById('resultNum').className = `result-num ${isCrit?'r-crit':isFumble?'r-fumble':''}`;
-
-  let detail = `[${displayRolls.join(', ')}]`;
-  if (advMode!=='none') detail += ` (${advMode==='adv'?'adv':'dis'}, chose ${chosenRoll})`;
-  if (mod!==0) detail += ` ${mod>=0?'+':''}${mod} mod`;
-  document.getElementById('resultDetail').textContent = detail;
-
-  let vsText = '';
-  if (isCrit) vsText = '⭐ CRITICAL HIT!';
-  else if (isFumble) vsText = '💀 CRITICAL MISS!';
-  else if (sides===20) vsText = `${total} vs DC ${def} — ${hits?'HIT':'MISS'}`;
-  document.getElementById('resultVs').textContent = vsText;
-  document.getElementById('resultVs').className = `result-vs ${isCrit?'r-crit':isFumble?'r-fumble':hits?'r-hit':'r-miss'}`;
-
-  const sel = tokens.find(t=>t.id===selectedId);
-  const attacker = sel ? sel.name : 'Unknown';
-  if (isCrit) log(`${attacker} rolls ${total} — CRITICAL HIT! (${detail})`, 'crit');
-  else if (isFumble) log(`${attacker} rolls ${total} — CRITICAL MISS! (${detail})`, 'death');
-  else if (sides===20) log(`${attacker} rolls ${total} vs DC ${def} — ${hits?'HIT':'MISS'} (${detail})`, hits?'hit':'miss');
-  else log(`${attacker} rolls ${displayRolls.join('+')} + ${mod} = ${total}`, 'hit');
+  const sides=parseInt(document.getElementById('dieType').value);
+  const count=parseInt(document.getElementById('dieCount').value)||1;
+  const mod=parseInt(document.getElementById('dieMod').value)||0;
+  const def=parseInt(document.getElementById('targetDef').value)||12;
+  let rolls=[]; for(let i=0;i<count;i++) rolls.push(Math.floor(Math.random()*sides)+1);
+  let display=[...rolls], chosen;
+  if(sides===20&&count===1){const r2=Math.floor(Math.random()*20)+1;if(advMode==='adv'){display=[rolls[0],r2];chosen=Math.max(rolls[0],r2);}else if(advMode==='dis'){display=[rolls[0],r2];chosen=Math.min(rolls[0],r2);}else chosen=rolls[0];}
+  else chosen=rolls.reduce((a,b)=>a+b,0);
+  const total=chosen+mod;
+  const isCrit=sides===20&&count===1&&chosen===20;
+  const isFumble=sides===20&&count===1&&chosen===1;
+  const hits=total>=def;
+  document.getElementById('resultNum').textContent=total;
+  document.getElementById('resultNum').className=`result-num ${isCrit?'r-crit':isFumble?'r-fumble':''}`;
+  const detail=`[${display.join(', ')}]`+(advMode!=='none'?` (${advMode==='adv'?'adv':'dis'}, chose ${chosen})`:'')+(mod!==0?` ${mod>=0?'+':''}${mod}`:'');
+  document.getElementById('resultDetail').textContent=detail;
+  let vs=''; if(isCrit)vs='CRITICAL HIT!'; else if(isFumble)vs='CRITICAL MISS!'; else if(sides===20)vs=`${total} vs DC ${def} -- ${hits?'HIT':'MISS'}`;
+  document.getElementById('resultVs').textContent=vs;
+  document.getElementById('resultVs').className=`result-vs ${isCrit?'r-crit':isFumble?'r-fumble':hits?'r-hit':'r-miss'}`;
+  const attacker=tokens.find(t=>t.id===selectedId);
+  const aname=attacker?attacker.name:'Roll';
+  if(isCrit) log(`${aname} CRITICAL HIT! (${detail})`,'crit');
+  else if(isFumble) log(`${aname} FUMBLES! (${detail})`,'death');
+  else if(sides===20) log(`${aname}: ${total} vs DC ${def} -- ${hits?'HIT':'MISS'} (${detail})`,hits?'hit':'miss');
+  else log(`${aname}: ${display.join('+')}${mod?` +${mod}`:''}=${total}`,'hit');
 }
 
-// ============================================================
-// SOUL / TRUST
-// ============================================================
+// =============================================================================
+// SOUL / TRUST / VISION
+// =============================================================================
 function changeSouls(delta) {
-  souls = Math.max(0, Math.min(MAX_SOULS, souls+delta));
+  const prev=souls;
+  souls=Math.max(0,Math.min(MAX_SOULS,souls+delta));
   updateSouls();
+  // Check haunted allies
+  THRESHOLDS.forEach(th=>{
+    if(souls>=th&&prev<th&&!triggeredThresholds.has(th)) {
+      triggeredThresholds.add(th);
+      tokens.filter(t=>t.haunted&&!t.dead).forEach(t=>{t.atk+=1;});
+      showVisionModal(th);
+    }
+  });
 }
-
 function updateSouls() {
-  document.getElementById('soulCount').textContent = souls;
-  const pips = document.getElementById('soulPips');
-  pips.innerHTML = '';
-  for (let i=1;i<=MAX_SOULS;i++) {
-    const pip = document.createElement('div');
-    pip.className = `soul-pip ${i<=souls?'filled':''} ${THRESHOLDS.includes(i)?'threshold':''}`;
-    pip.title = THRESHOLDS.includes(i) ? `Threshold: ${i} souls` : '';
-    pips.appendChild(pip);
-  }
-  // Check thresholds
-  const reached = THRESHOLDS.filter(t=>souls>=t);
-  const latest = reached[reached.length-1];
-  const visionBox = document.getElementById('visionBox');
-  if (latest && VISIONS[latest]) {
-    visionBox.style.display='block';
-    visionBox.textContent = VISIONS[latest];
-    if (souls===latest) log(`⚡ VISION UNLOCKED at ${latest} souls`, 'vision');
-  } else {
-    visionBox.style.display='none';
-  }
+  document.getElementById('soulCount').textContent=souls;
+  const pips=document.getElementById('soulPips');pips.innerHTML='';
+  for(let i=1;i<=MAX_SOULS;i++){const p=document.createElement('div');p.className=`soul-pip ${i<=souls?'filled':''} ${THRESHOLDS.includes(i)?'threshold':''}`;pips.appendChild(p);}
+  const reached=THRESHOLDS.filter(t=>souls>=t);const latest=reached[reached.length-1];
+  const vb=document.getElementById('visionBox');
+  if(latest&&VISIONS[latest]){vb.style.display='block';vb.textContent=VISIONS[latest];}else vb.style.display='none';
+}
+function showVisionModal(souls) {
+  document.getElementById('visionModalTitle').textContent=`Vision -- ${souls} Souls`;
+  document.getElementById('visionModalText').textContent=VISIONS[souls];
+  document.getElementById('visionModal').style.display='flex';
+  log(`VISION UNLOCKED at ${souls} souls!`,'vision');
+}
+function closeVisionModal(){document.getElementById('visionModal').style.display='none';}
+
+function changeTrust(delta){trust=Math.max(-5,Math.min(5,trust+delta));updateTrust();}
+function updateTrust(){
+  const el=document.getElementById('trustNum');
+  el.textContent=trust>=0?`+${trust}`:trust;
+  el.className=`trust-num ${trust<0?'trust-neg':trust===0?'trust-zero':'trust-pos'}`;
+  let lbl=trust<=-2?'Distrust -- no Joint Abilities':trust<0?'Tense -- working together':trust===0?'Neutral':trust<3?'Building Trust':'Joint Abilities UNLOCKED!';
+  document.getElementById('trustLabel').textContent=lbl;
+  const bar=document.getElementById('trustBar');
+  if(trust>=0){bar.style.left='50%';bar.style.width=Math.abs(trust)/5*50+'%';bar.style.background='#2d7a2d';}
+  else{bar.style.left=(50-Math.abs(trust)/5*50)+'%';bar.style.width=Math.abs(trust)/5*50+'%';bar.style.background='#8b1a1a';}
 }
 
-function changeTrust(delta) {
-  trust = Math.max(-5, Math.min(5, trust+delta));
-  updateTrust();
-}
-
-function updateTrust() {
-  const el = document.getElementById('trustNum');
-  el.textContent = trust >= 0 ? `+${trust}` : trust;
-  el.className = `trust-num ${trust<0?'trust-neg':trust===0?'trust-zero':'trust-pos'}`;
-
-  let label = '';
-  if (trust<=-2) label='Distrust — no Joint Abilities';
-  else if (trust<0) label='Tense — working together';
-  else if (trust===0) label='Neutral';
-  else if (trust<3) label='Building trust';
-  else label='✓ Joint Abilities UNLOCKED!';
-  document.getElementById('trustLabel').textContent = label;
-
-  // Trust bar: -5 to +5 mapped to 0-100%
-  const pct = ((trust+5)/10)*100;
-  const bar = document.getElementById('trustBar');
-  bar.style.left = '50%'; bar.style.width = Math.abs(trust)/5*50+'%';
-  if (trust>=0) { bar.style.left='50%'; bar.style.background='#2d7a2d'; }
-  else { bar.style.left=(50-Math.abs(trust)/5*50)+'%'; bar.style.background='#8b1a1a'; }
-}
-
-// ============================================================
+// =============================================================================
 // TURN ORDER
-// ============================================================
-function rebuildTurnOrder() {
-  turnOrder = tokens.filter(t=>!t.dead).map(t=>({id:t.id,name:t.name,side:t.side,init:0}));
-  if (turnIndex>=turnOrder.length) turnIndex=0;
-  renderTurnOrder();
+// =============================================================================
+function rebuildTurnOrder(){turnOrder=tokens.filter(t=>!t.dead&&!t._home).map(t=>({id:t.id,name:t.name,side:t.side,init:0}));if(turnIndex>=turnOrder.length)turnIndex=0;renderTurnOrder();}
+function rollInitiative(){
+  turnOrder=tokens.filter(t=>!t.dead&&!t._home).map(t=>({id:t.id,name:t.name,side:t.side,init:Math.floor(Math.random()*20)+1+(t.speed||0)}));
+  turnOrder.sort((a,b)=>b.init-a.init);turnIndex=0;renderTurnOrder();
+  log(`Initiative: ${turnOrder.map(t=>t.name+'('+t.init+')').join(', ')}`,'sys');
 }
-
-function rollInitiative() {
-  turnOrder = tokens.filter(t=>!t.dead).map(t=>({
-    id:t.id, name:t.name, side:t.side,
-    init: Math.floor(Math.random()*20)+1
-  }));
-  turnOrder.sort((a,b)=>b.init-a.init);
-  turnIndex=0;
-  renderTurnOrder();
-  log(`Initiative rolled: ${turnOrder.map(t=>t.name+' ('+t.init+')').join(', ')}`, 'sys');
+function renderTurnOrder(){
+  const list=document.getElementById('turnList');
+  if(!turnOrder.length){list.innerHTML='<div style="font-size:0.7rem;color:#444">No tokens placed</div>';return;}
+  list.innerHTML=turnOrder.map((t,i)=>`<div class="turn-item${i===turnIndex?' cur-turn':''}">
+    <div class="t-dot ${t.side==='ally'?'ally-dot':'enemy-dot'}"></div>
+    <span>${t.name}</span>
+    ${t.init?`<span style="color:#666;font-size:0.6rem;margin-left:auto">${t.init}</span>`:''}
+  </div>`).join('');
 }
-
-function renderTurnOrder() {
-  const list = document.getElementById('turnList');
-  if (turnOrder.length===0) { list.innerHTML='<div style="font-size:0.7rem;color:#444">No tokens — place characters to begin</div>'; return; }
-  list.innerHTML = turnOrder.map((t,i)=>`
-    <div class="turn-item ${t.side==='ally'?'ally-turn':'enemy-turn'}${i===turnIndex?' cur-turn':''}">
-      <div class="t-dot ${t.side==='ally'?'ally-dot':'enemy-dot'}"></div>
-      <span>${t.name}</span>
-      ${t.init>0?`<span style="color:#666;font-size:0.6rem;margin-left:auto">${t.init}</span>`:''}
-    </div>`).join('');
-}
-
-function nextTurn() {
-  if (turnOrder.length===0) return;
+function nextTurn(){
+  if(!turnOrder.length)return;
   turnIndex=(turnIndex+1)%turnOrder.length;
-  const cur = turnOrder[turnIndex];
-  log(`→ ${cur.name}'s turn`, 'sys');
-  renderTurnOrder();
-  // Select that token
-  selectedId = cur.id;
-  const tok = tokens.find(t=>t.id===cur.id);
-  if (tok) showMoveRange(tok);
-  renderAll();
+  const cur=turnOrder[turnIndex];
+  log(`-> ${cur.name}'s turn`,'sys');
+  selectedId=cur.id;
+  const tok=tokens.find(t=>t.id===cur.id);
+  if(tok&&!tok.dead&&!tok._home) showMoveRange(tok);
+  cancelTargetMode(); renderAll();
 }
-
-function nextRound() {
-  round++;
-  document.getElementById('roundNum').textContent = round;
-  log(`=== Round ${round} begins ===`, 'sys');
-  resetActions();
-  rebuildTurnOrder();
-  turnIndex=0;
-  detectFlanking();
-  renderAll();
+function nextRound(){
+  round++;document.getElementById('roundNum').textContent=round;
+  log(`=== Round ${round} begins ===`,'sys');
+  // Bleeding / burning tick
+  tokens.filter(t=>!t.dead&&!t._home).forEach(t=>{
+    if(t.statuses.includes('bleeding')){t.hp=Math.max(0,t.hp-1);spawnFloat(t.row,t.col,'-1(bleed)','fdmg-hit');log(`${t.name} bleeds. -1 HP.`,'hit');checkDeath(t);}
+    if(t.statuses.includes('burning')){const d=Math.floor(Math.random()*4)+1;t.hp=Math.max(0,t.hp-d);spawnFloat(t.row,t.col,`-${d}(burn)`,'fdmg-hit');log(`${t.name} burns. -${d} HP.`,'hit');checkDeath(t);}
+    // Clear pinned
+    t.statuses=t.statuses.filter(s=>s!=='pinned');
+  });
+  resetActions();rebuildTurnOrder();turnIndex=0;detectFlanking();
+  renderAll();renderBarracks();
 }
+function resetActions(){tokens.forEach(t=>{if(!t.dead&&!t._home){t.actions=true;t.bonusAction=true;t.reaction=true;}});renderCards();log('Actions reset.','sys');}
 
-function resetActions() {
-  tokens.forEach(t=>{ if(!t.dead){ t.actions=true; t.bonusAction=true; t.reaction=true; } });
-  renderCards();
-  log('Actions reset for all characters', 'sys');
-}
-
-// ============================================================
+// =============================================================================
 // UTILITY
-// ============================================================
-function clearTokens() {
-  if (!confirm('Remove all tokens from the map?')) return;
-  tokens=[];selectedId=null;turnOrder=[];turnIndex=0;
-  renderAll();
+// =============================================================================
+function clearTokens(){if(!confirm('Remove all tokens?'))return;tokens=[];selectedId=null;turnOrder=[];turnIndex=0;barracks=[];cancelTargetMode();renderAll();renderBarracks();}
+function resetAll(){
+  if(!confirm('Reset everything?'))return;
+  tokens=[];selectedId=null;turnOrder=[];turnIndex=0;terrain=Array(GRID_SIZE).fill(null).map(()=>Array(GRID_SIZE).fill('normal'));
+  souls=0;trust=-2;round=1;barracks=[];skillPool=[];skillIdCounter=1;tokenIdCounter=1;triggeredThresholds=new Set();
+  document.getElementById('roundNum').textContent='1';cancelTargetMode();
+  buildGrid();renderAll();updateSouls();updateTrust();clearLog();renderSkillPool();
+}
+function clearLog(){document.getElementById('combatLog').innerHTML='';}
+function log(msg,type='sys'){
+  const box=document.getElementById('combatLog');
+  const e=document.createElement('div');e.className=`log-entry le-${type}`;
+  const t=new Date().toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  e.textContent=`[${t}] ${msg}`;box.insertBefore(e,box.firstChild);
 }
 
-function resetAll() {
-  if (!confirm('Reset everything including terrain, tokens, souls, and trust?')) return;
-  tokens=[];selectedId=null;turnOrder=[];turnIndex=0;
-  terrain=Array(GRID_SIZE).fill(null).map(()=>Array(GRID_SIZE).fill('normal'));
-  souls=0;trust=-2;round=1;
-  document.getElementById('roundNum').textContent='1';
-  tokenIdCounter=1;
-  buildGrid();
-  renderAll();
-  updateSouls();
-  updateTrust();
-  clearLog();
+// =============================================================================
+// PATCH: placeToken call uses pending roll data
+// =============================================================================
+const _originalCellClick = cellClick;
+// Override inline already handled -- placeToken reads from window._pendingRollName
+
+// Make sure place branch uses pending name
+function _patchedPlaceCall(cls, side, r, c) {
+  const name = window._pendingRollName || null;
+  const trait = window._pendingRollTrait || null;
+  window._pendingRollName = null;
+  window._pendingRollTrait = null;
+  placeToken(cls, side, r, c, name, trait);
+}
+// Monkey-patch cellClick's place branch:
+const __orig = cellClick;
+window.cellClick = function(r, c) {
+  if (mode === 'place' && placeMode) {
+    if (tokens.find(t=>t.row===r&&t.col===c&&!t.dead&&!t._home)) return;
+    const name = window._pendingRollName || null;
+    const trait = window._pendingRollTrait || null;
+    window._pendingRollName = null;
+    window._pendingRollTrait = null;
+    placeToken(placeMode.cls, placeMode.side, r, c, name, trait);
+    // Re-bind grid cells
+    for(let rr=0;rr<GRID_SIZE;rr++) for(let cc=0;cc<GRID_SIZE;cc++) document.getElementById(`cell-${rr}-${cc}`).onclick=()=>window.cellClick(rr,cc);
+    return;
+  }
+  __orig(r, c);
+};
+// Re-bind grid after patch
+function rebindGrid() {
+  for(let r=0;r<GRID_SIZE;r++) for(let c=0;c<GRID_SIZE;c++) document.getElementById(`cell-${r}-${c}`).onclick=()=>window.cellClick(r,c);
 }
 
-function clearLog() { document.getElementById('combatLog').innerHTML=''; }
-
-function log(msg, type='sys') {
-  const box = document.getElementById('combatLog');
-  const entry = document.createElement('div');
-  entry.className = `log-entry le-${type}`;
-  const time = new Date().toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  entry.textContent = `[${time}] ${msg}`;
-  box.insertBefore(entry, box.firstChild);
+// =============================================================================
+// SKILL POOL EXPORT / IMPORT
+// =============================================================================
+function exportSkillPool() {
+  if (skillPool.length === 0) { alert('Skill pool is empty.'); return; }
+  const data = JSON.stringify(skillPool, null, 2);
+  const blob = new Blob([data], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'shattered-crown-skills.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  log(`Exported ${skillPool.length} skills to shattered-crown-skills.json`, 'skill');
 }
 
-// ============================================================
+function importSkillPool(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (!Array.isArray(imported)) { alert('Invalid file: expected a JSON array.'); return; }
+      // Merge: skip duplicates by name
+      let added = 0;
+      imported.forEach(sk => {
+        if (!sk.name || !sk.actionType || !sk.effectType) return; // basic validation
+        const exists = skillPool.find(s => s.name === sk.name);
+        if (!exists) {
+          sk.id = skillIdCounter++;
+          skillPool.push(sk);
+          added++;
+        }
+      });
+      renderSkillPool();
+      log(`Imported ${added} new skill(s) from ${file.name}. (Duplicates skipped)`, 'skill');
+    } catch(err) {
+      alert('Failed to parse JSON: ' + err.message);
+    }
+    // Reset file input so same file can be imported again if needed
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// =============================================================================
 // START
-// ============================================================
+// =============================================================================
 init();
-log('Shattered Crown Playtest Tool loaded. Place tokens to begin.', 'sys');
+rebindGrid();
+log('Shattered Crown Playtest v2 loaded. Use + buttons to recruit (with trait roll). Click ATTACK to auto-resolve. Design skills in Skill Pool below.', 'sys');
 </script>
 </body>
-</html>
 </html>

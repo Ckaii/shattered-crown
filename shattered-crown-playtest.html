@@ -314,13 +314,17 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
   <div class="panel">
     <h3>&#129309; Team Trust</h3>
     <div class="trust-section">
-      <div class="trust-num" id="trustNum">&minus;2</div>
-      <div class="trust-label" id="trustLabel">Distrust &mdash; penalties active</div>
-      <div class="trust-bar-bg" style="height:8px"><div class="trust-bar-fill" id="trustBar"></div></div>
-      <div class="trust-ctrl">
-        <button class="mini-btn danger" onclick="changeTrust(-1)">&minus; Trust</button>
-        <button class="mini-btn" onclick="changeTrust(1)">+ Trust</button>
+      <div class="trust-num" id="trustNum">50</div>
+      <div class="trust-label" id="trustLabel">Neutral</div>
+      <div class="trust-bar-bg" style="height:8px;background:#1a0a0a;border-radius:4px;overflow:hidden;margin:4px 0">
+        <div id="trustBar" style="height:100%;width:50%;background:#2d7a2d;transition:width 0.3s"></div>
       </div>
+      <div class="trust-ctrl">
+        <button class="mini-btn danger" onclick="changeTrust(-5)">&minus;5</button>
+        <button class="mini-btn" onclick="changeTrust(5)">+5</button>
+      </div>
+      <button class="roll-btn" style="margin-top:6px;font-size:0.72rem;padding:4px 0" onclick="rollTrust()">&#127922; Roll d100 Trust Check</button>
+      <div id="trustRollResult" style="font-size:0.68rem;margin-top:4px;color:#888;min-height:14px"></div>
     </div>
   </div>
   <div class="panel">
@@ -354,6 +358,47 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
   </div>
 </div>
 
+<!-- KINGDOM PANEL -->
+<div class="skill-pool-wrap" id="kingdomWrap" style="border-top-color:#6a4a1a">
+  <div class="skill-pool-header" onclick="toggleKingdom()" style="border-top:none">
+    <h3 style="color:#c9a84c">&#9962; Kingdom — Tavern · Store · Bank</h3>
+    <span style="color:#c9a84c;font-size:0.75rem" id="kingdomToggleLabel">&#9650; Expand</span>
+  </div>
+  <div class="skill-pool-body" id="kingdomBody">
+    <div style="display:flex;gap:16px;flex-wrap:wrap">
+
+      <!-- STORE -->
+      <div style="min-width:260px;flex:1">
+        <div style="color:#c9a84c;font-size:0.78rem;font-weight:bold;margin-bottom:8px;border-bottom:1px solid #2a2010;padding-bottom:4px">
+          &#127978; Store &nbsp; <span style="color:#888;font-weight:normal">Buy: 160% &nbsp; Sell: 40%</span>
+          &nbsp;&nbsp; &#127760; Gold: <span id="goldDisplay">200</span>
+        </div>
+        <div id="shopItems" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        <div style="margin-top:8px;font-size:0.65rem;color:#4a3a1a">Equip items via character card after purchase.</div>
+      </div>
+
+      <!-- BANK -->
+      <div style="min-width:180px">
+        <div style="color:#c9a84c;font-size:0.78rem;font-weight:bold;margin-bottom:8px;border-bottom:1px solid #2a2010;padding-bottom:4px">&#127981; Bank</div>
+        <div style="font-size:0.72rem;color:#888;margin-bottom:6px">Debt: <span id="debtDisplay">0</span>g &nbsp; Deposit: <span id="depositDisplay">0</span>g</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="tool-btn" onclick="bankLoan(50)">Loan 50g</button>
+          <button class="tool-btn" onclick="bankLoan(100)">Loan 100g</button>
+          <input type="number" id="depositAmt" value="50" min="1" style="width:50px;background:#060a10;border:1px solid #2a2f5c;color:#e8e0d0;padding:3px">
+          <button class="tool-btn" onclick="bankDeposit()">Deposit</button>
+        </div>
+      </div>
+
+      <!-- INVENTORY -->
+      <div style="min-width:180px;flex:1">
+        <div style="color:#c9a84c;font-size:0.78rem;font-weight:bold;margin-bottom:8px;border-bottom:1px solid #2a2010;padding-bottom:4px">&#127890; Inventory (unequipped)</div>
+        <div id="inventoryList" style="font-size:0.68rem;color:#888">Empty.</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: CHARACTER ROLL -->
 <div class="modal-overlay" id="rollModal" style="display:none">
   <div class="modal-box">
@@ -381,13 +426,14 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
       <label>Skill Name</label>
       <input type="text" id="sk-name" placeholder="e.g. Shadow Lunge">
     </div>
-    <div class="form-row">
-      <label>Action Type</label>
-      <div class="type-btns">
-        <div class="type-btn selected" data-type="action" onclick="selectSkillType(this)">Action</div>
-        <div class="type-btn" data-type="bonus" onclick="selectSkillType(this)">Bonus</div>
-        <div class="type-btn" data-type="reaction" onclick="selectSkillType(this)">Reaction</div>
-        <div class="type-btn" data-type="passive" onclick="selectSkillType(this)">Passive</div>
+    <div class="form-row" style="display:flex;gap:12px">
+      <div style="flex:1">
+        <label>Mana Cost</label>
+        <input type="number" id="sk-mana" value="1" min="0" max="20" style="width:60px;background:#060a10;border:1px solid #2a2f5c;color:#e8e0d0;padding:5px">
+      </div>
+      <div style="flex:1">
+        <label>Cooldown (rounds)</label>
+        <input type="number" id="sk-cd" value="0" min="0" max="10" style="width:60px;background:#060a10;border:1px solid #2a2f5c;color:#e8e0d0;padding:5px">
       </div>
     </div>
     <div class="form-row">
@@ -469,23 +515,33 @@ const VISIONS = {
   20: 'FINAL VISION: The complete truth. Aldric did not defeat the Demon Lord. He became him. The Sword has shown everything.'
 };
 
+// str/vit/int/dex: base stats assigned by class
+// maxMana / manaRegen: mana economy (replaces bonus action + reaction)
+// classSkill: manaCost + cooldown (rounds)
 const ALLY_CLASSES = [
   {name:'Fighter', hp:20, speed:3, atk:5, def:14, range:1, color:'#0e2240', bcolor:'#4a8fbf',
-   classSkill:{name:'Shield Bash', actionType:'bonus', targetType:'enemy-adj', effectType:'push', effectValue:1, desc:'Push adjacent enemy 1 square. They lose their Reaction this turn.'}},
+   str:4, vit:3, int:1, dex:2, maxMana:4, manaRegen:1,
+   classSkill:{name:'Shield Bash', manaCost:0, cooldown:3, targetType:'enemy-adj', effectType:'push', effectValue:1, desc:'Push adjacent enemy 1 square. Costs 0 mana, 3-round cooldown.'}},
   {name:'Rogue',   hp:14, speed:4, atk:7, def:12, range:1, color:'#0e2040', bcolor:'#6a6abf',
-   classSkill:{name:'Sneak Attack', actionType:'passive', targetType:'enemy-adj', effectType:'damage-flat', effectValue:6, desc:'When attacking a Flanked target, deal +1d6 bonus damage automatically.'}},
+   str:2, vit:2, int:1, dex:4, maxMana:3, manaRegen:1,
+   classSkill:{name:'Sneak Attack', manaCost:0, cooldown:0, targetType:'passive', effectType:'damage-flat', effectValue:6, desc:'Passive: when attacking a Flanked target, deal +1d6 bonus damage.'}},
   {name:'Ranger',  hp:16, speed:3, atk:5, def:13, range:4, color:'#0e2028', bcolor:'#4a9f8f',
-   classSkill:{name:'Volley', actionType:'bonus', targetType:'enemy-range', effectType:'damage', effectValue:-2, desc:'Attack two different targets in range. Each attack is made at -2 ATK.'}},
+   str:2, vit:2, int:2, dex:3, maxMana:6, manaRegen:2,
+   classSkill:{name:'Volley', manaCost:2, cooldown:3, targetType:'enemy-range', effectType:'damage', effectValue:-2, desc:'Attack two targets in range at -2 ATK each. 2 mana, 3-round cooldown.'}},
   {name:'Cleric',  hp:16, speed:3, atk:3, def:13, range:1, color:'#201020', bcolor:'#9f4abf',
-   classSkill:{name:'Heal', actionType:'action', targetType:'ally-adj', effectType:'heal', effectValue:8, desc:'Restore 1d8 HP to self or an adjacent ally.'}},
+   str:1, vit:2, int:4, dex:1, maxMana:8, manaRegen:3,
+   classSkill:{name:'Heal', manaCost:2, cooldown:2, targetType:'ally-adj', effectType:'heal', effectValue:8, desc:'Restore 1d8 HP to self or adjacent ally. 2 mana, 2-round cooldown.'}},
 ];
 const ENEMY_CLASSES = [
   {name:'Soldier', hp:12, speed:3, atk:3, def:12, range:1, color:'#2a0a0a', bcolor:'#8b3030',
-   classSkill:{name:'Pack Tactics', actionType:'passive', targetType:'self', effectType:'flavor', effectValue:0, desc:'Gains Advantage when another Soldier is adjacent to the same target.'}},
+   str:3, vit:2, int:1, dex:2, maxMana:3, manaRegen:1,
+   classSkill:{name:'Pack Tactics', manaCost:0, cooldown:0, targetType:'passive', effectType:'flavor', effectValue:0, desc:'Passive: Advantage when another Soldier is adjacent to the same target.'}},
   {name:'Elite',   hp:18, speed:3, atk:5, def:14, range:1, color:'#2a0a0a', bcolor:'#bf3030',
-   classSkill:{name:'Taunt', actionType:'bonus', targetType:'enemy-adj', effectType:'status-add', effectValue:0, desc:'Target must attack the Elite on their next turn. DC 12 to resist.'}},
+   str:4, vit:3, int:1, dex:2, maxMana:4, manaRegen:1,
+   classSkill:{name:'Taunt', manaCost:1, cooldown:3, targetType:'enemy-adj', effectType:'status-add', effectValue:0, desc:'Target must attack this unit next turn. 1 mana, 3-round cooldown.'}},
   {name:'Hunter',  hp:20, speed:4, atk:6, def:15, range:3, color:'#200010', bcolor:'#bf2060',
-   classSkill:{name:'Pinning Shot', actionType:'passive', targetType:'enemy-range', effectType:'status-add', effectValue:0, desc:'On a successful hit, target cannot move on their next turn (no save).'}},
+   str:2, vit:2, int:2, dex:4, maxMana:5, manaRegen:2,
+   classSkill:{name:'Pinning Shot', manaCost:0, cooldown:0, targetType:'passive', effectType:'status-add', effectValue:0, desc:'Passive: on hit, target cannot move next turn.'}},
 ];
 
 const TRAITS = [
@@ -522,7 +578,8 @@ let terrainMode = 'normal';
 let placeMode = null;
 let mode = 'select';
 let souls = 0;
-let trust = -2;
+let trust = 50;   // 0–100; d100 roll determines NPC behaviour
+let gold = 200;   // starting gold
 let round = 1;
 let turnOrder = [];
 let turnIndex = 0;
@@ -558,6 +615,7 @@ function init() {
   renderAll();
   updateSouls();
   updateTrust();
+  updateGold();
   renderSkillPool();
 }
 
@@ -645,7 +703,7 @@ function enterSkillTargetMode(skillId, tokenId) {
   const skill = skillPool.find(s=>s.id===skillId);
   const tok = tokens.find(t=>t.id===tokenId);
   if (!skill || !tok) return;
-  if (skill.actionType === 'passive') { applySkillEffect(skill, tok, null); return; }
+  if (skill.targetType === 'passive' || skill.effectType === 'passive') { applySkillEffect(skill, tok, null); return; }
   if (skill.targetType === 'self') { applySkillEffect(skill, tok, tok); return; }
   skillTargetMode = {skillId, tokenId};
   mode = 'skill';
@@ -660,15 +718,16 @@ function enterClassSkillMode(tokenId) {
   const template = (tok.side==='ally' ? ALLY_CLASSES : ENEMY_CLASSES).find(c=>c.name===tok.class);
   if (!template) return;
   const sk = template.classSkill;
-  if (sk.actionType === 'passive') { log(`${tok.name}: ${sk.name} is a passive ability.`,'skill'); return; }
-  const actionKey = sk.actionType === 'action' ? 'actions' : sk.actionType === 'bonus' ? 'bonusAction' : 'reaction';
-  if (!tok[actionKey]) { log(`${tok.name} has no ${sk.actionType} remaining.`,'miss'); return; }
+  const cdKey = 'cls_' + sk.name;
+  if (sk.targetType === 'passive') { log(`${tok.name}: ${sk.name} is a passive.`,'skill'); return; }
+  if (tok.cooldowns[cdKey] > 0) { log(`${tok.name}: ${sk.name} on cooldown (${tok.cooldowns[cdKey]} rounds left).`,'miss'); return; }
+  if (!tok.actions) { log(`${tok.name} has no Action left.`,'miss'); return; }
+  if (tok.mana < (sk.manaCost||0)) { log(`${tok.name} needs ${sk.manaCost} MP (has ${tok.mana}).`,'miss'); return; }
   if (sk.targetType === 'self') {
-    applyClassSkillEffect(sk, tok, tok, actionKey);
+    applyClassSkillEffect(sk, tok, tok);
     return;
   }
-  // Quick direct application for adjacents
-  skillTargetMode = {classSkill: sk, tokenId, actionKey};
+  skillTargetMode = {classSkill: sk, tokenId};
   mode = 'skill';
   document.getElementById('modeLabel').textContent = `[${sk.name}] Click target -- ESC to cancel`;
   showSkillRange(tok, 1);
@@ -712,7 +771,7 @@ function cellClick(r, c) {
     const target = tokens.find(t=>t.row===r&&t.col===c&&!t.dead);
     if (skillTargetMode) {
       if (skillTargetMode.classSkill) {
-        applyClassSkillEffect(skillTargetMode.classSkill, tokens.find(t=>t.id===skillTargetMode.tokenId), target, skillTargetMode.actionKey);
+        applyClassSkillEffect(skillTargetMode.classSkill, tokens.find(t=>t.id===skillTargetMode.tokenId), target);
       } else {
         const skill = skillPool.find(s=>s.id===skillTargetMode.skillId);
         const user = tokens.find(t=>t.id===skillTargetMode.tokenId);
@@ -785,12 +844,20 @@ function placeToken(cls, side, r, c, name, trait) {
     class: cls,
     hp: template.hp, maxHp: template.hp,
     side, row: r, col: c,
-    actions: true, bonusAction: true, reaction: true,
+    actions: true,                          // 1 action per turn (no bonus/reaction)
     statuses: [], dead: false,
     speed: template.speed, atk: template.atk, def: template.def, range: template.range,
     color: template.color, bcolor: template.bcolor,
+    // Base RPG stats
+    str: template.str||2, vit: template.vit||2, int: template.int||1, dex: template.dex||2,
+    strThresh:0, vitThresh:0, intThresh:0, dexThresh:0,
+    // Mana economy (replaces bonus action + reaction)
+    mana: template.maxMana||4, maxMana: template.maxMana||4, manaRegen: template.manaRegen||1,
+    cooldowns: {},    // {skillName: roundsRemaining}
+    // Equipment
+    equipment: [],
     trait: trait || null,
-    skills: [null, null], // 2 assignable skill slots
+    skills: [null, null],
     moralImmune: false, lucky: false, loyal: false, haunted: false, stoic: false, berserker: false,
   };
   if (trait) trait.apply(tok);
@@ -1021,18 +1088,29 @@ function isFlankedBy(target, attacker) {
 // SKILL EFFECTS
 // =============================================================================
 function applySkillEffect(skill, user, target) {
-  const actionKey = skill.actionType==='action'?'actions':skill.actionType==='bonus'?'bonusAction':'reaction';
-  if (skill.actionType !== 'passive' && !user[actionKey]) {
-    log(`${user.name} has no ${skill.actionType} left.`, 'miss'); return;
-  }
-  if (skill.actionType !== 'passive') user[actionKey] = false;
+  if (skill.effectType === 'passive' || skill.targetType === 'passive') { log(`${user.name}: ${skill.name} is a passive.`,'skill'); return; }
+  const cost = skill.manaCost || 0;
+  const cd = skill.cooldown || 0;
+  const cdKey = 'pool_' + skill.id;
+  if ((user.cooldowns[cdKey]||0) > 0) { log(`${user.name}: ${skill.name} on cooldown (${user.cooldowns[cdKey]} rounds left).`,'miss'); return; }
+  if (!user.actions) { log(`${user.name} has no Action left.`,'miss'); return; }
+  if (user.mana < cost) { log(`${user.name} needs ${cost} MP (has ${user.mana}).`,'miss'); return; }
+  user.actions = false;
+  user.mana = Math.max(0, user.mana - cost);
+  if (cd > 0) user.cooldowns[cdKey] = cd;
   _executeEffect(skill, user, target);
   renderAll();
 }
 
-function applyClassSkillEffect(sk, user, target, actionKey) {
-  if (actionKey && !user[actionKey]) { log(`${user.name} has no ${sk.actionType} left.`,'miss'); return; }
-  if (actionKey) user[actionKey] = false;
+function applyClassSkillEffect(sk, user, target) {
+  const cost = sk.manaCost || 0;
+  const cd = sk.cooldown || 0;
+  const cdKey = 'cls_' + sk.name;
+  if (!user.actions) { log(`${user.name} has no Action left.`,'miss'); return; }
+  if (user.mana < cost) { log(`${user.name} needs ${cost} MP (has ${user.mana}).`,'miss'); return; }
+  user.actions = false;
+  user.mana = Math.max(0, user.mana - cost);
+  if (cd > 0) user.cooldowns[cdKey] = cd;
   _executeEffect(sk, user, target);
   renderAll();
 }
@@ -1231,7 +1309,11 @@ function cardHTML(tok) {
   // Class skill
   const tpl = (tok.side==='ally'?ALLY_CLASSES:ENEMY_CLASSES).find(c=>c.name===tok.class);
   const cs = tpl ? tpl.classSkill : null;
-  const csBtn = cs ? `<span class="skill-pip class-skill" onclick="event.stopPropagation();enterClassSkillMode(${tok.id})" title="${cs.desc}">${cs.name} [${cs.actionType.slice(0,3).toUpperCase()}]</span>` : '';
+  const csCdKey = cs ? 'cls_'+cs.name : null;
+  const csCd = cs ? (tok.cooldowns[csCdKey]||0) : 0;
+  const csIsPassive = cs && cs.targetType==='passive';
+  const csLabel = cs ? `${cs.name} [${cs.manaCost||0}MP${csCd>0?' CD:'+csCd:''}]` : '';
+  const csBtn = cs ? `<span class="skill-pip class-skill${csIsPassive?' passive-skill':''}" onclick="event.stopPropagation();enterClassSkillMode(${tok.id})" title="${cs.desc}" style="${csCd>0?'opacity:0.4':''}">${csLabel}</span>` : '';
 
   // Pool skills
   const poolSkills = tok.skills.map((s,i) => s
@@ -1265,8 +1347,18 @@ function cardHTML(tok) {
     </div>`:''}
     <div class="actions-row">
       <span class="a-pip act${tok.actions?'':' used'}" onclick="event.stopPropagation();toggleAction(${tok.id},'actions')">Action</span>
-      <span class="a-pip bon${tok.bonusAction?'':' used'}" onclick="event.stopPropagation();toggleAction(${tok.id},'bonusAction')">Bonus</span>
-      <span class="a-pip rea${tok.reaction?'':' used'}" onclick="event.stopPropagation();toggleAction(${tok.id},'reaction')">React</span>
+      <span class="a-pip bon" style="background:#0a1428;border-color:#2a4a8a;color:#4a8abf;cursor:default">
+        &#9670; ${tok.mana}/${tok.maxMana} MP
+      </span>
+      <button class="mini-btn" style="font-size:0.55rem;padding:1px 4px" onclick="event.stopPropagation();changeMana(${tok.id},-1)">-1</button>
+      <button class="mini-btn" style="font-size:0.55rem;padding:1px 4px" onclick="event.stopPropagation();changeMana(${tok.id},1)">+1</button>
+    </div>
+    <div style="display:flex;gap:3px;font-size:0.55rem;color:#555;margin-top:2px;flex-wrap:wrap">
+      <span title="Strength">STR ${tok.str}</span><span style="color:#2a2f4a">|</span>
+      <span title="Vitality">VIT ${tok.vit}</span><span style="color:#2a2f4a">|</span>
+      <span title="Intelligence">INT ${tok.int}</span><span style="color:#2a2f4a">|</span>
+      <span title="Dexterity">DEX ${tok.dex}</span>
+      <button class="mini-btn" style="font-size:0.5rem;padding:0px 4px;margin-left:4px" onclick="event.stopPropagation();openStatUp(${tok.id})" title="Level up a stat">+STAT</button>
     </div>
     <div class="skill-row">${csBtn}${poolSkills}</div>
     <div class="status-row">${statusHTML}</div>
@@ -1302,7 +1394,8 @@ function createSkill() {
   const skill = {
     id: skillIdCounter++,
     name,
-    actionType: currentSkillType,
+    manaCost: parseInt(document.getElementById('sk-mana').value)||0,
+    cooldown: parseInt(document.getElementById('sk-cd').value)||0,
     targetType: document.getElementById('sk-target').value,
     effectType: document.getElementById('sk-effect').value,
     effectValue: parseInt(document.getElementById('sk-value').value)||0,
@@ -1341,7 +1434,6 @@ function renderSkillPool() {
     container.innerHTML = '<div style="font-size:0.72rem;color:#4a2a6a;padding:8px">No skills yet. Click + New Skill to design one.</div>';
     return;
   }
-  const badgeClass = {action:'badge-action',bonus:'badge-bonus',reaction:'badge-reaction',passive:'badge-passive'};
   const allyTokens = tokens.filter(t=>t.side==='ally'&&!t.dead&&!t._home);
   container.innerHTML = skillPool.map(sk => `
     <div class="skill-card">
@@ -1350,7 +1442,8 @@ function renderSkillPool() {
         <button class="skill-del-btn" onclick="deleteSkill(${sk.id})">&times;</button>
       </div>
       <div>
-        <span class="skill-badge ${badgeClass[sk.actionType]||'badge-action'}">${sk.actionType}</span>
+        <span class="skill-badge badge-action">${sk.manaCost||0} MP</span>
+        <span class="skill-badge badge-bonus">CD ${sk.cooldown||0}r</span>
         <span class="skill-badge" style="background:#0a1020;color:#4a6a8a;border:1px solid #1a2a4a">${sk.targetType}</span>
       </div>
       <div class="skill-card-desc">${sk.effectType} ${sk.effectValue>0?'+'+sk.effectValue:''} &middot; Range ${sk.range}${sk.desc?'<br><em>'+sk.desc+'</em>':''}</div>
@@ -1384,9 +1477,26 @@ function checkDeath(tok) {
     tok.dead = true;
     log(`&#9760; ${tok.name} has fallen! Soul fed to the Sword.`, 'death');
     changeSouls(1);
-    // Haunted trait: +1 ATK to all haunted allies at threshold
+    // Sword stat gain: roll d(sum of stats) skewed toward highest stat
+    swordStatGain(tok);
     rebuildTurnOrder();
   }
+}
+// Roguelike: Demon Lord's Sword absorbs dead character's stats — Varn gains a random stat point
+function swordStatGain(tok) {
+  const pool = [];
+  for(let i=0;i<tok.str;i++) pool.push('STR');
+  for(let i=0;i<tok.vit;i++) pool.push('VIT');
+  for(let i=0;i<tok.int;i++) pool.push('INT');
+  for(let i=0;i<tok.dex;i++) pool.push('DEX');
+  if(pool.length===0) return;
+  const gained = pool[Math.floor(Math.random()*pool.length)];
+  log(`&#9876; The Sword absorbs ${tok.name}'s essence. Varn gains +1 ${gained} from the sword.`, 'vision');
+  // Track on window object as persistent Varn stats (paper reference)
+  if(!window.varnStats) window.varnStats={STR:0,VIT:0,INT:0,DEX:0};
+  window.varnStats[gained]++;
+  const vs=window.varnStats;
+  log(`Varn's sword-gains: STR+${vs.STR} VIT+${vs.VIT} INT+${vs.INT} DEX+${vs.DEX}`, 'vision');
 }
 function toggleAction(id, type) {
   const tok = tokens.find(t=>t.id===id); if(!tok) return;
@@ -1485,16 +1595,25 @@ function showVisionModal(souls) {
 }
 function closeVisionModal(){document.getElementById('visionModal').style.display='none';}
 
-function changeTrust(delta){trust=Math.max(-5,Math.min(5,trust+delta));updateTrust();}
+function changeTrust(delta){trust=Math.max(0,Math.min(100,trust+delta));updateTrust();}
 function updateTrust(){
   const el=document.getElementById('trustNum');
-  el.textContent=trust>=0?`+${trust}`:trust;
-  el.className=`trust-num ${trust<0?'trust-neg':trust===0?'trust-zero':'trust-pos'}`;
-  let lbl=trust<=-2?'Distrust -- no Joint Abilities':trust<0?'Tense -- working together':trust===0?'Neutral':trust<3?'Building Trust':'Joint Abilities UNLOCKED!';
+  el.textContent=trust;
+  el.className=`trust-num ${trust<20?'trust-neg':trust<50?'trust-zero':'trust-pos'}`;
+  let lbl=trust===0?'HOSTILE -- party attacks Varn':trust<20?'Critical -- party may flee':trust<40?'Low Trust -- GM controls members':trust<60?'Neutral':trust<80?'Building Trust':'High Trust -- Joint Abilities active';
   document.getElementById('trustLabel').textContent=lbl;
-  const bar=document.getElementById('trustBar');
-  if(trust>=0){bar.style.left='50%';bar.style.width=Math.abs(trust)/5*50+'%';bar.style.background='#2d7a2d';}
-  else{bar.style.left=(50-Math.abs(trust)/5*50)+'%';bar.style.width=Math.abs(trust)/5*50+'%';bar.style.background='#8b1a1a';}
+  document.getElementById('trustBar').style.width=trust+'%';
+  document.getElementById('trustBar').style.background=trust<20?'#8b1a1a':trust<50?'#8b6a1a':'#2d7a2d';
+}
+function rollTrust(){
+  const roll=Math.floor(Math.random()*100)+1;
+  let outcome='',cls='sys';
+  if(trust===0){outcome=`Roll ${roll}: TRUST=0 — party attacks Varn!`;cls='death';}
+  else if(roll>trust+70){outcome=`Roll ${roll} > ${trust+70}: party member FLEES the dungeon!`;cls='death';}
+  else if(roll>trust+40){outcome=`Roll ${roll} > ${trust+40}: GM controls this member (plays for self-preservation).`;cls='miss';}
+  else{outcome=`Roll ${roll} ≤ ${trust+40}: party member follows Varn's command.`;cls='hit';}
+  document.getElementById('trustRollResult').textContent=outcome;
+  log(`[Trust d100] ${outcome}`,cls);
 }
 
 // =============================================================================
@@ -1528,17 +1647,23 @@ function nextTurn(){
 function nextRound(){
   round++;document.getElementById('roundNum').textContent=round;
   log(`=== Round ${round} begins ===`,'sys');
-  // Bleeding / burning tick
   tokens.filter(t=>!t.dead&&!t._home).forEach(t=>{
+    // Bleed / burn tick
     if(t.statuses.includes('bleeding')){t.hp=Math.max(0,t.hp-1);spawnFloat(t.row,t.col,'-1(bleed)','fdmg-hit');log(`${t.name} bleeds. -1 HP.`,'hit');checkDeath(t);}
     if(t.statuses.includes('burning')){const d=Math.floor(Math.random()*4)+1;t.hp=Math.max(0,t.hp-d);spawnFloat(t.row,t.col,`-${d}(burn)`,'fdmg-hit');log(`${t.name} burns. -${d} HP.`,'hit');checkDeath(t);}
+    // Mana regen
+    const prev=t.mana;
+    t.mana=Math.min(t.maxMana,t.mana+(t.manaRegen||1));
+    if(t.mana>prev) log(`${t.name} regenerates ${t.mana-prev} MP (${t.mana}/${t.maxMana}).`,'sys');
+    // Cooldown tick
+    Object.keys(t.cooldowns).forEach(k=>{if(t.cooldowns[k]>0){t.cooldowns[k]--;if(t.cooldowns[k]===0)log(`${t.name}: ${k.replace('cls_','').replace('pool_','')} is ready.`,'skill');}});
     // Clear pinned
     t.statuses=t.statuses.filter(s=>s!=='pinned');
   });
   resetActions();rebuildTurnOrder();turnIndex=0;detectFlanking();
   renderAll();renderBarracks();
 }
-function resetActions(){tokens.forEach(t=>{if(!t.dead&&!t._home){t.actions=true;t.bonusAction=true;t.reaction=true;}});renderCards();log('Actions reset.','sys');}
+function resetActions(){tokens.forEach(t=>{if(!t.dead&&!t._home){t.actions=true;}});renderCards();log('Actions reset.','sys');}
 
 // =============================================================================
 // UTILITY
@@ -1547,11 +1672,48 @@ function clearTokens(){if(!confirm('Remove all tokens?'))return;tokens=[];select
 function resetAll(){
   if(!confirm('Reset everything?'))return;
   tokens=[];selectedId=null;turnOrder=[];turnIndex=0;terrain=Array(GRID_SIZE).fill(null).map(()=>Array(GRID_SIZE).fill('normal'));
-  souls=0;trust=-2;round=1;barracks=[];skillPool=[];skillIdCounter=1;tokenIdCounter=1;triggeredThresholds=new Set();
+  souls=0;trust=50;gold=200;round=1;barracks=[];skillPool=[];skillIdCounter=1;tokenIdCounter=1;triggeredThresholds=new Set();
+  window.varnStats={STR:0,VIT:0,INT:0,DEX:0};
   document.getElementById('roundNum').textContent='1';cancelTargetMode();
   buildGrid();renderAll();updateSouls();updateTrust();clearLog();renderSkillPool();
 }
 function clearLog(){document.getElementById('combatLog').innerHTML='';}
+
+// MANA
+function changeMana(id, delta) {
+  const tok=tokens.find(t=>t.id===id); if(!tok) return;
+  tok.mana=Math.max(0,Math.min(tok.maxMana,tok.mana+delta));
+  renderCards();
+}
+
+// STAT UP (threshold ability unlock — manual GM prompt)
+function openStatUp(id) {
+  const tok=tokens.find(t=>t.id===id); if(!tok) return;
+  const stat=prompt(`Increase which stat for ${tok.name}?\nSTR / VIT / INT / DEX`,'STR');
+  if(!stat) return;
+  const s=stat.toUpperCase().trim();
+  if(!['STR','VIT','INT','DEX'].includes(s)){alert('Invalid stat.');return;}
+  tok[s.toLowerCase()]++;
+  // Apply mechanical effect of stat gain
+  if(s==='VIT'){tok.maxHp+=2;tok.hp=Math.min(tok.hp+2,tok.maxHp);log(`${tok.name} VIT+1 → maxHP+2 (${tok.hp}/${tok.maxHp}).`,'skill');}
+  else if(s==='STR'){log(`${tok.name} STR+1 (physical damage bonus applies on GM discretion).`,'skill');}
+  else if(s==='INT'){tok.maxMana+=1;tok.mana=Math.min(tok.mana+1,tok.maxMana);log(`${tok.name} INT+1 → maxMP+1 (${tok.mana}/${tok.maxMana}).`,'skill');}
+  else if(s==='DEX'){log(`${tok.name} DEX+1 (speed/crit applies on GM discretion).`,'skill');}
+  // Threshold check for ability unlock
+  checkStatThreshold(tok, s.toLowerCase());
+  renderAll();
+}
+
+function checkStatThreshold(tok, stat) {
+  const threshFreq={str:5,vit:5,int:3,dex:5};
+  const freq=threshFreq[stat]||5;
+  const cur=tok[stat];
+  const threshKey=stat+'Thresh';
+  if(cur>=tok[threshKey]+freq){
+    tok[threshKey]=Math.floor(cur/freq)*freq;
+    log(`&#9670; ${tok.name} ${stat.toUpperCase()} threshold reached! Choose 1 of 4 random abilities (GM rolls from pool).`,'vision');
+  }
+}
 function log(msg,type='sys'){
   const box=document.getElementById('combatLog');
   const e=document.createElement('div');e.className=`log-entry le-${type}`;
@@ -1592,6 +1754,143 @@ window.cellClick = function(r, c) {
 // Re-bind grid after patch
 function rebindGrid() {
   for(let r=0;r<GRID_SIZE;r++) for(let c=0;c<GRID_SIZE;c++) document.getElementById(`cell-${r}-${c}`).onclick=()=>window.cellClick(r,c);
+}
+
+// =============================================================================
+// KINGDOM — ECONOMY
+// =============================================================================
+let debt = 0;
+let deposits = 0;
+let inventory = []; // unequipped items
+
+const SHOP_ITEMS = [
+  {name:'Iron Shield',    slot:'armor',     weight:3, def:2,  magicRes:0.05, atk:0, manaRegen:0, cdReduction:0, sneak:0, critChance:0, basePrice:80},
+  {name:'Shadow Cloak',   slot:'armor',     weight:1, def:1,  magicRes:0,    atk:0, manaRegen:0, cdReduction:0, sneak:2, critChance:0.05, basePrice:100},
+  {name:'Mage Robe',      slot:'armor',     weight:1, def:0,  magicRes:0.10, atk:0, manaRegen:1, cdReduction:0, sneak:0, critChance:0, basePrice:120},
+  {name:'Heavy Plate',    slot:'armor',     weight:5, def:4,  magicRes:0.08, atk:0, manaRegen:0, cdReduction:0, sneak:0, critChance:0, basePrice:180},
+  {name:'Amulet of Power',slot:'accessory', weight:0, def:0,  magicRes:0,    atk:2, manaRegen:0, cdReduction:0, sneak:0, critChance:0, basePrice:150},
+  {name:'Ring of Haste',  slot:'accessory', weight:0, def:0,  magicRes:0,    atk:0, manaRegen:0, cdReduction:0, sneak:0, critChance:0, basePrice:120, speed:1},
+  {name:'Crystal Focus',  slot:'accessory', weight:0, def:0,  magicRes:0,    atk:0, manaRegen:2, cdReduction:0.1, sneak:0, critChance:0, basePrice:140},
+  {name:'Bone Charm',     slot:'accessory', weight:0, def:1,  magicRes:0.05, atk:1, manaRegen:0, cdReduction:0, sneak:1, critChance:0.05, basePrice:200},
+];
+
+function toggleKingdom() {
+  const open = document.getElementById('kingdomBody').style.display !== 'block';
+  document.getElementById('kingdomBody').style.display = open ? 'block' : 'none';
+  document.getElementById('kingdomToggleLabel').textContent = open ? '&#9660; Collapse' : '&#9650; Expand';
+  if (open) renderShop();
+}
+
+function updateGold() {
+  const el = document.getElementById('goldDisplay');
+  if(el) el.textContent = gold;
+  const dd = document.getElementById('debtDisplay');
+  if(dd) dd.textContent = debt;
+  const dep = document.getElementById('depositDisplay');
+  if(dep) dep.textContent = deposits;
+}
+
+function renderShop() {
+  updateGold();
+  const c = document.getElementById('shopItems');
+  if(!c) return;
+  c.innerHTML = SHOP_ITEMS.map((item,i) => {
+    const buyPrice = Math.round(item.basePrice * 1.6);
+    const sellPrice = Math.round(item.basePrice * 0.4);
+    const statLines = [];
+    if(item.def) statLines.push(`DEF+${item.def}`);
+    if(item.atk) statLines.push(`ATK+${item.atk}`);
+    if(item.manaRegen) statLines.push(`MP regen+${item.manaRegen}`);
+    if(item.magicRes) statLines.push(`MagRes ${Math.round(item.magicRes*100)}%`);
+    if(item.sneak) statLines.push(`Sneak+${item.sneak}`);
+    if(item.critChance) statLines.push(`Crit+${Math.round(item.critChance*100)}%`);
+    if(item.speed) statLines.push(`SPD+${item.speed}`);
+    if(item.cdReduction) statLines.push(`CD-${Math.round(item.cdReduction*100)}%`);
+    const inInv = inventory.filter(x=>x.name===item.name).length;
+    return `<div style="background:#111827;border:1px solid #2a2010;border-radius:5px;padding:7px 9px;min-width:130px;max-width:160px">
+      <div style="color:#c9a84c;font-size:0.75rem;font-weight:bold">${item.name}</div>
+      <div style="font-size:0.6rem;color:#4a6a4a;margin-bottom:3px">${item.slot} · wt:${item.weight}</div>
+      <div style="font-size:0.62rem;color:#888;margin-bottom:4px">${statLines.join(' · ')||'No stats'}</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="tool-btn" style="font-size:0.6rem;padding:2px 5px" onclick="buyItem(${i})">Buy ${buyPrice}g</button>
+        ${inInv>0?`<button class="tool-btn danger-tb" style="font-size:0.6rem;padding:2px 5px" onclick="sellItem('${item.name}')">Sell ${sellPrice}g</button>`:''}
+      </div>
+      ${inInv>0?`<div style="font-size:0.6rem;color:#2d7a2d;margin-top:3px">&#10003; In bag: ${inInv}</div>`:''}
+    </div>`;
+  }).join('');
+  renderInventory();
+}
+
+function buyItem(idx) {
+  const item = SHOP_ITEMS[idx];
+  const price = Math.round(item.basePrice * 1.6);
+  if(gold < price) { log(`Not enough gold. Need ${price}g, have ${gold}g.`,'miss'); return; }
+  gold -= price;
+  inventory.push({...item});
+  updateGold();
+  renderShop();
+  log(`Bought ${item.name} for ${price}g. (${gold}g remaining)`,'skill');
+}
+
+function sellItem(name) {
+  const idx = inventory.findIndex(x=>x.name===name);
+  if(idx<0) return;
+  const item = inventory[idx];
+  const price = Math.round(item.basePrice * 0.4);
+  inventory.splice(idx,1);
+  gold += price;
+  updateGold();
+  renderShop();
+  log(`Sold ${item.name} for ${price}g. (${gold}g remaining)`,'sys');
+}
+
+function renderInventory() {
+  const el = document.getElementById('inventoryList');
+  if(!el) return;
+  if(inventory.length===0){el.textContent='Empty.';return;}
+  el.innerHTML = inventory.map((item,i)=>`<div style="display:flex;justify-content:space-between;margin-bottom:3px">
+    <span style="color:#c9a84c">${item.name}</span>
+    <select style="font-size:0.6rem;background:#060a10;border:1px solid #2a2f5c;color:#e8e0d0;padding:1px" onchange="equipItemTo(${i},this.value)">
+      <option value="">-- equip to --</option>
+      ${tokens.filter(t=>t.side==='ally'&&!t.dead&&!t._home).map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}
+    </select>
+  </div>`).join('');
+}
+
+function equipItemTo(invIdx, tokenId) {
+  if(!tokenId) return;
+  const tok = tokens.find(t=>t.id===parseInt(tokenId));
+  if(!tok) return;
+  const item = inventory[invIdx];
+  tok.equipment.push({...item});
+  // Apply stats
+  if(item.def) tok.def += item.def;
+  if(item.atk) tok.atk += item.atk;
+  if(item.manaRegen) tok.manaRegen += item.manaRegen;
+  if(item.speed) tok.speed += item.speed;
+  inventory.splice(invIdx,1);
+  log(`${tok.name} equips ${item.name}.${item.def?' DEF+'+item.def:''}${item.atk?' ATK+'+item.atk:''}${item.manaRegen?' MPRegen+'+item.manaRegen:''}`,'skill');
+  renderAll();
+  renderShop();
+}
+
+function bankLoan(amount) {
+  gold += amount;
+  debt += Math.round(amount * 1.2); // 20% interest
+  updateGold();
+  log(`Bank loan: +${amount}g (owe ${debt}g total with interest).`,'sys');
+}
+
+function bankDeposit() {
+  const amt = parseInt(document.getElementById('depositAmt').value)||0;
+  if(amt<=0||amt>gold){log('Invalid deposit amount.','miss');return;}
+  const pay = Math.min(amt, debt);
+  debt = Math.max(0, debt-pay);
+  const leftover = amt-pay;
+  gold -= amt;
+  deposits += leftover;
+  updateGold();
+  log(`Deposited ${amt}g. Debt repaid: ${pay}g. Savings: ${deposits}g.`,'sys');
 }
 
 // =============================================================================

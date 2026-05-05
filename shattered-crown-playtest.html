@@ -270,6 +270,15 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
       <button class="tool-btn danger-tb" onclick="clearTokens()">&#10005; Clear Tokens</button>
       <button class="tool-btn danger-tb" onclick="resetAll()">&#9888; Reset All</button>
     </div>
+    <div class="btoolbar" style="margin-top:4px;border-top:1px solid #1e2540;padding-top:6px">
+      <span style="font-size:0.65rem;color:#4a6a4a;margin-right:4px">&#128249; Map:</span>
+      <button class="tool-btn" style="border-color:#2d6a2d;color:#6abf6a" onclick="exportMap()">&#8681; Save JSON</button>
+      <label class="tool-btn" style="border-color:#2d6a2d;color:#6abf6a;cursor:pointer">
+        &#8679; Load JSON<input type="file" accept=".json" style="display:none" onchange="importMap(event)">
+      </label>
+      <button class="tool-btn" style="border-color:#6a4a1a;color:#c9a84c" onclick="loadPreset('fortress')">&#9876; Fortress</button>
+      <button class="tool-btn" style="border-color:#2a1a4a;color:#9966cc" onclick="clearMap()">&#9633; Clear Map</button>
+    </div>
   </div>
 </div>
 
@@ -1754,6 +1763,79 @@ window.cellClick = function(r, c) {
 // Re-bind grid after patch
 function rebindGrid() {
   for(let r=0;r<GRID_SIZE;r++) for(let c=0;c<GRID_SIZE;c++) document.getElementById(`cell-${r}-${c}`).onclick=()=>window.cellClick(r,c);
+}
+
+// =============================================================================
+// MAP SAVE / LOAD / PRESETS
+// =============================================================================
+const MAP_PRESETS = {
+  fortress: {
+    name: "Ruins of the Demon Lord's Fortress",
+    terrain: [
+      ['wall','wall','wall','normal','normal','normal','normal','wall','wall','wall'],
+      ['wall','normal','normal','normal','normal','normal','normal','normal','normal','wall'],
+      ['high-ground','high-ground','normal','wall','normal','normal','wall','normal','high-ground','high-ground'],
+      ['normal','normal','normal','wall','fire','fire','wall','normal','normal','normal'],
+      ['normal','wall','normal','normal','normal','normal','normal','normal','wall','normal'],
+      ['normal','wall','crack','crack','normal','normal','crack','crack','wall','normal'],
+      ['normal','normal','normal','normal','normal','normal','normal','normal','normal','normal'],
+      ['normal','normal','normal','wall','normal','normal','wall','normal','normal','normal'],
+      ['wall','ledge','normal','normal','normal','normal','normal','normal','ledge','wall'],
+      ['wall','wall','normal','normal','normal','normal','normal','normal','wall','wall'],
+    ]
+  }
+};
+
+function exportMap() {
+  const data = {
+    name: prompt('Map name:', 'My Map') || 'Untitled Map',
+    size: GRID_SIZE,
+    terrain: terrain.map(row => [...row])
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = data.name.replace(/\s+/g,'-').toLowerCase() + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  log(`Map "${data.name}" exported.`, 'sys');
+}
+
+function importMap(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.terrain || !Array.isArray(data.terrain)) { alert('Invalid map file.'); return; }
+      applyTerrain(data.terrain);
+      log(`Map "${data.name || file.name}" loaded.`, 'sys');
+    } catch(err) { alert('Failed to parse map JSON: ' + err.message); }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function loadPreset(key) {
+  const preset = MAP_PRESETS[key];
+  if (!preset) return;
+  applyTerrain(preset.terrain);
+  log(`Preset loaded: ${preset.name}`, 'sys');
+}
+
+function applyTerrain(t) {
+  for (let r = 0; r < GRID_SIZE; r++)
+    for (let c = 0; c < GRID_SIZE; c++)
+      terrain[r][c] = (t[r] && t[r][c]) ? t[r][c] : 'normal';
+  renderGrid();
+}
+
+function clearMap() {
+  terrain = Array(GRID_SIZE).fill(null).map(()=>Array(GRID_SIZE).fill('normal'));
+  renderGrid();
+  log('Map cleared.', 'sys');
 }
 
 // =============================================================================

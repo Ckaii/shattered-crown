@@ -18,7 +18,7 @@ header h1{color:#c9a84c;font-size:1.2rem;letter-spacing:1px}
 .panel h3{color:#c9a84c;font-size:0.8rem;letter-spacing:1px;text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid #1e2540;margin-bottom:8px}
 /* GRID */
 .grid-container{position:relative}
-.grid{display:grid;grid-template-columns:repeat(8,60px);grid-template-rows:repeat(8,60px);border:2px solid #c9a84c;gap:1px;background:#c9a84c44}
+.grid{display:grid;grid-template-columns:repeat(10,60px);grid-template-rows:repeat(10,60px);border:2px solid #c9a84c;gap:1px;background:#c9a84c44}
 .cell{width:60px;height:60px;background:#12192a;position:relative;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.1s}
 .cell:hover{background:#1a2540}
 .cell.high-ground{background:#0e1e10}.cell.fire{background:#1f1008}.cell.crack{background:#1a1510}.cell.ledge{background:#080d18}.cell.wall{background:#050508;cursor:not-allowed}
@@ -505,7 +505,7 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
 // =============================================================================
 // CONSTANTS & DATA
 // =============================================================================
-const GRID_SIZE = 8;
+const GRID_SIZE = 10;
 const MAX_SOULS = 20;
 const THRESHOLDS = [3, 7, 12, 20];
 const VISIONS = {
@@ -570,7 +570,7 @@ const NAMES = {
 // =============================================================================
 // STATE
 // =============================================================================
-const GRID_SIZE8 = 8;
+// (unused leftover, GRID_SIZE is the source of truth)
 let terrain = Array(GRID_SIZE).fill(null).map(()=>Array(GRID_SIZE).fill('normal'));
 let tokens = [];
 let selectedId = null;

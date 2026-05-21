@@ -334,6 +334,19 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
       </div>
       <button class="roll-btn" style="margin-top:6px;font-size:0.72rem;padding:4px 0" onclick="rollTrust()">&#127922; Roll d100 Trust Check</button>
       <div id="trustRollResult" style="font-size:0.68rem;margin-top:4px;color:#888;min-height:14px"></div>
+      <div style="margin-top:8px;border-top:1px solid #1a1f3c;padding-top:8px">
+        <div style="font-size:0.6rem;color:#4a5a4a;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Quick Events</div>
+        <div style="display:flex;flex-wrap:wrap;gap:3px">
+          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#2d7a2d;color:#6abf6a" onclick="trustEvent(10,'Mission success')">+10 Win</button>
+          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#8b1a1a;color:#e05555" onclick="trustEvent(-10,'Mission failed')">-10 Fail</button>
+          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#8b1a1a;color:#e05555" onclick="trustEvent(-20,'Full party wipe')">-20 Wipe</button>
+          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#2d7a2d;color:#6abf6a" onclick="trustEvent(3,'Survivor returns')">+3 Survivor</button>
+          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#8b1a1a;color:#e05555" onclick="trustEvent(-5,'Monster recruited — humans uneasy')">-5 Recruit</button>
+          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#2d7a2d;color:#6abf6a" onclick="trustEvent(5,'Good equipment given')">+5 Equip</button>
+          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#8b1a1a;color:#e05555" onclick="trustEvent(-5,'Backline took damage')">-5 Backline</button>
+          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#2d7a2d;color:#6abf6a" onclick="trustEvent(8,'Monster saved a human')">+8 Save</button>
+        </div>
+      </div>
     </div>
   </div>
   <div class="panel">
@@ -502,11 +515,13 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
 </div>
 
 <!-- MODAL: VISION POPUP -->
-<div class="modal-overlay" id="visionModal" style="display:none">
-  <div class="modal-box" style="border-color:#4a1a8b;max-width:480px;text-align:center">
-    <h2 style="color:#ccaaff" id="visionModalTitle">Vision Unlocked</h2>
-    <div style="font-size:0.9rem;color:#e8e0d0;line-height:1.8;margin:16px 0;font-style:italic" id="visionModalText"></div>
-    <button class="btn-confirm" onclick="closeVisionModal()" style="border-color:#4a1a8b;color:#ccaaff">Continue</button>
+<div class="modal-overlay" id="visionModal" style="display:none;background:rgba(0,0,0,0.92)">
+  <div class="modal-box" id="visionModalBox" style="border-color:#4a1a8b;max-width:560px;text-align:center">
+    <div style="font-size:0.65rem;color:#4a2a6a;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px" id="visionSource"></div>
+    <h2 style="color:#ccaaff;font-size:1.3rem;letter-spacing:2px;margin-bottom:20px" id="visionModalTitle">Vision Unlocked</h2>
+    <div style="font-size:0.92rem;color:#e8e0d0;line-height:2;font-style:italic;white-space:pre-line;text-align:left;border-left:2px solid #4a1a8b;padding-left:16px" id="visionModalText"></div>
+    <div style="margin-top:20px;font-size:0.65rem;color:#4a2a6a;letter-spacing:1px" id="visionUnlock"></div>
+    <button class="btn-confirm" id="visionCloseBtn" onclick="closeVisionModal()" style="margin-top:16px;border-color:#4a1a8b;color:#ccaaff;display:none">The Sword Has Spoken</button>
   </div>
 </div>
 
@@ -518,10 +533,96 @@ const GRID_SIZE = 10;
 const MAX_SOULS = 20;
 const THRESHOLDS = [3, 7, 12, 20];
 const VISIONS = {
-  3:  'A voice that sounds like two people speaking at once. Aldric\'s eyes, too cold for someone who just saved the world.',
-  7:  'The final battle chamber. Something transfers -- not victory, but absorption. Aldric kneeling over a body that slowly becomes his shadow.',
-  12: 'Aldric\'s coronation. Aelindra\'s face in the crowd -- she sees it too. The moment she chooses silence.',
-  20: 'FINAL VISION: The complete truth. Aldric did not defeat the Demon Lord. He became him. The Sword has shown everything.'
+  3: {
+    source: 'Memory Source: The Sword',
+    title: 'Vision I — The Eyes',
+    text: `The battlefield. Smoke. Silence.
+
+Aldric's sword enters the Demon Lord's chest.
+
+But the Demon Lord does not fall — he looks into Aldric's eyes with an expression that has nothing to do with death.
+
+Like recognising someone he has been waiting for.
+Like he already knew it would be him.
+
+A voice — two people speaking at once —
+
+"It was always going to be you."
+
+The vision shatters. The sword goes quiet.`,
+    unlock: 'UNLOCKED: Monster Recruitment (Phase 1) — attempt to recruit defeated common monsters.',
+    pipColor: '#8b1a1a'
+  },
+  7: {
+    source: 'Memory Source: Sister Aelindra',
+    title: 'Vision II — The Healer\'s Silence',
+    text: `The night before the coronation. Sister Aelindra's chamber.
+
+Aldric came to her to have his wounds dressed.
+She worked in silence. Candlelight.
+
+Her eyes moved to the shadow on the wall.
+
+Aldric's shadow had horns.
+
+She said nothing.
+
+Three days after the coronation, she was gone.
+
+The sword remembers her face.
+She knew. She chose silence.`,
+    unlock: 'UNLOCKED: Monster Recruitment (Phase 2) — attempt to recruit defeated elite monsters.',
+    pipColor: '#5a0808'
+  },
+  12: {
+    source: 'Memory Source: Commander Krath',
+    title: 'Vision III — What The General Saw',
+    text: `Commander Krath did not flee in cowardice.
+
+He retreated because he saw something no one was supposed to see.
+
+The moment Aldric's sword entered the Demon Lord's chest — the darkness moved in the wrong direction.
+
+Not outward from the Demon Lord.
+
+Into Aldric.
+
+The body fell. The crowd cheered.
+
+But something did not die.
+
+Krath is the only living witness.
+Aldric's hunters have been looking for him for three years.`,
+    unlock: 'UNLOCKED: Joint Abilities active for mixed Human + Monster parties.',
+    pipColor: '#c9a84c'
+  },
+  20: {
+    source: 'Memory Source: The Sword',
+    title: 'THE CROWN WAS NEVER HIS',
+    text: `The sword stops showing you other people's memories.
+
+This time it shows you its own.
+
+It remembers being forged. Being carried by the Demon Lord through a hundred wars. It remembers the final battle. It remembers the exact moment.
+
+Aldric did not defeat the Demon Lord.
+
+They made a deal.
+
+The Demon Lord needed a human body — the right body — to rule what he could never rule as a monster. Aldric wanted the throne. Whatever the cost.
+
+The moment the deal was done, the sword was thrown away. Because the sword had witnessed everything. And witnesses are dangerous.
+
+It waited in the ruins for three years.
+
+Until your party found it.
+
+Now you know.
+
+And now he knows you know.`,
+    unlock: 'The hunt begins. Aldric moves against Varn directly.',
+    pipColor: '#ccaaff'
+  }
 };
 
 // str/vit/int/dex: base stats assigned by class
@@ -1062,7 +1163,8 @@ function resolveAttack(attacker, target) {
     spawnFloat(target.row, target.col, `-${dmg}`, 'fdmg-hit');
     const advStr = adv&&!dis?' [Adv]':dis&&!adv?' [Dis]':'';
     log(`${attacker.name} hits ${target.name}! Roll ${raw}${advStr}+${atk}=${total} vs DEF${target.def}. Deals ${dmg} damage. HP ${target.hp}/${target.maxHp}.`, 'hit');
-    if (attacker.loyal && target.hp <= 0) { changeTrust(1); }
+    if (target.hp <= 0) { trustEvent(2, `${attacker.name} killed ${target.name}`); }
+    else if (attacker.loyal && target.hp <= 0) { changeTrust(1); }
   } else {
     resultType = 'miss';
     spawnFloat(target.row, target.col, 'MISS', 'fdmg-miss');
@@ -1353,6 +1455,7 @@ function cardHTML(tok) {
     ${!tok.dead?`<div class="ctrl-row" style="margin-top:3px">
       <button class="mini-btn atk-btn ${isAtking?'active':''}" onclick="event.stopPropagation();enterAttackMode(${tok.id})">&#9876; ATTACK</button>
       ${tok.side==='ally'?`<button class="mini-btn home-btn" onclick="event.stopPropagation();sendHome(${tok.id})">&#127968; Home</button>`:''}
+      ${tok.side==='enemy'&&!tok.dead&&souls>=3?`<button class="mini-btn" style="border-color:#4a8b4a;color:#8abf8a;font-size:0.55rem" onclick="event.stopPropagation();attemptRecruit(${tok.id})">&#9670; Recruit</button>`:''}
     </div>`:''}
     <div class="actions-row">
       <span class="a-pip act${tok.actions?'':' used'}" onclick="event.stopPropagation();toggleAction(${tok.id},'actions')">Action</span>
@@ -1486,6 +1589,7 @@ function checkDeath(tok) {
     tok.dead = true;
     log(`&#9760; ${tok.name} has fallen! Soul fed to the Sword.`, 'death');
     changeSouls(1);
+    if(tok.side==='ally') trustEvent(-8, `${tok.name} died`);
     // Sword stat gain: roll d(sum of stats) skewed toward highest stat
     swordStatGain(tok);
     rebuildTurnOrder();
@@ -1591,20 +1695,79 @@ function changeSouls(delta) {
 function updateSouls() {
   document.getElementById('soulCount').textContent=souls;
   const pips=document.getElementById('soulPips');pips.innerHTML='';
-  for(let i=1;i<=MAX_SOULS;i++){const p=document.createElement('div');p.className=`soul-pip ${i<=souls?'filled':''} ${THRESHOLDS.includes(i)?'threshold':''}`;pips.appendChild(p);}
-  const reached=THRESHOLDS.filter(t=>souls>=t);const latest=reached[reached.length-1];
+  // Determine current color phase
+  let pipColor='#c9a84c';
+  if(souls>=20) pipColor='#ccaaff';
+  else if(souls>=12) pipColor='#c9a84c';
+  else if(souls>=7) pipColor='#5a0808';
+  else if(souls>=3) pipColor='#8b1a1a';
+  for(let i=1;i<=MAX_SOULS;i++){
+    const p=document.createElement('div');
+    p.className=`soul-pip ${THRESHOLDS.includes(i)?'threshold':''}`;
+    if(i<=souls) { p.style.background=pipColor; p.style.borderColor=pipColor; }
+    pips.appendChild(p);
+  }
+  // Vision box: show latest reached
+  const reached=THRESHOLDS.filter(t=>souls>=t);
+  const latest=reached[reached.length-1];
   const vb=document.getElementById('visionBox');
-  if(latest&&VISIONS[latest]){vb.style.display='block';vb.textContent=VISIONS[latest];}else vb.style.display='none';
+  if(latest&&VISIONS[latest]){
+    vb.style.display='block';
+    vb.innerHTML=`<strong style="color:#ccaaff">${VISIONS[latest].title}</strong><br>${VISIONS[latest].unlock}`;
+  } else vb.style.display='none';
+  // Soul count color
+  const sc=document.getElementById('soulCount');
+  if(souls>=20) sc.style.color='#ccaaff';
+  else if(souls>=12) sc.style.color='#c9a84c';
+  else if(souls>=7) sc.style.color='#8b1a1a';
+  else sc.style.color='#c9a84c';
 }
-function showVisionModal(souls) {
-  document.getElementById('visionModalTitle').textContent=`Vision -- ${souls} Souls`;
-  document.getElementById('visionModalText').textContent=VISIONS[souls];
-  document.getElementById('visionModal').style.display='flex';
-  log(`VISION UNLOCKED at ${souls} souls!`,'vision');
+
+function showVisionModal(th) {
+  const v=VISIONS[th];
+  if(!v) return;
+  const isFinal = th===20;
+  const modal=document.getElementById('visionModal');
+  const box=document.getElementById('visionModalBox');
+  document.getElementById('visionSource').textContent=v.source;
+  document.getElementById('visionModalTitle').textContent=v.title;
+  document.getElementById('visionModalText').textContent=v.text;
+  document.getElementById('visionUnlock').textContent=v.unlock;
+  const btn=document.getElementById('visionCloseBtn');
+  btn.style.display='none';
+  if(isFinal) {
+    // Full-screen blackout then reveal
+    modal.style.background='rgba(0,0,0,1)';
+    box.style.display='none';
+    modal.style.display='flex';
+    document.querySelector('header h1').textContent='The Crown Was Never His';
+    setTimeout(()=>{
+      modal.style.background='rgba(0,0,0,0.95)';
+      box.style.display='block';
+      box.style.borderColor='#ccaaff';
+      document.getElementById('visionModalTitle').style.color='#ccaaff';
+      document.getElementById('visionModalTitle').style.fontSize='1.5rem';
+      setTimeout(()=>{ btn.style.display='inline-block'; },4000);
+    },2000);
+  } else {
+    modal.style.background='rgba(0,0,0,0.92)';
+    box.style.display='block';
+    box.style.borderColor=v.pipColor||'#4a1a8b';
+    modal.style.display='flex';
+    setTimeout(()=>{ btn.style.display='inline-block'; },1500);
+  }
+  log(`VISION UNLOCKED — ${v.title}`,'vision');
 }
 function closeVisionModal(){document.getElementById('visionModal').style.display='none';}
 
 function changeTrust(delta){trust=Math.max(0,Math.min(100,trust+delta));updateTrust();}
+function trustEvent(delta, reason) {
+  const prev=trust;
+  trust=Math.max(0,Math.min(100,trust+delta));
+  updateTrust();
+  const sign=delta>=0?'+':'';
+  log(`[Trust] ${reason}: ${sign}${delta} (${prev}→${trust})`, delta>=0?'heal':'miss');
+}
 function updateTrust(){
   const el=document.getElementById('trustNum');
   el.textContent=trust;
@@ -1763,6 +1926,86 @@ window.cellClick = function(r, c) {
 // Re-bind grid after patch
 function rebindGrid() {
   for(let r=0;r<GRID_SIZE;r++) for(let c=0;c<GRID_SIZE;c++) document.getElementById(`cell-${r}-${c}`).onclick=()=>window.cellClick(r,c);
+}
+
+// =============================================================================
+// MONSTER RECRUITMENT
+// =============================================================================
+// Phase 1: 3 souls  — common monsters, d20 >= 12
+// Phase 2: 7 souls  — elite monsters,  d20 >= 15, costs 1 soul
+// Phase 3: 12 souls — joint abilities auto-unlock (no roll needed)
+// Phase 4: 20 souls — recruit freely, no roll needed
+
+const ELITE_ENEMIES = ['Elite','Hunter','Spear Shield Goblin','Hand of Hell','Graveborn Hand','Chained Palm','Ashen Knight','Shield Captain','Bloodcaller','Ambusher'];
+
+function getRecruitPhase() {
+  if(souls>=20) return 4;
+  if(souls>=12) return 3;
+  if(souls>=7)  return 2;
+  if(souls>=3)  return 1;
+  return 0;
+}
+
+function attemptRecruit(id) {
+  const tok = tokens.find(t=>t.id===id);
+  if(!tok||tok.side!=='enemy'||tok.dead) return;
+  const phase = getRecruitPhase();
+  if(phase===0) { log('Recruitment locked — reach 3 souls first.','miss'); return; }
+
+  const isElite = ELITE_ENEMIES.includes(tok.class);
+
+  // Phase check
+  if(isElite && phase<2) { log(`Cannot recruit elite monsters until 7 souls (currently ${souls}).`,'miss'); return; }
+
+  // Phase 4: free recruit
+  if(phase===4) {
+    log(`Phase 4: The Sword speaks. ${tok.name} recognises Varn's mark. No roll needed.`,'vision');
+    convertToAlly(tok);
+    return;
+  }
+
+  // Phase 2: costs 1 soul
+  if(isElite && phase>=2) {
+    if(!confirm(`Recruiting elite ${tok.name} costs 1 soul. Currently: ${souls} souls. Confirm?`)) return;
+    souls = Math.max(0, souls-1);
+    updateSouls();
+  }
+
+  const threshold = isElite ? 15 : 12;
+  const roll = Math.floor(Math.random()*20)+1;
+  log(`[Recruit] Roll d20: ${roll} vs DC ${threshold} to recruit ${tok.name}.`, 'sys');
+
+  if(roll >= threshold) {
+    log(`Success! ${tok.name} surrenders and joins Varn's party.`, 'vision');
+    convertToAlly(tok);
+    trustEvent(-5, 'Human allies uneasy about new monster recruit');
+  } else {
+    log(`Failed. ${tok.name} refuses — killed instead. +1 Soul.`, 'death');
+    tok.hp = 0;
+    checkDeath(tok);
+  }
+  renderAll();
+}
+
+function convertToAlly(tok) {
+  // Convert enemy token to ally: keep stats, change side, roll a trait
+  tok.side = 'ally';
+  tok.color = '#0e2240';
+  tok.bcolor = '#4a8fbf';
+  tok.hp = Math.ceil(tok.maxHp * 0.5); // joins at 50% HP (wounded)
+  tok.actions = true;
+  if(!tok.mana) tok.mana = 3;
+  if(!tok.maxMana) tok.maxMana = 3;
+  if(!tok.manaRegen) tok.manaRegen = 1;
+  if(!tok.str) { tok.str=2; tok.vit=2; tok.int=1; tok.dex=2; }
+  if(!tok.equipment) tok.equipment=[];
+  // Roll a random trait
+  const trait = TRAITS[Math.floor(Math.random()*TRAITS.length)];
+  tok.trait = trait;
+  trait.apply(tok);
+  log(`${tok.name} joins as ally [${trait.name} trait]. HP: ${tok.hp}/${tok.maxHp}. Trust with humans starts low.`, 'vision');
+  rebuildTurnOrder();
+  renderAll();
 }
 
 // =============================================================================

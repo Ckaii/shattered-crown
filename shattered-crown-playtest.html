@@ -519,6 +519,21 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
   </div>
 </div>
 
+<!-- MODAL: ABILITY PICKER -->
+<div class="modal-overlay" id="abilityPickerModal" style="display:none">
+  <div class="modal-box" style="max-width:500px">
+    <button class="modal-close" onclick="closeAbilityPicker()">&times;</button>
+    <div style="font-size:0.65rem;color:#666;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px" id="abilityPickerClass">Fighter</div>
+    <h2 id="abilityPickerTitle">Choose an Ability</h2>
+    <div style="font-size:0.72rem;color:#888;margin-bottom:14px">Stat threshold reached — choose 1 ability to learn permanently:</div>
+    <div id="abilityPickerList"></div>
+    <div class="roll-actions" style="margin-top:12px">
+      <button class="btn-skip" onclick="closeAbilityPicker()">Skip (no ability)</button>
+      <button class="btn-confirm" onclick="confirmAbility()">Learn Ability &rarr;</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: VISION POPUP -->
 <div class="modal-overlay" id="visionModal" style="display:none;background:rgba(0,0,0,0.92)">
   <div class="modal-box" id="visionModalBox" style="border-color:#4a1a8b;max-width:560px;text-align:center">
@@ -710,6 +725,64 @@ const ENEMY_CLASSES = [
    str:1, vit:2, int:5, dex:2, maxMana:8, manaRegen:3,
    classSkill:{name:'Nature’s Wrath', manaCost:3, cooldown:3, targetType:'enemy-range', effectType:'damage', effectValue:3, desc:'Lightning strike +3, applies Rattled. 3 mana, 3cd.'}},
 ];
+
+// =============================================================================
+// CLASS SKILL POOLS — Samuel's full ability list from A3c doc
+// GM presents 4 random picks from this list on each stat threshold
+// Format matches classSkill: {name, manaCost, cooldown, targetType, effectType, effectValue, desc}
+// =============================================================================
+const CLASS_SKILL_POOLS = {
+  Fighter: [
+    {name:'Shield Bash',    manaCost:0, cooldown:3, targetType:'enemy-adj',  effectType:'push',        effectValue:1, desc:'Push adjacent enemy 1 square. Can interrupt charge.'},
+    {name:'Spin Attack',    manaCost:2, cooldown:4, targetType:'all-enemies', effectType:'damage',      effectValue:-1,desc:'Strike all adjacent enemies at -1 ATK. 2 mana, 4cd.'},
+    {name:'Slash Wave',     manaCost:3, cooldown:4, targetType:'enemy-range', effectType:'damage',      effectValue:2, desc:'Ranged slash at range 2, +2 ATK. 3 mana, 4cd.'},
+    {name:'Perseverance',   manaCost:0, cooldown:0, targetType:'self',        effectType:'heal',        effectValue:2, desc:'Passive: regenerate 2 HP at the start of each round.'},
+    {name:'Battle Cry',     manaCost:2, cooldown:4, targetType:'self',        effectType:'buff-atk',    effectValue:3, desc:'+3 ATK until end of round, adjacent allies gain +1 ATK. 2 mana, 4cd.'},
+    {name:'Parry',          manaCost:1, cooldown:3, targetType:'self',        effectType:'buff-def',    effectValue:3, desc:'Reaction: +3 DEF until next turn. 1 mana, 3cd.'},
+  ],
+  Tank: [
+    {name:'Taunt',          manaCost:1, cooldown:3, targetType:'enemy-adj',  effectType:'status-add',  effectValue:0, desc:'Adjacent enemies must target you next turn. 1 mana, 3cd.'},
+    {name:'Bulldoze',       manaCost:2, cooldown:4, targetType:'enemy-adj',  effectType:'push',        effectValue:2, desc:'Charge: push target 2 squares and deal damage. 2 mana, 4cd.'},
+    {name:'Thick',          manaCost:0, cooldown:0, targetType:'self',        effectType:'flavor',      effectValue:0, desc:'Passive: occupy 2×2 squares — blocks chokepoints. Must fit at start & end of move.'},
+    {name:'Shield Wall',    manaCost:2, cooldown:3, targetType:'self',        effectType:'buff-def',    effectValue:4, desc:'+4 DEF for 1 round. Adjacent allies gain +2 DEF. 2 mana, 3cd.'},
+    {name:'Intercept',      manaCost:1, cooldown:3, targetType:'ally-adj',   effectType:'flavor',      effectValue:0, desc:'Redirect an attack targeting an adjacent ally to yourself. 1 mana, 3cd.'},
+    {name:'Fortify',        manaCost:3, cooldown:5, targetType:'self',        effectType:'buff-def',    effectValue:6, desc:'Until your next turn, gain +6 DEF and cannot be moved. 3 mana, 5cd.'},
+  ],
+  Rogue: [
+    {name:'Backstab',       manaCost:1, cooldown:2, targetType:'enemy-adj',  effectType:'damage',      effectValue:3, desc:'Strike from behind or flank for +3 ATK. Crit if hidden. 1 mana, 2cd.'},
+    {name:'Arrow Throw',    manaCost:0, cooldown:1, targetType:'enemy-range', effectType:'damage',      effectValue:0, desc:'Thrown weapon at range 3. Quick ranged option. 0 mana, 1cd.'},
+    {name:'Big Crit',       manaCost:0, cooldown:0, targetType:'self',        effectType:'flavor',      effectValue:0, desc:'Passive: crit chance % adds directly to crit damage multiplier.'},
+    {name:'Pierce',         manaCost:2, cooldown:3, targetType:'enemy-range', effectType:'damage',      effectValue:2, desc:'Attack ignores DEF entirely. +2 ATK. 2 mana, 3cd.'},
+    {name:'Sharpen',        manaCost:1, cooldown:4, targetType:'self',        effectType:'buff-atk',    effectValue:2, desc:'Gain +2 ATK and crits apply Bleeding for 2 rounds. 1 mana, 4cd.'},
+    {name:'Crouch',         manaCost:0, cooldown:2, targetType:'self',        effectType:'flavor',      effectValue:0, desc:'Enter hidden state: 25% dodge chance. Ends if you hit or get hit (sneak stat check). 0 mana, 2cd.'},
+    {name:'Sneak Attack',   manaCost:0, cooldown:0, targetType:'passive',     effectType:'damage-flat', effectValue:6, desc:'Passive: always crits if hidden or attacking from behind. +1d6 vs Flanked targets.'},
+  ],
+  Ranger: [
+    {name:'Heavy Shot',     manaCost:2, cooldown:3, targetType:'enemy-range', effectType:'damage',      effectValue:2, desc:'Powerful single shot +2 ATK, applies Pinned. 2 mana, 3cd.'},
+    {name:'Mana Arrow',     manaCost:2, cooldown:2, targetType:'enemy-range', effectType:'damage',      effectValue:1, desc:'Magical arrow that ignores physical DEF. +1 ATK. 2 mana, 2cd.'},
+    {name:'Multi Shot',     manaCost:3, cooldown:4, targetType:'enemy-range', effectType:'damage',      effectValue:-2,desc:'Fire at up to 3 targets in range at -2 ATK each. 3 mana, 4cd.'},
+    {name:'Quick Shot',     manaCost:0, cooldown:1, targetType:'enemy-range', effectType:'damage',      effectValue:0, desc:'Fast shot as free action (no action cost). 0 mana, 1cd.'},
+    {name:'Natural Hunter', manaCost:0, cooldown:0, targetType:'passive',     effectType:'flavor',      effectValue:0, desc:'Passive: attacks vs enemies in difficult terrain (fire/crack/ledge) have Advantage.'},
+    {name:'Volley',         manaCost:2, cooldown:3, targetType:'enemy-range', effectType:'damage',      effectValue:-2,desc:'Attack two targets in range at -2 ATK each. 2 mana, 3cd.'},
+  ],
+  Mage: [
+    {name:'Fireball',       manaCost:3, cooldown:3, targetType:'enemy-range', effectType:'damage',      effectValue:3, desc:'1d6+3 fire damage, applies Burning. 3 mana, 3cd.'},
+    {name:'Healing Ray',    manaCost:3, cooldown:2, targetType:'ally-range',  effectType:'heal',        effectValue:8, desc:'Restore 1d8 HP to ally in range. 3 mana, 2cd.'},
+    {name:'Teleportation',  manaCost:4, cooldown:4, targetType:'self',        effectType:'flavor',      effectValue:0, desc:'Instantly move up to 5 squares, ignoring terrain. 4 mana, 4cd.'},
+    {name:'Mana Bolt',      manaCost:1, cooldown:0, targetType:'enemy-range', effectType:'damage',      effectValue:1, desc:'Quick magic strike +1 ATK. 1 mana, 0cd — usable every turn.'},
+    {name:'Ice Wall',       manaCost:5, cooldown:5, targetType:'self',        effectType:'flavor',      effectValue:0, desc:'Create a 3-square ice wall blocking movement & ranged LOS. 5 mana, 5cd.'},
+    {name:'Presence of Mind',manaCost:0,cooldown:0, targetType:'self',        effectType:'flavor',      effectValue:0, desc:'Passive: +1 mana regen per round. If an ability kills an enemy, refund 50% mana cost (round down).'},
+    {name:'Overflow',       manaCost:0, cooldown:0, targetType:'self',        effectType:'flavor',      effectValue:0, desc:'Passive: any ability can double its mana cost to increase damage proportionally.'},
+  ],
+  Cleric: [
+    {name:'Heal',           manaCost:2, cooldown:2, targetType:'ally-adj',   effectType:'heal',        effectValue:8, desc:'Restore 1d8 HP to self or adjacent ally. 2 mana, 2cd.'},
+    {name:'Healing Touch',  manaCost:1, cooldown:1, targetType:'ally-adj',   effectType:'heal',        effectValue:4, desc:'Quick heal for 1d4 HP. 1 mana, 1cd.'},
+    {name:'Healing Chain',  manaCost:4, cooldown:4, targetType:'ally-range', effectType:'heal',        effectValue:6, desc:'Heal jumps to up to 3 allies: 1d6 HP each. 4 mana, 4cd.'},
+    {name:'Holy Fire',      manaCost:3, cooldown:3, targetType:'enemy-range', effectType:'damage',      effectValue:3, desc:'Sacred flame +3 ATK, bonus vs Undead (Black faction). Applies Burning. 3 mana, 3cd.'},
+    {name:'Aura of Protection',manaCost:3,cooldown:4,targetType:'self',      effectType:'buff-def',    effectValue:2, desc:'All allies within 2 squares gain +2 DEF until start of next turn. 3 mana, 4cd.'},
+    {name:'Revive',         manaCost:5, cooldown:0, targetType:'ally-adj',   effectType:'heal',        effectValue:10,desc:'Stabilise a dead ally — they return at 10% HP. Can only be used once per combat. 5 mana, no cd.'},
+  ],
+};
 
 const TRAITS = [
   {name:'Brave',     stats:'+1 ATK',            desc:'Immune to morale breaks. Attacks never suffer Disadvantage from low Trust.', apply:t=>{t.atk+=1; t.moralImmune=true;}},
@@ -1544,6 +1617,8 @@ function cardHTML(tok) {
       <span title="Intelligence">INT ${tok.int}</span><span style="color:#2a2f4a">|</span>
       <span title="Dexterity">DEX ${tok.dex}</span>
       <button class="mini-btn" style="font-size:0.5rem;padding:0px 4px;margin-left:4px" onclick="event.stopPropagation();openStatUp(${tok.id})" title="Level up a stat">+STAT</button>
+      ${tok.side==='ally'?`<button class="mini-btn" style="font-size:0.5rem;padding:0px 4px;margin-left:4px;border-color:#4a2a6a;color:#aa88cc" onclick="event.stopPropagation();openAbilityPicker(tokens.find(t=>t.id===${tok.id}))" title="Pick a class ability">+SKILL</button>`:''}
+
     </div>
     <div class="skill-row">${csBtn}${poolSkills}</div>
     <div class="status-row">${statusHTML}</div>
@@ -1957,8 +2032,69 @@ function checkStatThreshold(tok, stat) {
   const threshKey=stat+'Thresh';
   if(cur>=tok[threshKey]+freq){
     tok[threshKey]=Math.floor(cur/freq)*freq;
-    log(`&#9670; ${tok.name} ${stat.toUpperCase()} threshold reached! Choose 1 of 4 random abilities (GM rolls from pool).`,'vision');
+    log(`&#9670; ${tok.name} ${stat.toUpperCase()} threshold! Opening ability picker...`,'vision');
+    openAbilityPicker(tok);
   }
+}
+
+// ===========================================================================
+// CLASS ABILITY PICKER — fires on stat threshold
+// ===========================================================================
+let _abilityPickerTokId = null;
+
+function openAbilityPicker(tok) {
+  _abilityPickerTokId = tok.id;
+  const pool = CLASS_SKILL_POOLS[tok.class] || [];
+  // Get skills already learned (by name) to filter out
+  const learned = new Set((tok.skills||[]).filter(Boolean).map(s=>s.name));
+  if(tok.classSkill) learned.add(tok.classSkill.name);
+  const available = pool.filter(s=>!learned.has(s.name));
+  if(!available.length){ log(`${tok.name}: all class abilities already learned.`,'skill'); return; }
+  // Pick up to 4 random options
+  const shuffled=[...available].sort(()=>Math.random()-0.5).slice(0,4);
+  const modal = document.getElementById('abilityPickerModal');
+  document.getElementById('abilityPickerTitle').textContent = `${tok.name} — Choose an Ability`;
+  document.getElementById('abilityPickerClass').textContent = tok.class;
+  const list = document.getElementById('abilityPickerList');
+  list.innerHTML = shuffled.map((sk,i)=>`
+    <div class="ability-option" onclick="selectAbility(${i})" id="ao-${i}" style="border:1px solid #2a3050;border-radius:6px;padding:10px;cursor:pointer;background:#0d1420;margin-bottom:8px;transition:border-color 0.15s">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <strong style="color:#c9a84c;font-size:0.9rem">${sk.name}</strong>
+        <span style="font-size:0.65rem;color:#6699cc">${sk.manaCost>0?sk.manaCost+' MP':'Free'} ${sk.cooldown>0?'· '+sk.cooldown+'cd':sk.cooldown===0&&sk.manaCost===0?'· No cd':''}</span>
+      </div>
+      <div style="font-size:0.72rem;color:#888;line-height:1.5">${sk.desc}</div>
+    </div>`).join('');
+  modal._skills = shuffled;
+  modal.style.display = 'flex';
+}
+
+function selectAbility(idx) {
+  const modal = document.getElementById('abilityPickerModal');
+  document.querySelectorAll('.ability-option').forEach((el,i)=>{
+    el.style.borderColor = i===idx ? '#c9a84c' : '#2a3050';
+  });
+  modal._selected = idx;
+}
+
+function confirmAbility() {
+  const modal = document.getElementById('abilityPickerModal');
+  const idx = modal._selected;
+  if(idx==null){ alert('Pick an ability first.'); return; }
+  const tok = tokens.find(t=>t.id===_abilityPickerTokId); if(!tok) return;
+  const sk = modal._skills[idx];
+  // Add to skills array (first empty slot)
+  if(!tok.skills) tok.skills=[null,null];
+  const freeSlot = tok.skills.indexOf(null);
+  if(freeSlot>=0) tok.skills[freeSlot]=sk;
+  else tok.skills.push(sk); // overflow
+  log(`&#9670; ${tok.name} learned [${sk.name}]! Mana cost: ${sk.manaCost}, Cooldown: ${sk.cooldown}.`,'vision');
+  closeAbilityPicker();
+  renderAll();
+}
+
+function closeAbilityPicker() {
+  const modal = document.getElementById('abilityPickerModal');
+  modal.style.display='none'; modal._selected=null; _abilityPickerTokId=null;
 }
 function log(msg,type='sys'){
   const box=document.getElementById('combatLog');

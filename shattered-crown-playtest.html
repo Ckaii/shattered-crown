@@ -335,16 +335,21 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
       <button class="roll-btn" style="margin-top:6px;font-size:0.72rem;padding:4px 0" onclick="rollTrust()">&#127922; Roll d100 Trust Check</button>
       <div id="trustRollResult" style="font-size:0.68rem;margin-top:4px;color:#888;min-height:14px"></div>
       <div style="margin-top:8px;border-top:1px solid #1a1f3c;padding-top:8px">
-        <div style="font-size:0.6rem;color:#4a5a4a;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Quick Events</div>
-        <div style="display:flex;flex-wrap:wrap;gap:3px">
-          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#2d7a2d;color:#6abf6a" onclick="trustEvent(10,'Mission success')">+10 Win</button>
-          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#8b1a1a;color:#e05555" onclick="trustEvent(-10,'Mission failed')">-10 Fail</button>
+        <div style="font-size:0.6rem;color:#4a5a4a;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Quick Events — Before Raid</div>
+        <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:5px">
+          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#2d7a2d;color:#6abf6a" onclick="trustEvent(10,'Dungeon cleared — successful raid')">+10 Raid Win</button>
+          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#8b1a1a;color:#e05555" onclick="trustEvent(-10,'Raid failed / retreated')">-10 Raid Fail</button>
+          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#2d7a2d;color:#6abf6a" onclick="trustEvent(3,'Party member survived previous run')">+3 Survivor</button>
+          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#8b1a1a;color:#e05555" onclick="trustEvent(-5,'Bad party comp: mixed humans+monsters at start')">-5 Bad Comp</button>
           <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#8b1a1a;color:#e05555" onclick="trustEvent(-20,'Full party wipe')">-20 Wipe</button>
-          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#2d7a2d;color:#6abf6a" onclick="trustEvent(3,'Survivor returns')">+3 Survivor</button>
+        </div>
+        <div style="font-size:0.6rem;color:#4a5a4a;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">During Raid</div>
+        <div style="display:flex;flex-wrap:wrap;gap:3px">
+          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#2d7a2d;color:#6abf6a" onclick="trustEvent(2,'Enemy killed')">+2 Kill</button>
+          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#8b1a1a;color:#e05555" onclick="trustEvent(-3,'Backline took damage')">-3 Backline Hit</button>
+          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#8b1a1a;color:#e05555" onclick="trustEvent(-15,'Player attacked a party member!')">-15 Friendly Fire</button>
           <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#8b1a1a;color:#e05555" onclick="trustEvent(-5,'Monster recruited — humans uneasy')">-5 Recruit</button>
-          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#2d7a2d;color:#6abf6a" onclick="trustEvent(5,'Good equipment given')">+5 Equip</button>
-          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#8b1a1a;color:#e05555" onclick="trustEvent(-5,'Backline took damage')">-5 Backline</button>
-          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#2d7a2d;color:#6abf6a" onclick="trustEvent(8,'Monster saved a human')">+8 Save</button>
+          <button class="mini-btn" style="flex:none;font-size:0.55rem;border-color:#2d7a2d;color:#6abf6a" onclick="trustEvent(8,'Monster party member saved a human')">+8 Bond Moment</button>
         </div>
       </div>
     </div>
@@ -631,27 +636,79 @@ And now he knows you know.`,
 const ALLY_CLASSES = [
   {name:'Fighter', hp:20, speed:3, atk:5, def:14, range:1, color:'#0e2240', bcolor:'#4a8fbf',
    str:4, vit:3, int:1, dex:2, maxMana:4, manaRegen:1,
-   classSkill:{name:'Shield Bash', manaCost:0, cooldown:3, targetType:'enemy-adj', effectType:'push', effectValue:1, desc:'Push adjacent enemy 1 square. Costs 0 mana, 3-round cooldown.'}},
+   classSkill:{name:'Shield Bash', manaCost:0, cooldown:3, targetType:'enemy-adj', effectType:'push', effectValue:1, desc:'Push adjacent enemy 1 square. 0 mana, 3-round cooldown.'}},
+  {name:'Tank',    hp:26, speed:2, atk:4, def:16, range:1, color:'#0e1a30', bcolor:'#3a6abf',
+   str:3, vit:5, int:1, dex:1, maxMana:5, manaRegen:1,
+   classSkill:{name:'Taunt', manaCost:1, cooldown:3, targetType:'enemy-adj', effectType:'status-add', effectValue:0, desc:'Adjacent enemies must target you next turn. 1 mana, 3-round cooldown. Passive: can become 2×2 (Thick) blocking chokepoints.'}},
   {name:'Rogue',   hp:14, speed:4, atk:7, def:12, range:1, color:'#0e2040', bcolor:'#6a6abf',
    str:2, vit:2, int:1, dex:4, maxMana:3, manaRegen:1,
-   classSkill:{name:'Sneak Attack', manaCost:0, cooldown:0, targetType:'passive', effectType:'damage-flat', effectValue:6, desc:'Passive: when attacking a Flanked target, deal +1d6 bonus damage.'}},
+   classSkill:{name:'Sneak Attack', manaCost:0, cooldown:0, targetType:'passive', effectType:'damage-flat', effectValue:6, desc:'Passive: always crits if hidden or attacking from behind. +1d6 vs Flanked targets.'}},
   {name:'Ranger',  hp:16, speed:3, atk:5, def:13, range:4, color:'#0e2028', bcolor:'#4a9f8f',
    str:2, vit:2, int:2, dex:3, maxMana:6, manaRegen:2,
-   classSkill:{name:'Volley', manaCost:2, cooldown:3, targetType:'enemy-range', effectType:'damage', effectValue:-2, desc:'Attack two targets in range at -2 ATK each. 2 mana, 3-round cooldown.'}},
+   classSkill:{name:'Heavy Shot', manaCost:2, cooldown:3, targetType:'enemy-range', effectType:'damage', effectValue:2, desc:'Single powerful ranged shot +2 ATK, applies Pinned on hit. 2 mana, 3-round cooldown.'}},
+  {name:'Mage',    hp:10, speed:2, atk:4, def:11, range:5, color:'#0a0a28', bcolor:'#5050cf',
+   str:1, vit:1, int:5, dex:2, maxMana:12, manaRegen:3,
+   classSkill:{name:'Fireball', manaCost:3, cooldown:3, targetType:'enemy-range', effectType:'damage', effectValue:3, desc:'Deal 1d6+3 fire damage in range, applies Burning. 3 mana, 3-round cooldown. Passive: if kill refunds 50% mana (round down).'}},
   {name:'Cleric',  hp:16, speed:3, atk:3, def:13, range:1, color:'#201020', bcolor:'#9f4abf',
    str:1, vit:2, int:4, dex:1, maxMana:8, manaRegen:3,
    classSkill:{name:'Heal', manaCost:2, cooldown:2, targetType:'ally-adj', effectType:'heal', effectValue:8, desc:'Restore 1d8 HP to self or adjacent ally. 2 mana, 2-round cooldown.'}},
 ];
+
+// Faction codes: 'red'=Goblins  'black'=Undead  'blue'=Sea/Control  'white'=Order/Aldric  'green'=Giants
+const FACTION_COLORS = {red:'#8b2020', black:'#2a2a3a', blue:'#205080', white:'#7a7a9a', green:'#205020'};
+const FACTION_LABELS = {red:'🔴 Red', black:'⚫ Black', blue:'🔵 Blue', white:'⚪ White', green:'🟢 Green'};
+
 const ENEMY_CLASSES = [
-  {name:'Soldier', hp:12, speed:3, atk:3, def:12, range:1, color:'#2a0a0a', bcolor:'#8b3030',
-   str:3, vit:2, int:1, dex:2, maxMana:3, manaRegen:1,
-   classSkill:{name:'Pack Tactics', manaCost:0, cooldown:0, targetType:'passive', effectType:'flavor', effectValue:0, desc:'Passive: Advantage when another Soldier is adjacent to the same target.'}},
-  {name:'Elite',   hp:18, speed:3, atk:5, def:14, range:1, color:'#2a0a0a', bcolor:'#bf3030',
+  // ── RED faction (Goblins / Aggression) ───────────────────────────────────────
+  {name:'Goblin',         faction:'red', hp:8,  speed:3, atk:3, def:10, range:1, color:'#2a0a0a', bcolor:'#8b2020',
+   str:2, vit:1, int:1, dex:3, maxMana:2, manaRegen:1,
+   classSkill:{name:'Pack Tactics', manaCost:0, cooldown:0, targetType:'passive', effectType:'flavor', effectValue:0, desc:'Passive: Advantage when another Goblin is adjacent to same target.'}},
+  {name:'Ranged Goblin',  faction:'red', hp:8,  speed:3, atk:3, def:10, range:4, color:'#2a0a0a', bcolor:'#a03020',
+   str:1, vit:1, int:1, dex:4, maxMana:2, manaRegen:1,
+   classSkill:{name:'Arrow Volley', manaCost:0, cooldown:2, targetType:'enemy-range', effectType:'damage', effectValue:-1, desc:'Shoot two arrows at -1 ATK each. 0 mana, 2-round cooldown.'}},
+  {name:'Spear Goblin',   faction:'red', hp:10, speed:3, atk:4, def:11, range:2, color:'#2a0a0a', bcolor:'#b03030',
+   str:3, vit:2, int:1, dex:2, maxMana:2, manaRegen:1,
+   classSkill:{name:'Spear Lunge', manaCost:0, cooldown:2, targetType:'enemy-range', effectType:'damage', effectValue:1, desc:'Reach attack +1 ATK, applies Pinned. 0 mana, 2-round cooldown.'}},
+  {name:'Mage Goblin',    faction:'red', hp:8,  speed:2, atk:3, def:10, range:4, color:'#2a0a0a', bcolor:'#8b3a60',
+   str:1, vit:1, int:4, dex:2, maxMana:6, manaRegen:2,
+   classSkill:{name:'Hex Bolt', manaCost:2, cooldown:2, targetType:'enemy-range', effectType:'damage', effectValue:2, desc:'Magic bolt +2 damage, applies Rattled. 2 mana, 2-round cooldown.'}},
+  {name:'Orc',            faction:'red', hp:18, speed:3, atk:6, def:13, range:1, color:'#2a0a0a', bcolor:'#bf3030',
+   str:5, vit:3, int:1, dex:2, maxMana:3, manaRegen:1,
+   classSkill:{name:'Reckless Blow', manaCost:0, cooldown:2, targetType:'enemy-adj', effectType:'damage', effectValue:4, desc:'Massive swing +4 ATK, but Orc has Disadvantage on DEF until next turn. 0 mana, 2cd.'}},
+  // ── BLACK faction (Undead / Sacrifice) ────────────────────────────────────────
+  {name:'Skeleton',       faction:'black', hp:10, speed:3, atk:3, def:12, range:1, color:'#0a0a14', bcolor:'#4a4a6a',
+   str:2, vit:2, int:1, dex:3, maxMana:2, manaRegen:1,
+   classSkill:{name:'Bone Throw', manaCost:0, cooldown:2, targetType:'enemy-range', effectType:'damage', effectValue:1, desc:'Hurls a bone for ranged attack at range 3. 0 mana, 2cd.'}},
+  {name:'Zombie',         faction:'black', hp:16, speed:2, atk:4, def:11, range:1, color:'#0a0a14', bcolor:'#3a4a3a',
+   str:4, vit:3, int:0, dex:1, maxMana:0, manaRegen:0,
+   classSkill:{name:'Reanimate', manaCost:0, cooldown:0, targetType:'passive', effectType:'flavor', effectValue:0, desc:'Passive: at 0 HP stands back up with 3 HP once per combat (unless dealt fire/holy damage).'}},
+  {name:'Soul Eater',     faction:'black', hp:12, speed:4, atk:5, def:12, range:1, color:'#0a0a14', bcolor:'#6a2a8a',
+   str:2, vit:2, int:3, dex:4, maxMana:4, manaRegen:2,
+   classSkill:{name:'Drain Soul', manaCost:2, cooldown:3, targetType:'enemy-adj', effectType:'damage', effectValue:3, desc:'Drains life — deal 3 damage and heal equal amount. Counts as a soul absorbed if target dies. 2 mana, 3cd.'}},
+  // ── WHITE faction (Royal Order / Aldric's forces) ──────────────────────────
+  {name:'Shield Bearer',  faction:'white', hp:16, speed:2, atk:3, def:15, range:1, color:'#181830', bcolor:'#7a7aaa',
+   str:3, vit:4, int:1, dex:1, maxMana:3, manaRegen:1,
+   classSkill:{name:'Shield Wall', manaCost:1, cooldown:3, targetType:'self', effectType:'buff-def', effectValue:3, desc:'+3 DEF for 1 round, all adjacent allies gain +1 DEF. 1 mana, 3cd.'}},
+  {name:'Ranged Soldier', faction:'white', hp:12, speed:3, atk:4, def:12, range:4, color:'#181830', bcolor:'#9090bf',
+   str:2, vit:2, int:1, dex:3, maxMana:3, manaRegen:1,
+   classSkill:{name:'Suppressing Fire', manaCost:0, cooldown:2, targetType:'enemy-range', effectType:'status-add', effectValue:0, desc:'Apply Pinned to target on hit (cannot move next turn). 0 mana, 2cd.'}},
+  {name:'Royal Guard',    faction:'white', hp:22, speed:3, atk:5, def:15, range:1, color:'#181830', bcolor:'#aaaadf',
+   str:4, vit:4, int:2, dex:2, maxMana:5, manaRegen:2,
+   classSkill:{name:'Loyal Strike', manaCost:2, cooldown:3, targetType:'enemy-adj', effectType:'damage', effectValue:3, desc:'Strike +3 ATK — if this kills the target, the Guard gains +1 DEF permanently. 2 mana, 3cd.'}},
+  // ── Existing elite/hunter (White faction) ─────────────────────────────────
+  {name:'Elite',          faction:'white', hp:18, speed:3, atk:5, def:14, range:1, color:'#2a0a0a', bcolor:'#bf3030',
    str:4, vit:3, int:1, dex:2, maxMana:4, manaRegen:1,
    classSkill:{name:'Taunt', manaCost:1, cooldown:3, targetType:'enemy-adj', effectType:'status-add', effectValue:0, desc:'Target must attack this unit next turn. 1 mana, 3-round cooldown.'}},
-  {name:'Hunter',  hp:20, speed:4, atk:6, def:15, range:3, color:'#200010', bcolor:'#bf2060',
+  {name:'Hunter',         faction:'white', hp:20, speed:4, atk:6, def:15, range:3, color:'#200010', bcolor:'#bf2060',
    str:2, vit:2, int:2, dex:4, maxMana:5, manaRegen:2,
    classSkill:{name:'Pinning Shot', manaCost:0, cooldown:0, targetType:'passive', effectType:'status-add', effectValue:0, desc:'Passive: on hit, target cannot move next turn.'}},
+  // ── GREEN faction (Giants / Forest) ──────────────────────────────────────
+  {name:'Elf Warrior',    faction:'green', hp:14, speed:4, atk:5, def:13, range:1, color:'#0a1a0a', bcolor:'#3a7a3a',
+   str:3, vit:2, int:2, dex:4, maxMana:4, manaRegen:2,
+   classSkill:{name:'Elven Blade Dance', manaCost:2, cooldown:3, targetType:'enemy-adj', effectType:'damage', effectValue:2, desc:'Strike all adjacent enemies at +2 ATK. 2 mana, 3cd.'}},
+  {name:'Elf Shaman',     faction:'green', hp:10, speed:3, atk:3, def:11, range:4, color:'#0a1a0a', bcolor:'#4a9a4a',
+   str:1, vit:2, int:5, dex:2, maxMana:8, manaRegen:3,
+   classSkill:{name:'Nature’s Wrath', manaCost:3, cooldown:3, targetType:'enemy-range', effectType:'damage', effectValue:3, desc:'Lightning strike +3, applies Rattled. 3 mana, 3cd.'}},
 ];
 
 const TRAITS = [
@@ -668,13 +725,27 @@ const TRAITS = [
 ];
 
 const NAMES = {
-  Fighter: ['Aldric','Brand','Dorn','Kira','Tomas','Sera','Voss','Holt','Cara','Bren','Mira','Thane'],
-  Rogue:   ['Nyx','Pip','Crow','Dash','Lithe','Fen','Wren','Trix','Vex','Sela','Swift','Mire'],
-  Ranger:  ['Asha','Leif','Ryn','Sable','Aerin','Cord','Drift','Fenn','Hunt','Talon','Wisp','Reed'],
-  Cleric:  ['Aelindra','Sael','Maeve','Thom','Rin','Cael','Oryn','Piety','Dusk','Ava','Lumen','Briar'],
-  Soldier: ['Grak','Keth','Drav','Orsk','Varn','Mett','Brul','Sorn'],
-  Elite:   ['Corsair','Ironclad','Wraithblade','Thornwall','Reckoner'],
-  Hunter:  ['Spectre','Quill','Feathermark','Longstride','Silentshot'],
+  Fighter:        ['Brand','Dorn','Kira','Tomas','Sera','Voss','Holt','Cara','Bren','Mira','Thane','Aldous'],
+  Tank:           ['Gorm','Ironsides','Bulwark','Crag','Stoneback','Veld','Rook','Bastion'],
+  Rogue:          ['Nyx','Pip','Crow','Dash','Lithe','Fen','Wren','Trix','Vex','Sela','Swift','Mire'],
+  Ranger:         ['Asha','Leif','Ryn','Sable','Aerin','Cord','Drift','Fenn','Hunt','Talon','Wisp','Reed'],
+  Mage:           ['Sorel','Vex','Ignis','Flayne','Arcan','Myst','Crux','Weld','Ember','Rune','Glyph','Ash'],
+  Cleric:         ['Aelindra','Sael','Maeve','Thom','Rin','Cael','Oryn','Piety','Dusk','Ava','Lumen','Briar'],
+  Goblin:         ['Grub','Skrit','Nag','Krix','Blet','Skrak','Gob','Nix'],
+  'Ranged Goblin':['Plink','Notch','Dart','Twang','Fletch'],
+  'Spear Goblin': ['Jab','Poke','Lance','Tine','Prong'],
+  'Mage Goblin':  ['Zog','Zix','Splot','Hex','Fizzle'],
+  Orc:            ['Urok','Grash','Thrak','Bolguk','Morg'],
+  Skeleton:       ['Rattler','Clatter','Knacker','Marrow','Grim'],
+  Zombie:         ['Shambler','Rot','Lurch','Moan','Dreg'],
+  'Soul Eater':   ['Vexor','Dread','Haunt','Shade','Wail'],
+  'Shield Bearer':['Ward','Aegis','Bastion','Guard','Parry'],
+  'Ranged Soldier':['Bolt','Shaft','Volley','Marks','Flint'],
+  'Royal Guard':  ['Lancer','Sworn','Crest','Vow','Vigil'],
+  Elite:          ['Corsair','Ironclad','Wraithblade','Thornwall','Reckoner'],
+  Hunter:         ['Spectre','Quill','Feathermark','Longstride','Silentshot'],
+  'Elf Warrior':  ['Sylvan','Verdant','Thorn','Leaf','Branch'],
+  'Elf Shaman':   ['Grove','Canopy','Sage','Bark','Fern'],
 };
 
 // =============================================================================
@@ -964,6 +1035,8 @@ function placeToken(cls, side, r, c, name, trait) {
     // Mana economy (replaces bonus action + reaction)
     mana: template.maxMana||4, maxMana: template.maxMana||4, manaRegen: template.manaRegen||1,
     cooldowns: {},    // {skillName: roundsRemaining}
+    // Faction (enemy factions: red/black/blue/white/green)
+    faction: template.faction || null,
     // Equipment
     equipment: [],
     trait: trait || null,
@@ -1438,7 +1511,7 @@ function cardHTML(tok) {
     onclick="selectToken(${tok.id})" id="card-${tok.id}">
     <div class="card-header">
       <span class="card-name ${tok.side==='enemy'?'ename':''}">${tok.name}</span>
-      <span class="card-class">${tok.class}</span>
+      <span class="card-class">${tok.class}${tok.faction?` <span style="color:${FACTION_COLORS[tok.faction]||'#888'};font-size:0.5rem">[${tok.faction.toUpperCase()}]</span>`:''}</span>
     </div>
     ${traitLine}
     <div class="hp-row">
@@ -1793,9 +1866,10 @@ function rollTrust(){
 // =============================================================================
 function rebuildTurnOrder(){turnOrder=tokens.filter(t=>!t.dead&&!t._home).map(t=>({id:t.id,name:t.name,side:t.side,init:0}));if(turnIndex>=turnOrder.length)turnIndex=0;renderTurnOrder();}
 function rollInitiative(){
-  turnOrder=tokens.filter(t=>!t.dead&&!t._home).map(t=>({id:t.id,name:t.name,side:t.side,init:Math.floor(Math.random()*20)+1+(t.speed||0)}));
+  // Official rule: Speed + d4 determines turn order
+  turnOrder=tokens.filter(t=>!t.dead&&!t._home).map(t=>({id:t.id,name:t.name,side:t.side,init:(t.speed||0)+Math.floor(Math.random()*4)+1}));
   turnOrder.sort((a,b)=>b.init-a.init);turnIndex=0;renderTurnOrder();
-  log(`Initiative: ${turnOrder.map(t=>t.name+'('+t.init+')').join(', ')}`,'sys');
+  log(`Initiative (SPD+d4): ${turnOrder.map(t=>t.name+'('+t.init+')').join(', ')}`,'sys');
 }
 function renderTurnOrder(){
   const list=document.getElementById('turnList');
@@ -1936,7 +2010,7 @@ function rebindGrid() {
 // Phase 3: 12 souls — joint abilities auto-unlock (no roll needed)
 // Phase 4: 20 souls — recruit freely, no roll needed
 
-const ELITE_ENEMIES = ['Elite','Hunter','Spear Shield Goblin','Hand of Hell','Graveborn Hand','Chained Palm','Ashen Knight','Shield Captain','Bloodcaller','Ambusher'];
+const ELITE_ENEMIES = ['Elite','Hunter','Orc','Soul Eater','Royal Guard','Elf Warrior','Elf Shaman','Spear Shield Goblin','Hand of Hell','Graveborn Hand','Chained Palm','Ashen Knight','Shield Captain','Bloodcaller','Ambusher'];
 
 function getRecruitPhase() {
   if(souls>=20) return 4;

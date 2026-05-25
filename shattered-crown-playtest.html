@@ -994,7 +994,7 @@ function enterClassSkillMode(tokenId) {
   skillTargetMode = {classSkill: sk, tokenId};
   mode = 'skill';
   document.getElementById('modeLabel').textContent = `[${sk.name}] Click target -- ESC to cancel`;
-  showSkillRange(tok, 1);
+  showSkillRange(tok, sk.range||1, sk.name==='Revive Light');
   renderCards();
 }
 
@@ -1038,7 +1038,7 @@ function enterLearnedSkillMode(skillIdx, tokId) {
   skillTargetMode = {classSkill: sk, tokenId: tokId};
   mode = 'skill';
   document.getElementById('modeLabel').textContent = `[SKILL] ${sk.name} — click target on grid · ESC to cancel`;
-  showSkillRange(tok, sk.range||1);
+  showSkillRange(tok, sk.range||1, sk.name==='Revive Light');
 }
 
 function enterSkillTargetMode(skillId, tokId) {
@@ -1154,7 +1154,11 @@ function cellClick(r, c) {
     return;
   }
   if (mode === 'skill') {
-    const target = tokens.find(t=>t.row===r&&t.col===c&&!t.dead);
+    const isRevive = skillTargetMode && (
+      (skillTargetMode.classSkill && skillTargetMode.classSkill.name === 'Revive Light') ||
+      (skillTargetMode.skillId && skillPool.find(s=>s.id===skillTargetMode.skillId)?.name === 'Revive Light')
+    );
+    const target = tokens.find(t=>t.row===r&&t.col===c&&(isRevive ? t.dead : !t.dead));
     if (skillTargetMode) {
       if (skillTargetMode.classSkill) {
         applyClassSkillEffect(skillTargetMode.classSkill, tokens.find(t=>t.id===skillTargetMode.tokenId), target);
@@ -1671,13 +1675,17 @@ function showAttackRange(tok) {
   }
 }
 
-function showSkillRange(tok, range) {
+function showSkillRange(tok, range, includesDead=false) {
   clearHighlights();
   for (let r=0;r<GRID_SIZE;r++) for (let c=0;c<GRID_SIZE;c++) {
     const dist = Math.abs(tok.row-r)+Math.abs(tok.col-c);
-    const occ = tokens.find(t=>t.row===r&&t.col===c&&!t.dead&&!t._home);
-    if (dist<=range&&occ&&occ.id!==tok.id) document.getElementById(`cell-${r}-${c}`).classList.add('skill-range');
-    if (dist<=range&&!occ&&dist>0) document.getElementById(`cell-${r}-${c}`).classList.add('in-range');
+    if (dist > range || dist === 0) continue;
+    const alive = tokens.find(t=>t.row===r&&t.col===c&&!t.dead&&!t._home);
+    const dead  = tokens.find(t=>t.row===r&&t.col===c&&t.dead&&!t._home);
+    const cell = document.getElementById(`cell-${r}-${c}`);
+    if (includesDead && dead) { cell.classList.add('skill-range'); }
+    else if (!includesDead && alive && alive.id!==tok.id) { cell.classList.add('skill-range'); }
+    else if (!alive && !dead) { cell.classList.add('in-range'); }
   }
 }
 

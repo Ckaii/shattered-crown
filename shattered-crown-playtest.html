@@ -869,6 +869,67 @@ let currentSkillType = 'action';
 
 // Thresholds already passed (to avoid re-triggering vision)
 let triggeredThresholds = new Set();
+let triggeredTrustEvents = new Set();
+
+const TRUST_EVENTS = {
+  0: {
+    source: 'Varn\'s Perspective',
+    title: 'TRUST COLLAPSES',
+    text: `Varn's hand tightens on the Demon Lord's Sword.
+
+The party has stopped following him.
+Not because they disrespect him — because they fear what he's carrying.
+
+Every death. Every soul absorbed.
+They saw it happen. They know what the sword does.
+
+And now they look at Varn the way the world looked at Aldric
+in the years after the coronation —
+like a man who made a deal they didn't know about.
+
+Somewhere ahead, Aldric's hunters are still coming.
+
+But they may not be the only threat anymore.`,
+    unlock: 'EFFECT: All party members act on their own. Any member may attack Varn. Aldric has been alerted — he knows exactly where you are.',
+    pipColor: '#8b1a1a'
+  },
+  20: {
+    source: 'The Party',
+    title: 'Trust Is Crumbling',
+    text: `They haven't left. Not yet.
+
+But the conversations have stopped.
+They make camp in silence. Watch each other's hands when the sword is unsheathed.
+
+One of them said it out loud last night — quietly, not to Varn:
+
+"How long before the sword isn't enough reason to stay?"
+
+Nobody answered.`,
+    unlock: 'WARNING: Next death may cause a member to flee. Roll Trust d100 before each order.',
+    pipColor: '#5a1a1a'
+  },
+  80: {
+    source: 'Sister Aelindra',
+    title: 'Something Has Changed',
+    text: `Sister Aelindra pulls Varn aside after the battle.
+
+She doesn't say anything at first.
+Just studies his face for a long moment
+the way she used to study Aldric's shadow on the wall.
+
+Then: "You are not what I expected."
+
+She presses something into his hand.
+A small, worn pendant. The symbol of the old faith —
+before the coronation. Before the sword.
+
+"They trust you," she says.
+"Don't waste it."`,
+    unlock: 'UNLOCKED: Joint Abilities — Human and Monster party members can combine actions.',
+    pipColor: '#2d7a2d'
+  }
+};
 
 // =============================================================================
 // INIT
@@ -2080,6 +2141,33 @@ function updateTrust(){
   document.getElementById('trustLabel').textContent=lbl;
   document.getElementById('trustBar').style.width=trust+'%';
   document.getElementById('trustBar').style.background=trust<20?'#8b1a1a':trust<50?'#8b6a1a':'#2d7a2d';
+  // Narrative events
+  [0, 20, 80].forEach(th => {
+    const crossed = th === 0 ? trust === 0 : th === 20 ? trust <= 20 : trust >= 80;
+    if (crossed && !triggeredTrustEvents.has(th) && TRUST_EVENTS[th]) {
+      triggeredTrustEvents.add(th);
+      showTrustModal(th);
+    }
+  });
+}
+function showTrustModal(th) {
+  const v = TRUST_EVENTS[th]; if (!v) return;
+  const modal = document.getElementById('visionModal');
+  const box   = document.getElementById('visionModalBox');
+  document.getElementById('visionSource').textContent = v.source;
+  document.getElementById('visionModalTitle').textContent = v.title;
+  document.getElementById('visionModalText').textContent  = v.text;
+  document.getElementById('visionUnlock').textContent     = v.unlock;
+  document.getElementById('visionModalTitle').style.color = th===0?'#e05555':th===20?'#c9a84c':'#7fb87f';
+  document.getElementById('visionModalTitle').style.fontSize = '1.1rem';
+  box.style.borderColor = v.pipColor;
+  modal.style.background = 'rgba(0,0,0,0.92)';
+  box.style.display = 'block';
+  modal.style.display = 'flex';
+  const btn = document.getElementById('visionCloseBtn');
+  btn.style.display = 'none';
+  setTimeout(() => { btn.style.display = 'inline-block'; }, 1500);
+  log(`[Trust Event] ${v.title}`, th===0?'death':th===20?'miss':'heal');
 }
 function rollTrust(){
   const roll=Math.floor(Math.random()*100)+1;

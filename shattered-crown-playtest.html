@@ -213,6 +213,27 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
 .atk-preview strong{color:#e05555}
 .atk-preview .result-line{font-size:1.1rem;color:#c9a84c;font-weight:bold;margin-top:6px}
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:#060a10}::-webkit-scrollbar-thumb{background:#2a2f5c;border-radius:3px}
+/* ── ANIMATIONS ── */
+@keyframes cellHit   {0%{filter:brightness(4)saturate(0) sepia(1) hue-rotate(-20deg)}60%{filter:brightness(2)}100%{filter:none}}
+@keyframes cellHeal  {0%{filter:brightness(3)saturate(2) hue-rotate(90deg)}100%{filter:none}}
+@keyframes cellSkill {0%{filter:brightness(3)saturate(3) hue-rotate(240deg)}100%{filter:none}}
+@keyframes cellCrit  {0%{filter:brightness(6)saturate(0)}30%{filter:brightness(3)saturate(2)hue-rotate(-20deg)}100%{filter:none}}
+@keyframes tokShake  {0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+@keyframes tokDie    {0%{opacity:1;transform:scale(1)rotate(0deg)}50%{opacity:.6;transform:scale(1.15)rotate(12deg)}100%{opacity:.2;transform:scale(.7)rotate(25deg)}}
+@keyframes tokSelect {0%{box-shadow:0 0 0 #c9a84c66}50%{box-shadow:0 0 16px #c9a84caa}100%{box-shadow:0 0 8px #c9a84c66}}
+@keyframes mpGain    {0%{filter:brightness(2)hue-rotate(200deg)}100%{filter:none}}
+@keyframes cardFlash {0%{background:#1a1f3c}100%{background:transparent}}
+.anim-hit  {animation:cellHit  .45s ease-out!important}
+.anim-heal {animation:cellHeal .5s  ease-out!important}
+.anim-skill{animation:cellSkill.4s  ease-out!important}
+.anim-crit {animation:cellCrit .6s  ease-out!important}
+.anim-shake{animation:tokShake .35s ease-in-out}
+.anim-die  {animation:tokDie   .7s  ease-out forwards}
+.anim-mp   {animation:mpGain   .4s  ease-out}
+.token.selected-tok{animation:tokSelect 2s ease-in-out infinite}
+.skill-pip.on-cd{opacity:.4;cursor:not-allowed;text-decoration:line-through}
+.skill-pip.no-mp{opacity:.5;border-color:#5a1a1a!important;color:#884444!important}
+.skill-pip.ready{border-color:#c9a84c!important;color:#c9a84c!important}
 </style>
 </head>
 <body>
@@ -666,7 +687,10 @@ const ALLY_CLASSES = [
    classSkill:{name:'Fireball', manaCost:3, cooldown:3, targetType:'enemy-range', effectType:'damage', effectValue:3, desc:'Deal 1d6+3 fire damage in range, applies Burning. 3 mana, 3-round cooldown. Passive: if kill refunds 50% mana (round down).'}},
   {name:'Cleric',  hp:16, speed:3, atk:3, def:13, range:1, color:'#201020', bcolor:'#9f4abf',
    str:1, vit:2, int:4, dex:1, maxMana:8, manaRegen:3,
-   classSkill:{name:'Heal', manaCost:2, cooldown:2, targetType:'ally-adj', effectType:'heal', effectValue:8, desc:'Restore 1d8 HP to self or adjacent ally. 2 mana, 2-round cooldown.'}},
+   classSkill:{name:'Healing Touch', manaCost:2, cooldown:0, range:1, targetType:'ally-adj', effectType:'heal', effectValue:1, desc:'Heal 1 HP to adjacent ally. 2 mana, no cooldown.'}},
+  {name:'Wizard',  hp:10, speed:2, atk:3, def:11, range:5, color:'#0a0818', bcolor:'#7050cf',
+   str:1, vit:1, int:5, dex:1, maxMana:10, manaRegen:3,
+   classSkill:{name:'Mana Burst', manaCost:3, cooldown:1, range:4, targetType:'enemy-range', effectType:'damage-flat', effectValue:0, desc:'Deal damage equal to half your current MP (round down, max 5). 3 mana, 1cd.'}},
 ];
 
 // Faction codes: 'red'=Goblins  'black'=Undead  'blue'=Sea/Control  'white'=Order/Aldric  'green'=Giants
@@ -727,60 +751,45 @@ const ENEMY_CLASSES = [
 ];
 
 // =============================================================================
-// CLASS SKILL POOLS — Samuel's full ability list from A3c doc
-// GM presents 4 random picks from this list on each stat threshold
-// Format matches classSkill: {name, manaCost, cooldown, targetType, effectType, effectValue, desc}
+// CLASS SKILL POOLS — Daniel's official ability list (Skills&Equipment.docx)
+// Click +SKILL on a card to pick from class pool. Stat threshold triggers auto-picker.
+// passive = no targeting needed; other types open skill-target mode on the grid
 // =============================================================================
 const CLASS_SKILL_POOLS = {
-  Fighter: [
-    {name:'Shield Bash',    manaCost:0, cooldown:3, targetType:'enemy-adj',  effectType:'push',        effectValue:1, desc:'Push adjacent enemy 1 square. Can interrupt charge.'},
-    {name:'Spin Attack',    manaCost:2, cooldown:4, targetType:'all-enemies', effectType:'damage',      effectValue:-1,desc:'Strike all adjacent enemies at -1 ATK. 2 mana, 4cd.'},
-    {name:'Slash Wave',     manaCost:3, cooldown:4, targetType:'enemy-range', effectType:'damage',      effectValue:2, desc:'Ranged slash at range 2, +2 ATK. 3 mana, 4cd.'},
-    {name:'Perseverance',   manaCost:0, cooldown:0, targetType:'self',        effectType:'heal',        effectValue:2, desc:'Passive: regenerate 2 HP at the start of each round.'},
-    {name:'Battle Cry',     manaCost:2, cooldown:4, targetType:'self',        effectType:'buff-atk',    effectValue:3, desc:'+3 ATK until end of round, adjacent allies gain +1 ATK. 2 mana, 4cd.'},
-    {name:'Parry',          manaCost:1, cooldown:3, targetType:'self',        effectType:'buff-def',    effectValue:3, desc:'Reaction: +3 DEF until next turn. 1 mana, 3cd.'},
-  ],
-  Tank: [
-    {name:'Taunt',          manaCost:1, cooldown:3, targetType:'enemy-adj',  effectType:'status-add',  effectValue:0, desc:'Adjacent enemies must target you next turn. 1 mana, 3cd.'},
-    {name:'Bulldoze',       manaCost:2, cooldown:4, targetType:'enemy-adj',  effectType:'push',        effectValue:2, desc:'Charge: push target 2 squares and deal damage. 2 mana, 4cd.'},
-    {name:'Thick',          manaCost:0, cooldown:0, targetType:'self',        effectType:'flavor',      effectValue:0, desc:'Passive: occupy 2×2 squares — blocks chokepoints. Must fit at start & end of move.'},
-    {name:'Shield Wall',    manaCost:2, cooldown:3, targetType:'self',        effectType:'buff-def',    effectValue:4, desc:'+4 DEF for 1 round. Adjacent allies gain +2 DEF. 2 mana, 3cd.'},
-    {name:'Intercept',      manaCost:1, cooldown:3, targetType:'ally-adj',   effectType:'flavor',      effectValue:0, desc:'Redirect an attack targeting an adjacent ally to yourself. 1 mana, 3cd.'},
-    {name:'Fortify',        manaCost:3, cooldown:5, targetType:'self',        effectType:'buff-def',    effectValue:6, desc:'Until your next turn, gain +6 DEF and cannot be moved. 3 mana, 5cd.'},
-  ],
   Rogue: [
-    {name:'Backstab',       manaCost:1, cooldown:2, targetType:'enemy-adj',  effectType:'damage',      effectValue:3, desc:'Strike from behind or flank for +3 ATK. Crit if hidden. 1 mana, 2cd.'},
-    {name:'Arrow Throw',    manaCost:0, cooldown:1, targetType:'enemy-range', effectType:'damage',      effectValue:0, desc:'Thrown weapon at range 3. Quick ranged option. 0 mana, 1cd.'},
-    {name:'Big Crit',       manaCost:0, cooldown:0, targetType:'self',        effectType:'flavor',      effectValue:0, desc:'Passive: crit chance % adds directly to crit damage multiplier.'},
-    {name:'Pierce',         manaCost:2, cooldown:3, targetType:'enemy-range', effectType:'damage',      effectValue:2, desc:'Attack ignores DEF entirely. +2 ATK. 2 mana, 3cd.'},
-    {name:'Sharpen',        manaCost:1, cooldown:4, targetType:'self',        effectType:'buff-atk',    effectValue:2, desc:'Gain +2 ATK and crits apply Bleeding for 2 rounds. 1 mana, 4cd.'},
-    {name:'Crouch',         manaCost:0, cooldown:2, targetType:'self',        effectType:'flavor',      effectValue:0, desc:'Enter hidden state: 25% dodge chance. Ends if you hit or get hit (sneak stat check). 0 mana, 2cd.'},
-    {name:'Sneak Attack',   manaCost:0, cooldown:0, targetType:'passive',     effectType:'damage-flat', effectValue:6, desc:'Passive: always crits if hidden or attacking from behind. +1d6 vs Flanked targets.'},
+    {name:'Taunt',        manaCost:2, cooldown:3, range:1, targetType:'enemy-adj',  effectType:'status-add', effectStatus:'pinned', desc:'2MP 3cd — All enemies within 1 block must target you next turn (CC).'},
+    {name:'Perseverance', manaCost:0, cooldown:0, range:0, targetType:'passive',    effectType:'flavor',     desc:'Passive — Regain 1 HP at the end of each of your turns.'},
+    {name:'Sidestep',     manaCost:1, cooldown:0, range:1, targetType:'self',       effectType:'flavor',     desc:'1MP 0cd — Move 1 square diagonally (free; ignores adjacency cost).'},
+    {name:'Large',        manaCost:0, cooldown:0, range:0, targetType:'passive',    effectType:'flavor',     desc:'Passive — Become 2×2 when not moving. Blocks chokepoints.'},
+    {name:'Shadow Strike',manaCost:3, cooldown:1, range:1, targetType:'enemy-adj',  effectType:'damage',     effectValue:2, desc:'3MP 1cd — After moving this turn, next basic attack +2 ATK. If target <50% HP, also gain +1 SPD this turn.'},
+  ],
+  Fighter: [
+    {name:'Pierce',       manaCost:4, cooldown:1, range:1, targetType:'enemy-adj',  effectType:'damage',     effectValue:4, desc:'4MP 1cd — Basic attack ignores all armour (DEF treated as 0). Flat ATK damage.'},
+    {name:'Sharpen',      manaCost:2, cooldown:0, range:0, targetType:'self',       effectType:'buff-atk',   effectValue:1, desc:'2MP 0cd — Gain 1 Sharpen stack (+1 dmg). Max 3 stacks. Lose 1 on basic attack. At max stacks deal +1 vs unarmoured.'},
+    {name:'Self Destruct',manaCost:0, cooldown:0, range:0, targetType:'passive',    effectType:'flavor',     desc:'Passive — When you reach 0 HP, deal 15 damage to all enemies within 2 blocks.'},
+    {name:'Mana Coin',    manaCost:0, cooldown:0, range:0, targetType:'self',       effectType:'flavor',     desc:'0MP 0cd — Flip: 50% gain half your current MP (round down), 50% double your current MP.'},
+    {name:'Iron Guard',   manaCost:3, cooldown:2, range:0, targetType:'self',       effectType:'buff-def',   effectValue:3, desc:'3MP 2cd — Gain +3 DEF until start of your next turn. Any melee attacker takes 1 damage back.'},
   ],
   Ranger: [
-    {name:'Heavy Shot',     manaCost:2, cooldown:3, targetType:'enemy-range', effectType:'damage',      effectValue:2, desc:'Powerful single shot +2 ATK, applies Pinned. 2 mana, 3cd.'},
-    {name:'Mana Arrow',     manaCost:2, cooldown:2, targetType:'enemy-range', effectType:'damage',      effectValue:1, desc:'Magical arrow that ignores physical DEF. +1 ATK. 2 mana, 2cd.'},
-    {name:'Multi Shot',     manaCost:3, cooldown:4, targetType:'enemy-range', effectType:'damage',      effectValue:-2,desc:'Fire at up to 3 targets in range at -2 ATK each. 3 mana, 4cd.'},
-    {name:'Quick Shot',     manaCost:0, cooldown:1, targetType:'enemy-range', effectType:'damage',      effectValue:0, desc:'Fast shot as free action (no action cost). 0 mana, 1cd.'},
-    {name:'Natural Hunter', manaCost:0, cooldown:0, targetType:'passive',     effectType:'flavor',      effectValue:0, desc:'Passive: attacks vs enemies in difficult terrain (fire/crack/ledge) have Advantage.'},
-    {name:'Volley',         manaCost:2, cooldown:3, targetType:'enemy-range', effectType:'damage',      effectValue:-2,desc:'Attack two targets in range at -2 ATK each. 2 mana, 3cd.'},
-  ],
-  Mage: [
-    {name:'Fireball',       manaCost:3, cooldown:3, targetType:'enemy-range', effectType:'damage',      effectValue:3, desc:'1d6+3 fire damage, applies Burning. 3 mana, 3cd.'},
-    {name:'Healing Ray',    manaCost:3, cooldown:2, targetType:'ally-range',  effectType:'heal',        effectValue:8, desc:'Restore 1d8 HP to ally in range. 3 mana, 2cd.'},
-    {name:'Teleportation',  manaCost:4, cooldown:4, targetType:'self',        effectType:'flavor',      effectValue:0, desc:'Instantly move up to 5 squares, ignoring terrain. 4 mana, 4cd.'},
-    {name:'Mana Bolt',      manaCost:1, cooldown:0, targetType:'enemy-range', effectType:'damage',      effectValue:1, desc:'Quick magic strike +1 ATK. 1 mana, 0cd — usable every turn.'},
-    {name:'Ice Wall',       manaCost:5, cooldown:5, targetType:'self',        effectType:'flavor',      effectValue:0, desc:'Create a 3-square ice wall blocking movement & ranged LOS. 5 mana, 5cd.'},
-    {name:'Presence of Mind',manaCost:0,cooldown:0, targetType:'self',        effectType:'flavor',      effectValue:0, desc:'Passive: +1 mana regen per round. If an ability kills an enemy, refund 50% mana cost (round down).'},
-    {name:'Overflow',       manaCost:0, cooldown:0, targetType:'self',        effectType:'flavor',      effectValue:0, desc:'Passive: any ability can double its mana cost to increase damage proportionally.'},
+    {name:'Heavy Shot',   manaCost:5, cooldown:0, range:6, targetType:'enemy-range',effectType:'damage',     effectValue:5, desc:'5MP 0cd — Hit enemy up to 6 blocks away for 2× your ATK.'},
+    {name:'Mana Arrow',   manaCost:1, cooldown:0, range:5, targetType:'enemy-range',effectType:'flavor',     desc:'1MP 0cd — Gain 1 Mana Arrow (max 5). Spend before a ranged attack: Power (+30% dmg), Split (20% splash), or Guided (+1 range).'},
+    {name:"Quick Shot",   manaCost:2, cooldown:1, range:4, targetType:'enemy-range',effectType:'damage',     effectValue:-1,desc:'2MP 1cd — Ranged attack at −1 ATK, then move 1 block.'},
+    {name:"Hunter's Mark",manaCost:3, cooldown:2, range:5, targetType:'enemy-range',effectType:'status-add', effectStatus:'rattled', desc:"3MP 2cd — Mark enemy in 5 blocks. Your attacks vs marked target gain +1 ATK until end of your next turn."},
+    {name:'Rain of Arrows',manaCost:5,cooldown:3, range:5, targetType:'enemy-range',effectType:'damage',     effectValue:0, desc:'5MP 3cd — Choose a 2×2 area in 5 blocks. All enemies take your ATK in damage. Cannot hit adjacent squares.'},
   ],
   Cleric: [
-    {name:'Heal',           manaCost:2, cooldown:2, targetType:'ally-adj',   effectType:'heal',        effectValue:8, desc:'Restore 1d8 HP to self or adjacent ally. 2 mana, 2cd.'},
-    {name:'Healing Touch',  manaCost:1, cooldown:1, targetType:'ally-adj',   effectType:'heal',        effectValue:4, desc:'Quick heal for 1d4 HP. 1 mana, 1cd.'},
-    {name:'Healing Chain',  manaCost:4, cooldown:4, targetType:'ally-range', effectType:'heal',        effectValue:6, desc:'Heal jumps to up to 3 allies: 1d6 HP each. 4 mana, 4cd.'},
-    {name:'Holy Fire',      manaCost:3, cooldown:3, targetType:'enemy-range', effectType:'damage',      effectValue:3, desc:'Sacred flame +3 ATK, bonus vs Undead (Black faction). Applies Burning. 3 mana, 3cd.'},
-    {name:'Aura of Protection',manaCost:3,cooldown:4,targetType:'self',      effectType:'buff-def',    effectValue:2, desc:'All allies within 2 squares gain +2 DEF until start of next turn. 3 mana, 4cd.'},
-    {name:'Revive',         manaCost:5, cooldown:0, targetType:'ally-adj',   effectType:'heal',        effectValue:10,desc:'Stabilise a dead ally — they return at 10% HP. Can only be used once per combat. 5 mana, no cd.'},
+    {name:'Healing Touch',manaCost:2, cooldown:0, range:1, targetType:'ally-adj',   effectType:'heal',       effectValue:1, desc:'2MP 0cd — Heal 1 HP to self or adjacent ally. Melee range only.'},
+    {name:'Holy Fire',    manaCost:0, cooldown:0, range:0, targetType:'passive',    effectType:'flavor',     desc:'Passive — Healing spells can deal equal damage to an enemy instead of healing. Stops working for the round if you kill with it.'},
+    {name:'Divine Shield',manaCost:3, cooldown:1, range:3, targetType:'ally-range', effectType:'buff-def',   effectValue:3, desc:'3MP 1cd — Ally within 3 blocks gains +3 DEF until start of your next turn.'},
+    {name:'Blessing',     manaCost:2, cooldown:2, range:4, targetType:'ally-range', effectType:'buff-atk',   effectValue:1, desc:"2MP 2cd — Ally in 4 blocks: next attack +1 ATK and they regain 1 MP."},
+    {name:'Revive Light', manaCost:5, cooldown:4, range:2, targetType:'ally-adj',   effectType:'heal',       effectValue:2, desc:'5MP 4cd — Revive a dead ally within 2 blocks at 2 HP. You lose 1 MP regen for rest of combat.'},
+  ],
+  Wizard: [
+    {name:'Fireball',     manaCost:4, cooldown:2, range:5, targetType:'enemy-range',effectType:'damage',     effectValue:3, desc:'4MP 2cd — 2×2 area in 5 blocks: all enemies take 3 damage. Enemies in the centre take +1 damage. Applies Burning.'},
+    {name:'Mana Burst',   manaCost:3, cooldown:1, range:4, targetType:'enemy-range',effectType:'damage-flat',effectValue:0, desc:'3MP 1cd — Deal damage equal to half your current MP (round down, max 5).'},
+    {name:'Teleport',     manaCost:2, cooldown:2, range:3, targetType:'self',       effectType:'flavor',     desc:'2MP 2cd — Move up to 3 blocks. Can pass through enemies and obstacles. Cannot end on occupied block.'},
+    {name:'Arcane Armour',manaCost:0, cooldown:0, range:0, targetType:'passive',    effectType:'flavor',     desc:'Passive — At the start of your turn, if you have 5 or more MP, gain +2 DEF. Lost when MP drops below 5.'},
+    {name:'Void Chains',  manaCost:4, cooldown:3, range:4, targetType:'enemy-range',effectType:'status-add', effectStatus:'pinned', desc:'4MP 3cd — Target enemy within 4 blocks cannot move next turn (CC).'},
   ],
 };
 
@@ -803,6 +812,7 @@ const NAMES = {
   Rogue:          ['Nyx','Pip','Crow','Dash','Lithe','Fen','Wren','Trix','Vex','Sela','Swift','Mire'],
   Ranger:         ['Asha','Leif','Ryn','Sable','Aerin','Cord','Drift','Fenn','Hunt','Talon','Wisp','Reed'],
   Mage:           ['Sorel','Vex','Ignis','Flayne','Arcan','Myst','Crux','Weld','Ember','Rune','Glyph','Ash'],
+  Wizard:         ['Vesper','Omen','Lyric','Arcen','Ruin','Vael','Seraph','Null','Hex','Grimoire','Crux','Void'],
   Cleric:         ['Aelindra','Sael','Maeve','Thom','Rin','Cael','Oryn','Piety','Dusk','Ava','Lumen','Briar'],
   Goblin:         ['Grub','Skrit','Nag','Krix','Blet','Skrak','Gob','Nix'],
   'Ranged Goblin':['Plink','Notch','Dart','Twang','Fletch'],
@@ -992,6 +1002,128 @@ function cancelTargetMode() {
   attackMode = false; attackingId = null; skillTargetMode = null;
   if (mode === 'attack' || mode === 'skill') mode = 'select';
   clearHighlights();
+}
+
+// =============================================================================
+// ANIMATION HELPERS
+// =============================================================================
+function animCell(r, c, cls) {
+  const el = document.getElementById(`cell-${r}-${c}`); if (!el) return;
+  el.classList.remove('anim-hit','anim-heal','anim-skill','anim-crit');
+  void el.offsetWidth; // force reflow to restart animation
+  el.classList.add(cls);
+  setTimeout(() => el.classList.remove(cls), 650);
+}
+function animToken(id, cls) {
+  const tok = tokens.find(t=>t.id===id); if (!tok) return;
+  const el = document.getElementById(`cell-${tok.row}-${tok.col}`); if (!el) return;
+  const circle = el.querySelector('.token'); if (!circle) return;
+  circle.classList.remove('anim-shake','anim-die');
+  void circle.offsetWidth;
+  circle.classList.add(cls);
+  if (cls !== 'anim-die') setTimeout(()=>circle.classList.remove(cls), 500);
+}
+
+// =============================================================================
+// SKILL TARGETING — for class-learned skills (no global-pool id)
+// =============================================================================
+function enterLearnedSkillMode(skillIdx, tokId) {
+  const tok = tokens.find(t=>t.id===tokId); if (!tok) return;
+  const sk = tok.skills[skillIdx]; if (!sk) return;
+  if (sk.targetType==='passive') { log(`${sk.name} is a passive.`, 'skill'); return; }
+  if (!tok.actions) { log(`${tok.name} has no Action left.`, 'miss'); return; }
+  if (tok.mana < (sk.manaCost||0)) { log(`${tok.name} needs ${sk.manaCost} MP (has ${tok.mana}).`, 'miss'); return; }
+  const cdKey = 'cls_' + sk.name;
+  if ((tok.cooldowns[cdKey]||0) > 0) { log(`${sk.name} on cooldown (${tok.cooldowns[cdKey]} rounds).`, 'miss'); return; }
+  skillTargetMode = {classSkill: sk, tokenId: tokId};
+  mode = 'skill';
+  document.getElementById('modeLabel').textContent = `[SKILL] ${sk.name} — click target on grid · ESC to cancel`;
+  showSkillRange(tok, sk.range||1);
+}
+
+function enterSkillTargetMode(skillId, tokId) {
+  const tok = tokens.find(t=>t.id===tokId); if (!tok) return;
+  const skill = skillPool.find(s=>s.id===skillId); if (!skill) return;
+  if (skill.targetType==='passive') { log(`${skill.name} is a passive.`, 'skill'); return; }
+  if (!tok.actions) { log(`${tok.name} has no Action left.`, 'miss'); return; }
+  if (tok.mana < (skill.manaCost||0)) { log(`${tok.name} needs ${skill.manaCost} MP.`, 'miss'); return; }
+  const cdKey = 'pool_' + skillId;
+  if ((tok.cooldowns[cdKey]||0) > 0) { log(`${skill.name} on cooldown.`, 'miss'); return; }
+  skillTargetMode = {skillId: skill.id, tokenId: tokId};
+  mode = 'skill';
+  document.getElementById('modeLabel').textContent = `[SKILL] ${skill.name} — click target on grid · ESC to cancel`;
+  showSkillRange(tok, skill.range||1);
+}
+
+// Special: Mana Burst damage = floor(currentMP/2), max 5
+function _manaBurstDmg(user) { return Math.min(5, Math.floor(user.mana/2)); }
+
+// Special: Heavy Shot = 2× ATK
+function _executeEffect_override(sk, user, target) {
+  if (sk.name === 'Mana Burst') {
+    if (!target) return;
+    const d = _manaBurstDmg(user);
+    target.hp = Math.max(0, target.hp - d);
+    spawnFloat(target.row, target.col, `-${d}`, 'fdmg-hit');
+    animCell(target.row, target.col, 'anim-hit'); animToken(target.id, 'anim-shake');
+    log(`[Mana Burst] ${user.name} channels ${user.mana} MP → ${d} damage to ${target.name}. HP ${target.hp}/${target.maxHp}.`, 'hit');
+    checkDeath(target);
+    return true;
+  }
+  if (sk.name === 'Heavy Shot') {
+    if (!target) return;
+    const roll = Math.floor(Math.random()*20)+1;
+    const atk = user.atk * 2;
+    if (roll + user.atk >= target.def) {
+      target.hp = Math.max(0, target.hp - atk);
+      spawnFloat(target.row, target.col, `-${atk}`, 'fdmg-crit');
+      animCell(target.row, target.col, 'anim-crit'); animToken(target.id, 'anim-shake');
+      log(`[Heavy Shot] ${roll}+${user.atk}=${roll+user.atk} vs DEF${target.def}. HITS for ${atk} damage!`, 'crit');
+      checkDeath(target);
+    } else {
+      spawnFloat(target.row, target.col, 'MISS', 'fdmg-miss');
+      log(`[Heavy Shot] ${roll}+${user.atk}=${roll+user.atk} vs DEF${target.def}. Misses.`, 'miss');
+    }
+    return true;
+  }
+  if (sk.name === 'Mana Coin') {
+    const flip = Math.random() < 0.5;
+    if (flip) { user.mana = Math.max(0, Math.floor(user.mana/2)); log(`[Mana Coin] Tails — MP halved to ${user.mana}.`, 'miss'); }
+    else { user.mana = Math.min(user.maxMana, user.mana*2); log(`[Mana Coin] Heads — MP doubled to ${user.mana}!`, 'skill'); }
+    animCell(user.row, user.col, 'anim-mp');
+    return true;
+  }
+  if (sk.name === 'Iron Guard') {
+    user.def += 3;
+    log(`[Iron Guard] ${user.name} +3 DEF until next turn. Thorns: 1 dmg to any melee attacker.`, 'skill');
+    animCell(user.row, user.col, 'anim-heal');
+    // mark thorns
+    user.statuses = user.statuses.filter(s=>s!=='thorns');
+    user.statuses.push('thorns');
+    return true;
+  }
+  if (sk.name === 'Pierce') {
+    if (!target) return;
+    const dmg = user.atk;
+    target.hp = Math.max(0, target.hp - dmg);
+    spawnFloat(target.row, target.col, `-${dmg}`, 'fdmg-hit');
+    animCell(target.row, target.col, 'anim-hit'); animToken(target.id, 'anim-shake');
+    log(`[Pierce] ${user.name} ignores DEF — deals ${dmg} damage to ${target.name}. HP ${target.hp}/${target.maxHp}.`, 'hit');
+    checkDeath(target);
+    return true;
+  }
+  if (sk.name === 'Revive Light') {
+    const dead = target && target.hp <= 0 ? target : null;
+    if (!dead) { log(`No dead ally targeted.`, 'miss'); return true; }
+    dead.dead = false; dead.hp = 2;
+    user.manaRegen = Math.max(0, (user.manaRegen||1)-1);
+    spawnFloat(dead.row, dead.col, '+2 REVIVE', 'fdmg-heal');
+    animCell(dead.row, dead.col, 'anim-heal');
+    log(`[Revive Light] ${dead.name} returns with 2 HP! ${user.name} loses 1 MP regen for this combat.`, 'vision');
+    rebuildTurnOrder(); renderAll();
+    return true;
+  }
+  return false; // not overridden, use default
 }
 
 // ESC key
@@ -1288,6 +1420,7 @@ function resolveAttack(attacker, target) {
     attacker.bonusAction = false;
     log(`${attacker.name} FUMBLES! (rolled 1) Loses Bonus Action.`, 'death');
     spawnFloat(target.row, target.col, 'MISS!', 'fdmg-miss');
+    animCell(target.row, target.col, 'anim-hit');
   } else if (isCrit) {
     dmg = atk * 2;
     // Rogue sneak attack on crit flanked
@@ -1296,6 +1429,8 @@ function resolveAttack(attacker, target) {
     resultType = 'crit';
     spawnFloat(target.row, target.col, `CRIT! -${dmg}`, 'fdmg-crit');
     log(`${attacker.name} CRITICAL HIT on ${target.name}! Rolls ${raw}+${atk}=${total} vs DEF${target.def}. Deals ${dmg} damage.`, 'crit');
+    animCell(target.row, target.col, 'anim-crit');
+    animToken(target.id, 'anim-shake');
     if (attacker.loyal) { changeTrust(1); }
   } else if (total >= target.def) {
     dmg = atk;
@@ -1309,6 +1444,8 @@ function resolveAttack(attacker, target) {
     spawnFloat(target.row, target.col, `-${dmg}`, 'fdmg-hit');
     const advStr = adv&&!dis?' [Adv]':dis&&!adv?' [Dis]':'';
     log(`${attacker.name} hits ${target.name}! Roll ${raw}${advStr}+${atk}=${total} vs DEF${target.def}. Deals ${dmg} damage. HP ${target.hp}/${target.maxHp}.`, 'hit');
+    animCell(target.row, target.col, 'anim-hit');
+    animToken(target.id, 'anim-shake');
     if (target.hp <= 0) { trustEvent(2, `${attacker.name} killed ${target.name}`); }
     else if (attacker.loyal && target.hp <= 0) { changeTrust(1); }
   } else {
@@ -1355,7 +1492,8 @@ function applySkillEffect(skill, user, target) {
   user.actions = false;
   user.mana = Math.max(0, user.mana - cost);
   if (cd > 0) user.cooldowns[cdKey] = cd;
-  _executeEffect(skill, user, target);
+  if (!_executeEffect_override(skill, user, target)) _executeEffect(skill, user, target);
+  animCell(target ? target.row : user.row, target ? target.col : user.col, 'anim-skill');
   renderAll();
 }
 
@@ -1368,7 +1506,8 @@ function applyClassSkillEffect(sk, user, target) {
   user.actions = false;
   user.mana = Math.max(0, user.mana - cost);
   if (cd > 0) user.cooldowns[cdKey] = cd;
-  _executeEffect(sk, user, target);
+  if (!_executeEffect_override(sk, user, target)) _executeEffect(sk, user, target);
+  animCell(target ? target.row : user.row, target ? target.col : user.col, 'anim-skill');
   renderAll();
 }
 
@@ -1572,11 +1711,19 @@ function cardHTML(tok) {
   const csLabel = cs ? `${cs.name} [${cs.manaCost||0}MP${csCd>0?' CD:'+csCd:''}]` : '';
   const csBtn = cs ? `<span class="skill-pip class-skill${csIsPassive?' passive-skill':''}" onclick="event.stopPropagation();enterClassSkillMode(${tok.id})" title="${cs.desc}" style="${csCd>0?'opacity:0.4':''}">${csLabel}</span>` : '';
 
-  // Pool skills
-  const poolSkills = tok.skills.map((s,i) => s
-    ? `<span class="skill-pip" onclick="event.stopPropagation();enterSkillTargetMode(${s.id},${tok.id})" title="${s.desc||''}">${s.name}</span>`
-    : `<span class="skill-pip empty" title="Assign from Skill Pool">+ slot ${i+1}</span>`
-  ).join('');
+  // Pool skills — class-learned (no id) vs global pool (has id)
+  const poolSkills = tok.skills.map((s,i) => {
+    if (!s) return `<span class="skill-pip empty" title="Click +SKILL to learn">+ slot ${i+1}</span>`;
+    const cdKey = s.id ? 'pool_'+s.id : 'cls_'+s.name;
+    const onCd = (tok.cooldowns[cdKey]||0) > 0;
+    const noMp = tok.mana < (s.manaCost||0);
+    const isPassive = s.targetType==='passive';
+    const stateClass = isPassive ? '' : onCd ? ' on-cd' : noMp ? ' no-mp' : ' ready';
+    const cdLabel = onCd ? ` [cd:${tok.cooldowns[cdKey]}]` : '';
+    const mpLabel = s.manaCost ? ` [${s.manaCost}MP]` : '';
+    const fn = isPassive ? '' : s.id ? `enterSkillTargetMode(${s.id},${tok.id})` : `enterLearnedSkillMode(${i},${tok.id})`;
+    return `<span class="skill-pip${stateClass}" onclick="event.stopPropagation();${fn}" title="${s.desc||''}">${s.name}${mpLabel}${cdLabel}</span>`;
+  }).join('');
 
   const traitLine = tok.trait ? `<div class="card-trait">${tok.trait.name}: ${tok.trait.stats}</div>` : '';
 
@@ -1735,6 +1882,7 @@ function applyDmg(id, sign) {
 function checkDeath(tok) {
   if (tok.hp<=0&&!tok.dead) {
     tok.dead = true;
+    animToken(tok.id, 'anim-die');
     log(`&#9760; ${tok.name} has fallen! Soul fed to the Sword.`, 'death');
     changeSouls(1);
     if(tok.side==='ally') trustEvent(-8, `${tok.name} died`);

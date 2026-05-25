@@ -234,9 +234,204 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
 .skill-pip.on-cd{opacity:.4;cursor:not-allowed;text-decoration:line-through}
 .skill-pip.no-mp{opacity:.5;border-color:#5a1a1a!important;color:#884444!important}
 .skill-pip.ready{border-color:#c9a84c!important;color:#c9a84c!important}
+
+/* CAMPAIGN SCREENS */
+.game-screen{display:none}
+.game-screen.active{display:block}
+.screen-center{min-height:calc(100vh - 60px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;gap:24px}
+.screen-title{font-family:Georgia,serif;color:#c9a84c;text-align:center}
+.screen-title h1{font-size:3rem;letter-spacing:6px;margin-bottom:8px;text-shadow:0 0 20px #c9a84c44}
+.screen-title h2{font-size:1.1rem;color:#8a7a4a;letter-spacing:3px;font-weight:normal}
+.screen-title .intro{max-width:700px;margin:30px auto;color:#aaa;font-style:italic;line-height:1.7;font-size:0.95rem}
+.screen-title .btn-row{display:flex;gap:16px;justify-content:center;margin-top:20px;flex-wrap:wrap}
+.big-btn{background:#1a1f3c;border:2px solid #c9a84c;color:#c9a84c;padding:14px 32px;font-family:Georgia,serif;font-size:1rem;letter-spacing:2px;cursor:pointer;border-radius:4px;transition:all 0.2s}
+.big-btn:hover{background:#c9a84c;color:#0d1117;transform:translateY(-2px)}
+.big-btn:disabled{opacity:0.3;cursor:not-allowed}
+.big-btn.danger{border-color:#8b1a1a;color:#e05555}
+.big-btn.danger:hover{background:#8b1a1a;color:#fff}
+
+/* HERO SELECT */
+.hero-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;max-width:1100px;width:100%}
+.hero-card{background:#0d1420;border:2px solid #1e2540;border-radius:8px;padding:14px;cursor:pointer;transition:all 0.2s;position:relative}
+.hero-card:hover{border-color:#4a8fbf;transform:translateY(-2px)}
+.hero-card.selected{border-color:#c9a84c;background:#1a1f2c;box-shadow:0 0 16px #c9a84c66}
+.hero-card .icon{font-size:2.5rem;text-align:center;margin-bottom:6px}
+.hero-card h3{color:#c9a84c;font-size:1rem;margin-bottom:4px;text-align:center}
+.hero-card .stats{font-size:0.7rem;color:#888;display:grid;grid-template-columns:1fr 1fr;gap:2px;margin:8px 0;padding:6px;background:#0a0f1c;border-radius:4px}
+.hero-card .skill-info{font-size:0.7rem;color:#aaa;font-style:italic;line-height:1.4;border-top:1px solid #1e2540;padding-top:6px;margin-top:6px}
+.hero-card .check{position:absolute;top:6px;right:6px;color:#c9a84c;font-size:1.2rem;display:none}
+.hero-card.selected .check{display:block}
+
+/* MAP SCREEN */
+.map-container{background:#0a0f1c;border:2px solid #1e2540;border-radius:8px;padding:20px;max-width:1100px;width:100%;position:relative}
+.map-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #1e2540}
+.map-stats{display:flex;gap:20px;font-size:0.85rem}
+.map-stats .stat-chip{background:#1a1f3c;padding:6px 12px;border-radius:14px;border:1px solid #2a3050}
+.map-svg{width:100%;height:340px;display:block}
+.map-node{cursor:pointer;transition:all 0.2s}
+.map-node:hover .node-circle{filter:brightness(1.5)}
+.node-circle{transition:all 0.2s}
+.map-node.locked{opacity:0.3;cursor:not-allowed;pointer-events:none}
+.map-node.completed .node-circle{fill:#2d4a2d}
+.map-node.current .node-circle{stroke:#c9a84c;stroke-width:4;filter:drop-shadow(0 0 8px #c9a84c)}
+.map-node.available .node-circle{stroke:#4a8fbf;stroke-width:3}
+.map-node.available:hover .node-circle{stroke:#c9a84c}
+.map-line{stroke:#3a4060;stroke-width:2;fill:none}
+.map-line.available{stroke:#4a8fbf;stroke-width:3;stroke-dasharray:6 3;animation:dash 1s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-18}}
+.node-label{font-size:11px;fill:#aaa;text-anchor:middle;pointer-events:none;font-family:Georgia,serif}
+.map-party{display:flex;gap:12px;margin-top:20px;padding-top:16px;border-top:1px solid #1e2540;flex-wrap:wrap}
+.party-mini{background:#0d1420;border:1px solid #2a3050;border-radius:6px;padding:8px;flex:1;min-width:160px}
+.party-mini.dead{opacity:0.3;border-style:dashed}
+.party-mini .pm-name{color:#c9a84c;font-size:0.85rem;font-weight:bold}
+.party-mini .pm-class{color:#888;font-size:0.7rem}
+.party-mini .pm-bars{margin-top:6px;font-size:0.7rem}
+.pm-bar{height:6px;background:#1a1f2c;border-radius:3px;overflow:hidden;margin:2px 0}
+.pm-bar-fill{height:100%;transition:width 0.3s}
+.pm-bar-fill.hp{background:linear-gradient(to right,#8b3030,#2d7a2d)}
+.pm-bar-fill.mp{background:linear-gradient(to right,#5a3a7f,#7050cf)}
+
+/* SHOP */
+.shop-container{background:#0a0f1c;border:2px solid #c9a84c;border-radius:8px;padding:24px;max-width:800px;width:100%}
+.shop-flavor{font-style:italic;color:#aaa;line-height:1.6;margin-bottom:20px;padding:12px;background:#1a1410;border-left:3px solid #c9a84c;border-radius:4px}
+.shop-items{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:20px}
+.shop-item{background:#0d1420;border:1px solid #2a3050;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.shop-item .si-name{color:#c9a84c;font-weight:bold;font-size:0.9rem}
+.shop-item .si-desc{font-size:0.75rem;color:#aaa;flex:1;line-height:1.4}
+.shop-item .si-buy{background:#2a4a2a;border:1px solid #4a8f4a;color:#9fdf9f;padding:6px;cursor:pointer;border-radius:3px;font-size:0.8rem}
+.shop-item .si-buy:hover{background:#4a8f4a;color:#fff}
+.shop-item .si-buy:disabled{background:#1a1a1a;color:#444;border-color:#222;cursor:not-allowed}
+.shop-item.sold .si-buy{background:#1a1a1a;color:#666;border-color:#222;cursor:not-allowed}
+.shop-target-prompt{background:#1a1410;border:1px solid #c9a84c;padding:10px;margin:10px 0;border-radius:4px;font-size:0.85rem}
+.shop-hero-pick{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.shop-hero-pick button{background:#0d1420;border:1px solid #4a8fbf;color:#c8e8ff;padding:6px 12px;cursor:pointer;border-radius:3px;font-size:0.8rem}
+.shop-hero-pick button:hover{background:#1a2540}
+
+/* COMBAT BANNER (campaign mode shows current node + return button) */
+.combat-banner{background:#1a1f3c;border-bottom:2px solid #c9a84c;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;font-size:0.85rem}
+.combat-banner .cb-title{color:#c9a84c;letter-spacing:1px}
+.combat-banner .cb-end-btn{background:#5a1a1a;border:1px solid #e05555;color:#e05555;padding:6px 14px;cursor:pointer;border-radius:3px;font-size:0.75rem}
+.combat-banner .cb-end-btn:hover{background:#e05555;color:#fff}
+
+/* ENDING */
+.ending-container{max-width:700px;background:#0a0f1c;border:2px solid #ccaaff;padding:30px;border-radius:8px;text-align:center}
+.ending-container h1{color:#ccaaff;font-size:2rem;margin-bottom:20px;letter-spacing:4px}
+.ending-container.bad{border-color:#8b1a1a}
+.ending-container.bad h1{color:#e05555}
+.ending-container.good{border-color:#7fb87f}
+.ending-container.good h1{color:#7fb87f}
+.ending-container .ending-text{font-style:italic;color:#ccc;line-height:1.8;margin:20px 0;white-space:pre-line}
+.ending-container .ending-stats{font-size:0.85rem;color:#888;margin-top:20px;padding-top:16px;border-top:1px solid #2a3050}
 </style>
 </head>
 <body>
+
+<!-- TITLE SCREEN -->
+<div id="screen-title" class="game-screen active">
+  <div class="screen-center">
+    <div class="screen-title">
+      <h1>&#9876; SHATTERED CROWN</h1>
+      <h2>A Roguelike Tactics Playtest</h2>
+      <div class="intro" id="titleIntro">
+        Three years ago, the hero Aldric killed the Demon Lord and was crowned king.<br><br>
+        Today, you are <strong style="color:#c9a84c">Varn</strong> — a former soldier of Aldric's army, now wandering the kingdom's ruins. In a forgotten battlefield you find a sword. The Demon Lord's sword. Discarded.<br><br>
+        It is not silent.<br><br>
+        <em>"another one,"</em> it whispers, as it absorbs the soul of your first kill.<br><br>
+        <em>"keep going. there is something you need to see."</em>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="big-btn" id="btnContinue" onclick="continueRun()" style="display:none">&#9654; Continue Run</button>
+      <button class="big-btn" onclick="startNewRun()">&#9760; New Run</button>
+      <button class="big-btn" onclick="switchScene('combat')">&#9881; GM Sandbox Mode</button>
+    </div>
+    <div class="btn-row" style="margin-top:6px">
+      <button class="big-btn danger" id="btnAbandon" onclick="abandonRun()" style="display:none;font-size:0.8rem;padding:8px 16px">Abandon Run</button>
+    </div>
+  </div>
+</div>
+
+<!-- HERO SELECT SCREEN -->
+<div id="screen-hero-select" class="game-screen">
+  <div class="screen-center" style="justify-content:flex-start">
+    <div class="screen-title">
+      <h1 style="font-size:2rem">Choose Your Party</h1>
+      <h2>Select 4 heroes to follow Varn into the ruins</h2>
+    </div>
+    <div id="heroSelectInfo" style="font-size:0.9rem;color:#c9a84c;letter-spacing:1px">Selected: 0 / 4</div>
+    <div class="hero-grid" id="heroSelectGrid"></div>
+    <div class="btn-row">
+      <button class="big-btn" id="btnConfirmParty" onclick="confirmParty()" disabled>&#9876; Enter the Ruins</button>
+      <button class="big-btn" onclick="switchScene('title')" style="font-size:0.8rem;padding:8px 16px">&laquo; Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAP SCREEN -->
+<div id="screen-map" class="game-screen">
+  <div class="screen-center" style="justify-content:flex-start">
+    <div class="screen-title">
+      <h1 style="font-size:1.6rem">The Road to Aldric</h1>
+    </div>
+    <div class="map-container">
+      <div class="map-header">
+        <div class="map-stats">
+          <span class="stat-chip">&#9760; Souls <strong id="mapSouls" style="color:#ccaaff">0</strong></span>
+          <span class="stat-chip">&#9829; Trust <strong id="mapTrust" style="color:#c9a84c">50</strong></span>
+          <span class="stat-chip">&#128176; Gold <strong id="mapGold" style="color:#dfaf3a">50</strong></span>
+        </div>
+        <button class="big-btn" onclick="saveCampaign();alert('Saved.')" style="font-size:0.7rem;padding:6px 12px">&#128190; Save</button>
+      </div>
+      <svg class="map-svg" id="mapSvg" viewBox="0 0 1000 320"></svg>
+      <div class="map-party" id="mapParty"></div>
+    </div>
+    <div class="btn-row">
+      <button class="big-btn danger" onclick="if(confirm('Abandon this run? Progress will be lost.')){abandonRun();}" style="font-size:0.7rem;padding:6px 12px">Abandon Run</button>
+    </div>
+  </div>
+</div>
+
+<!-- SHOP SCREEN -->
+<div id="screen-shop" class="game-screen">
+  <div class="screen-center" style="justify-content:flex-start">
+    <div class="screen-title">
+      <h1 style="font-size:1.6rem" id="shopTitle">Wandering Trader</h1>
+      <h2 id="shopSubtitle">A flickering campfire. A hooded figure.</h2>
+    </div>
+    <div class="shop-container">
+      <div class="shop-flavor" id="shopFlavor"></div>
+      <div style="text-align:right;margin-bottom:10px"><span class="stat-chip">&#128176; <strong id="shopGold" style="color:#dfaf3a">50</strong> gold</span></div>
+      <div class="shop-items" id="shopItems"></div>
+      <div id="shopTargetPrompt"></div>
+      <div style="text-align:center">
+        <button class="big-btn" onclick="leaveShop()">Leave &raquo;</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ENDING SCREEN -->
+<div id="screen-ending" class="game-screen">
+  <div class="screen-center">
+    <div class="ending-container" id="endingBox">
+      <h1 id="endingTitle">THE END</h1>
+      <div class="ending-text" id="endingText"></div>
+      <div class="ending-stats" id="endingStats"></div>
+      <div class="btn-row" style="margin-top:24px">
+        <button class="big-btn" onclick="abandonRun()">&#9876; New Run</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COMBAT SCREEN (existing layout) -->
+<div id="screen-combat" class="game-screen">
+<div class="combat-banner" id="combatBanner" style="display:none">
+  <span class="cb-title" id="combatNodeName">&#9876; Combat</span>
+  <span class="cb-end-btn-wrap">
+    <button class="cb-end-btn" onclick="forceEndCombat()">Forfeit &amp; Return</button>
+  </span>
+</div>
 
 <header>
   <h1>&#9876; Shattered Crown &mdash; Playtest Tool v2</h1>
@@ -829,6 +1024,7 @@ const NAMES = {
   Hunter:         ['Spectre','Quill','Feathermark','Longstride','Silentshot'],
   'Elf Warrior':  ['Sylvan','Verdant','Thorn','Leaf','Branch'],
   'Elf Shaman':   ['Grove','Canopy','Sage','Bark','Fern'],
+  Aldric:         ['Aldric'],
 };
 
 // =============================================================================
@@ -2719,11 +2915,578 @@ function importSkillPool(event) {
 }
 
 // =============================================================================
+// CAMPAIGN MODE — Scene manager, Map, Hero Select, Shop, Save/Load, Ending
+// =============================================================================
+const SAVE_KEY = 'shatteredCrownSave_v1';
+
+const CAMPAIGN = {
+  scene: 'title',
+  active: false,
+  heroes: [],          // {class,name,hp,maxHp,mana,maxMana,cooldowns,statuses,equipment,skills,traits...}
+  currentNode: 0,
+  completedNodes: [],
+  combatNode: null,
+  endingShown: false
+};
+
+const MAP_NODES = [
+  {id:0, type:'camp',   x: 60, y:160, name:'Camp',                connects:[1]},
+  {id:1, type:'combat', x:180, y:160, name:'Goblin Skirmish',     encounter:'goblins',   connects:[2,3]},
+  {id:2, type:'combat', x:320, y: 90, name:'Bandit Ambush',       encounter:'bandits',   connects:[4]},
+  {id:3, type:'combat', x:320, y:230, name:'Skeleton Patrol',     encounter:'skeletons', connects:[4]},
+  {id:4, type:'shop',   x:460, y:160, name:'Wandering Trader',    connects:[5]},
+  {id:5, type:'combat', x:600, y:160, name:'Necromancer Elite',   encounter:'elite',     connects:[6]},
+  {id:6, type:'shop',   x:740, y:160, name:'Last Camp',           connects:[7]},
+  {id:7, type:'boss',   x:880, y:160, name:'Aldric',              encounter:'aldric',    connects:[]}
+];
+
+const ENCOUNTERS = {
+  goblins:   [{cls:'Goblin', r:2, c:7}, {cls:'Goblin', r:4, c:7}, {cls:'Ranged Goblin', r:6, c:8}],
+  bandits:   [{cls:'Spear Goblin', r:3, c:7}, {cls:'Mage Goblin', r:5, c:8}, {cls:'Orc', r:4, c:6}],
+  skeletons: [{cls:'Skeleton', r:1, c:7}, {cls:'Skeleton', r:3, c:7}, {cls:'Zombie', r:5, c:7}, {cls:'Skeleton', r:7, c:7}],
+  elite:     [{cls:'Soul Eater', r:4, c:8}, {cls:'Skeleton', r:3, c:6}, {cls:'Skeleton', r:5, c:6}, {cls:'Zombie', r:4, c:5}],
+  aldric:    [{cls:'Aldric', r:4, c:8}, {cls:'Royal Guard', r:3, c:7}, {cls:'Royal Guard', r:5, c:7}, {cls:'Shield Bearer', r:4, c:9}]
+};
+
+const SHOP_INVENTORIES = {
+  4: { // Wandering Trader (mid)
+    flavor: 'A hooded figure crouches by a small fire. "I don\'t recognise that sword," they say, eyes lingering on Varn\'s blade. "But I know what it does. The whispers — I can hear them too. From here." They tap their temple. "I\'ll sell you what I have. Don\'t come back."',
+    items: [
+      {id:'heal',  name:'Healing Salve',  desc:'Restore 5 HP to one hero.',           cost:15, type:'heal',     value:5,  target:'hero'},
+      {id:'mana',  name:'Mana Crystal',   desc:'Restore 3 MP to one hero.',           cost:10, type:'mana',     value:3,  target:'hero'},
+      {id:'atk',   name:'Whetstone',      desc:'+1 ATK permanently to one hero.',     cost:30, type:'buff-atk', value:1,  target:'hero'},
+      {id:'def',   name:'Leather Plate',  desc:'+2 DEF permanently to one hero.',     cost:25, type:'buff-def', value:2,  target:'hero'},
+      {id:'full',  name:'Stew Pot',       desc:'Heal entire party to full HP.',       cost:40, type:'full-heal',value:0,  target:'all'}
+    ]
+  },
+  6: { // Last Camp (pre-boss)
+    flavor: 'The trader from before sits by a different fire. They look at Varn\'s sword for a long time. "I won\'t see you again, will I?" They push everything they have across the dirt. "Take it. I have nowhere left to go either."',
+    items: [
+      {id:'heal2', name:'Greater Salve',  desc:'Restore 10 HP to one hero.',          cost:25, type:'heal',     value:10, target:'hero'},
+      {id:'mana2', name:'Pure Mana Stone',desc:'Restore full MP to one hero.',        cost:20, type:'full-mana',value:0,  target:'hero'},
+      {id:'atk2',  name:'Demon-Iron Edge',desc:'+2 ATK permanently to one hero.',     cost:50, type:'buff-atk', value:2,  target:'hero'},
+      {id:'rev',   name:'Holy Ash',       desc:'Revive a dead hero at half HP.',      cost:60, type:'revive',   value:0,  target:'dead'},
+      {id:'crown', name:'Aldric\'s Crest',desc:'+1 to all stats, party-wide. One-time.',cost:80,type:'all-buff',value:1, target:'all'}
+    ]
+  }
+};
+
+// ----- Scene Management -----
+function switchScene(name) {
+  CAMPAIGN.scene = name;
+  document.querySelectorAll('.game-screen').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('screen-' + name);
+  if (el) el.classList.add('active');
+  document.getElementById('combatBanner').style.display = (name === 'combat' && CAMPAIGN.active) ? 'flex' : 'none';
+}
+
+// ----- Save / Load -----
+function saveCampaign() {
+  if (!CAMPAIGN.active) return;
+  // Sync soul/trust/varnStats from existing globals
+  const data = {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    heroes: CAMPAIGN.heroes,
+    currentNode: CAMPAIGN.currentNode,
+    completedNodes: CAMPAIGN.completedNodes,
+    souls: souls,
+    trust: trust,
+    gold: gold,
+    triggeredThresholds: [...triggeredThresholds],
+    triggeredTrustEvents: [...triggeredTrustEvents],
+    varnStats: window.varnStats || {STR:0,VIT:0,INT:0,DEX:0}
+  };
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); }
+  catch(e) { console.warn('Save failed:', e); }
+}
+function hasSave() { return !!localStorage.getItem(SAVE_KEY); }
+function loadCampaign() {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch(e) { return null; }
+}
+function clearSave() { localStorage.removeItem(SAVE_KEY); }
+
+function continueRun() {
+  const data = loadCampaign();
+  if (!data) { alert('No save found.'); return; }
+  CAMPAIGN.active = true;
+  CAMPAIGN.heroes = data.heroes;
+  CAMPAIGN.currentNode = data.currentNode;
+  CAMPAIGN.completedNodes = data.completedNodes || [];
+  souls = data.souls || 0;
+  trust = data.trust !== undefined ? data.trust : 50;
+  gold  = data.gold  !== undefined ? data.gold  : 50;
+  triggeredThresholds = new Set(data.triggeredThresholds || []);
+  triggeredTrustEvents = new Set(data.triggeredTrustEvents || []);
+  window.varnStats = data.varnStats || {STR:0,VIT:0,INT:0,DEX:0};
+  updateSouls(); updateTrust(); updateGold();
+  renderMap();
+  switchScene('map');
+}
+
+function abandonRun() {
+  if (CAMPAIGN.active && !confirm('Abandon current run? Save will be deleted.')) return;
+  clearSave();
+  CAMPAIGN.active = false;
+  CAMPAIGN.heroes = [];
+  CAMPAIGN.currentNode = 0;
+  CAMPAIGN.completedNodes = [];
+  CAMPAIGN.endingShown = false;
+  souls = 0; trust = 50; gold = 50;
+  triggeredThresholds = new Set();
+  triggeredTrustEvents = new Set();
+  window.varnStats = {STR:0,VIT:0,INT:0,DEX:0};
+  // reset combat state
+  tokens = []; turnOrder = []; turnIndex = 0; round = 1;
+  selectedId = null;
+  renderAll();
+  updateSouls(); updateTrust(); updateGold();
+  document.getElementById('btnContinue').style.display = hasSave() ? 'inline-block' : 'none';
+  document.getElementById('btnAbandon').style.display = hasSave() ? 'inline-block' : 'none';
+  switchScene('title');
+}
+
+// ----- New Run Flow -----
+function startNewRun() {
+  if (hasSave() && !confirm('Start a new run? This will delete your existing save.')) return;
+  clearSave();
+  CAMPAIGN.heroes = [];
+  CAMPAIGN.currentNode = 0;
+  CAMPAIGN.completedNodes = [];
+  CAMPAIGN.endingShown = false;
+  souls = 0; trust = 50; gold = 50;
+  triggeredThresholds = new Set();
+  triggeredTrustEvents = new Set();
+  window.varnStats = {STR:0,VIT:0,INT:0,DEX:0};
+  renderHeroSelect();
+  switchScene('hero-select');
+}
+
+// ----- Hero Select -----
+let _heroSelectPicks = []; // array of class names
+function renderHeroSelect() {
+  _heroSelectPicks = [];
+  const grid = document.getElementById('heroSelectGrid');
+  grid.innerHTML = ALLY_CLASSES.map(cls => {
+    const icon = cls.name==='Fighter'?'⚔':cls.name==='Tank'?'🛡':cls.name==='Rogue'?'🗡':cls.name==='Ranger'?'🏹':cls.name==='Cleric'?'✨':cls.name==='Wizard'?'🔮':'★';
+    return `<div class="hero-card" id="hs-${cls.name}" onclick="toggleHeroPick('${cls.name}')">
+      <div class="check">✓</div>
+      <div class="icon">${icon}</div>
+      <h3>${cls.name}</h3>
+      <div class="stats">
+        <span>HP ${cls.hp}</span><span>DEF ${cls.def}</span>
+        <span>ATK ${cls.atk}</span><span>SPD ${cls.speed}</span>
+        <span>RNG ${cls.range}</span><span>MP ${cls.maxMana}</span>
+      </div>
+      <div class="skill-info"><strong style="color:#c9a84c">${cls.classSkill.name}</strong><br>${cls.classSkill.desc}</div>
+    </div>`;
+  }).join('');
+  updateHeroSelectInfo();
+}
+function toggleHeroPick(clsName) {
+  const i = _heroSelectPicks.indexOf(clsName);
+  if (i >= 0) _heroSelectPicks.splice(i, 1);
+  else if (_heroSelectPicks.length < 4) _heroSelectPicks.push(clsName);
+  document.getElementById('hs-'+clsName).classList.toggle('selected', _heroSelectPicks.includes(clsName));
+  updateHeroSelectInfo();
+}
+function updateHeroSelectInfo() {
+  document.getElementById('heroSelectInfo').textContent = `Selected: ${_heroSelectPicks.length} / 4`;
+  document.getElementById('btnConfirmParty').disabled = _heroSelectPicks.length !== 4;
+}
+function confirmParty() {
+  if (_heroSelectPicks.length !== 4) return;
+  CAMPAIGN.heroes = _heroSelectPicks.map((clsName, i) => {
+    const tpl = ALLY_CLASSES.find(c => c.name === clsName);
+    const names = (NAMES[clsName] || ['Hero']);
+    const name = names[Math.floor(Math.random()*names.length)];
+    return {
+      class: clsName,
+      name: name,
+      hp: tpl.hp, maxHp: tpl.hp,
+      mana: tpl.maxMana, maxMana: tpl.maxMana,
+      manaRegen: tpl.manaRegen,
+      atk: tpl.atk, def: tpl.def, speed: tpl.speed, range: tpl.range,
+      str: tpl.str, vit: tpl.vit, int: tpl.int, dex: tpl.dex,
+      cooldowns: {},
+      statuses: [],
+      skills: [null, null], // learnable from class pool
+      equipment: [],
+      dead: false
+    };
+  });
+  CAMPAIGN.active = true;
+  CAMPAIGN.currentNode = 0;
+  CAMPAIGN.completedNodes = [0];
+  saveCampaign();
+  // Show opening narrative then go to map
+  showStoryModal('The Find', 'Varn\'s Perspective',
+    'You find the sword in the ruins of an old battlefield. Three years of rain have not rusted it.\n\nIt is warm.\n\nA voice — not in your ear, but in your hand:\n\n"keep going. there is something you need to see."',
+    'Your four companions look at the sword. They do not say anything. But they follow you.', '#c9a84c', () => {
+      CAMPAIGN.currentNode = 1;
+      renderMap();
+      switchScene('map');
+      saveCampaign();
+    });
+}
+
+// ----- Generic Story Modal (reuses vision modal) -----
+function showStoryModal(title, source, text, unlock, color, onClose) {
+  const modal = document.getElementById('visionModal');
+  const box   = document.getElementById('visionModalBox');
+  document.getElementById('visionSource').textContent = source;
+  document.getElementById('visionModalTitle').textContent = title;
+  document.getElementById('visionModalText').textContent = text;
+  document.getElementById('visionUnlock').textContent = unlock || '';
+  document.getElementById('visionModalTitle').style.color = color || '#ccaaff';
+  document.getElementById('visionModalTitle').style.fontSize = '1.3rem';
+  box.style.borderColor = color || '#4a1a8b';
+  modal.style.background = 'rgba(0,0,0,0.92)';
+  box.style.display = 'block';
+  modal.style.display = 'flex';
+  const btn = document.getElementById('visionCloseBtn');
+  btn.style.display = 'none';
+  setTimeout(()=>{ btn.style.display = 'inline-block'; }, 1500);
+  // attach one-shot onClose
+  if (onClose) {
+    const origClose = closeVisionModal;
+    window._modalOnClose = onClose;
+    btn.onclick = () => { modal.style.display='none'; const f = window._modalOnClose; window._modalOnClose=null; btn.onclick=origClose; if(f)f(); };
+  }
+}
+
+// ----- Map Rendering -----
+function renderMap() {
+  document.getElementById('mapSouls').textContent = souls;
+  document.getElementById('mapTrust').textContent = trust;
+  document.getElementById('mapGold').textContent  = gold;
+  const svg = document.getElementById('mapSvg');
+  const completed = new Set(CAMPAIGN.completedNodes);
+  const current = CAMPAIGN.currentNode;
+  const available = new Set();
+  // Available = nodes that current node connects to AND aren't completed
+  const cn = MAP_NODES.find(n=>n.id===current);
+  if (cn) cn.connects.forEach(id => { if (!completed.has(id)) available.add(id); });
+  // Build SVG
+  let lines = '', nodesSvg = '';
+  MAP_NODES.forEach(n => {
+    n.connects.forEach(toId => {
+      const t = MAP_NODES.find(x=>x.id===toId);
+      const active = current === n.id && available.has(toId);
+      lines += `<line class="map-line ${active?'available':''}" x1="${n.x}" y1="${n.y}" x2="${t.x}" y2="${t.y}"/>`;
+    });
+  });
+  MAP_NODES.forEach(n => {
+    const isCompleted = completed.has(n.id);
+    const isCurrent = current === n.id;
+    const isAvailable = available.has(n.id);
+    const stateClass = isCurrent?'current':isCompleted?'completed':isAvailable?'available':'locked';
+    const fill = n.type==='boss'?'#5a0808':n.type==='shop'?'#4a3a1a':n.type==='camp'?'#2a3a4a':'#2a1a1a';
+    const icon = n.type==='camp'?'🏕':n.type==='shop'?'🛒':n.type==='boss'?'👑':'💀';
+    const click = isAvailable ? `onclick="enterNode(${n.id})"` : '';
+    nodesSvg += `<g class="map-node ${stateClass}" ${click}>
+      <circle class="node-circle" cx="${n.x}" cy="${n.y}" r="28" fill="${fill}" stroke="#8a7a4a" stroke-width="2"/>
+      <text x="${n.x}" y="${n.y+8}" font-size="22" text-anchor="middle">${icon}</text>
+      <text class="node-label" x="${n.x}" y="${n.y+50}">${n.name}</text>
+    </g>`;
+  });
+  svg.innerHTML = lines + nodesSvg;
+  // Party display
+  document.getElementById('mapParty').innerHTML = CAMPAIGN.heroes.map(h => {
+    const hpPct = Math.max(0, (h.hp / h.maxHp) * 100);
+    const mpPct = h.maxMana ? Math.max(0, (h.mana / h.maxMana) * 100) : 0;
+    return `<div class="party-mini${h.dead?' dead':''}">
+      <div class="pm-name">${h.name}${h.dead?' †':''}</div>
+      <div class="pm-class">${h.class}</div>
+      <div class="pm-bars">
+        HP ${h.hp}/${h.maxHp}<div class="pm-bar"><div class="pm-bar-fill hp" style="width:${hpPct}%"></div></div>
+        MP ${h.mana}/${h.maxMana}<div class="pm-bar"><div class="pm-bar-fill mp" style="width:${mpPct}%"></div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function enterNode(nodeId) {
+  const node = MAP_NODES.find(n => n.id === nodeId);
+  if (!node) return;
+  CAMPAIGN.currentNode = nodeId;
+  if (node.type === 'combat' || node.type === 'boss') startCombatNode(node);
+  else if (node.type === 'shop') openShop(node);
+}
+
+// ----- Combat Node Integration -----
+function startCombatNode(node) {
+  CAMPAIGN.combatNode = node;
+  // Reset combat globals
+  tokens = []; turnOrder = []; turnIndex = 0; round = 1;
+  document.getElementById('roundNum').textContent = '1';
+  selectedId = null;
+  // Place heroes on the left side
+  CAMPAIGN.heroes.forEach((h, i) => {
+    if (h.dead) return;
+    const positions = [[1,1],[3,1],[5,1],[7,1]];
+    const [r, c] = positions[i];
+    placeHeroFromCampaign(h, r, c);
+  });
+  // Place enemies from encounter
+  const enc = ENCOUNTERS[node.encounter] || [];
+  enc.forEach(e => placeEnemyFromEncounter(e.cls, e.r, e.c));
+  // Clear terrain
+  terrain = Array(GRID_SIZE).fill(0).map(()=>Array(GRID_SIZE).fill('normal'));
+  rebuildTurnOrder();
+  rollInitiative();
+  detectFlanking();
+  renderAll();
+  document.getElementById('combatNodeName').textContent = `⚔ ${node.name}`;
+  switchScene('combat');
+  log(`=== ENTER: ${node.name} ===`, 'vision');
+  if (node.type === 'boss') {
+    setTimeout(() => {
+      showStoryModal('Aldric, The King', 'The Throne Room',
+        'The doors burst open. Aldric is already standing — already waiting. The crown on his head looks heavier than it should.\n\n"I knew that sword would find someone eventually. I should have destroyed it myself."\n\nHe draws a blade that glints wrong in the light.\n\n"You can\'t kill what I am. But I respect that you tried."',
+        'BOSS COMBAT: Defeat Aldric. The party\'s trust will determine your ending.', '#e05555');
+    }, 600);
+  }
+}
+
+function placeHeroFromCampaign(h, r, c) {
+  const tpl = ALLY_CLASSES.find(x => x.name === h.class) || ALLY_CLASSES[0];
+  const id = (tokens.reduce((m,t)=>Math.max(m,t.id),0) || 0) + 1;
+  tokens.push({
+    id, side:'ally', class:h.class, name:h.name,
+    row:r, col:c,
+    hp:h.hp, maxHp:h.maxHp,
+    mana:h.mana, maxMana:h.maxMana, manaRegen:h.manaRegen,
+    atk:h.atk, def:h.def, speed:h.speed, range:h.range,
+    str:h.str, vit:h.vit, int:h.int, dex:h.dex,
+    color:tpl.color, bcolor:tpl.bcolor,
+    cooldowns:{...h.cooldowns}, statuses:[...h.statuses],
+    skills:[...(h.skills||[null,null])],
+    actions:true, bonusAction:true, reaction:true,
+    dead:false, _campaignRef:h
+  });
+}
+function placeEnemyFromEncounter(clsName, r, c) {
+  let tpl = ENEMY_CLASSES.find(x => x.name === clsName);
+  if (!tpl && clsName === 'Aldric') tpl = ALDRIC_TEMPLATE;
+  if (!tpl) tpl = ENEMY_CLASSES[0];
+  const id = (tokens.reduce((m,t)=>Math.max(m,t.id),0) || 0) + 1;
+  const names = NAMES[tpl.name] || ['Foe'];
+  tokens.push({
+    id, side:'enemy', class:tpl.name, name:names[Math.floor(Math.random()*names.length)],
+    row:r, col:c,
+    hp:tpl.hp, maxHp:tpl.hp,
+    mana:tpl.maxMana||0, maxMana:tpl.maxMana||0, manaRegen:tpl.manaRegen||0,
+    atk:tpl.atk, def:tpl.def, speed:tpl.speed, range:tpl.range,
+    str:tpl.str||1, vit:tpl.vit||1, int:tpl.int||1, dex:tpl.dex||1,
+    color:tpl.color||'#2a0a0a', bcolor:tpl.bcolor||'#8b3030',
+    cooldowns:{}, statuses:[],
+    skills:[],
+    actions:true, bonusAction:true, reaction:true, dead:false
+  });
+}
+
+// Aldric & Royal Guard templates (boss-only)
+const ALDRIC_TEMPLATE = {
+  name:'Aldric', hp:35, speed:3, atk:6, def:15, range:1,
+  color:'#2a1410', bcolor:'#dfaf3a',
+  str:5, vit:5, int:3, dex:4, maxMana:8, manaRegen:2,
+  classSkill:{name:'Royal Decree', manaCost:3, cooldown:2, targetType:'enemy-adj', effectType:'damage', effectValue:3,
+    desc:'Aldric strikes with the authority of the crown — +3 ATK damage, ignores 2 DEF.'}
+};
+
+// ----- Combat End Detection (hook after each token death) -----
+function checkCombatEnd() {
+  if (!CAMPAIGN.active || !CAMPAIGN.combatNode) return;
+  const aliveAllies = tokens.filter(t => t.side === 'ally' && !t.dead);
+  const aliveEnemies = tokens.filter(t => t.side === 'enemy' && !t.dead);
+  if (aliveEnemies.length === 0) endCombat(true);
+  else if (aliveAllies.length === 0) endCombat(false);
+}
+function endCombat(victory) {
+  const node = CAMPAIGN.combatNode;
+  if (!node) return;
+  // Sync hero state back to campaign
+  CAMPAIGN.heroes.forEach(h => {
+    const tok = tokens.find(t => t._campaignRef === h);
+    if (tok) {
+      h.hp = tok.hp;
+      h.mana = tok.mana;
+      h.cooldowns = {};  // reset cooldowns between combats
+      h.statuses = [];
+      h.dead = tok.dead;
+      h.skills = [...(tok.skills||[null,null])];
+    }
+  });
+  CAMPAIGN.combatNode = null;
+  if (victory) {
+    if (!CAMPAIGN.completedNodes.includes(node.id)) CAMPAIGN.completedNodes.push(node.id);
+    gold += node.type === 'boss' ? 0 : (node.type === 'combat' ? 25 : 10);
+    updateGold();
+    log(`=== VICTORY at ${node.name} ===`, 'crit');
+    saveCampaign();
+    if (node.type === 'boss') {
+      setTimeout(() => showEnding(true), 800);
+    } else {
+      setTimeout(() => { renderMap(); switchScene('map'); }, 1200);
+    }
+  } else {
+    log(`=== DEFEAT at ${node.name} ===`, 'death');
+    setTimeout(() => showEnding(false), 800);
+  }
+}
+function forceEndCombat() {
+  if (!confirm('Forfeit this combat? All living heroes will retreat (no rewards).')) return;
+  // Mark as completed without rewards, return to map
+  const node = CAMPAIGN.combatNode;
+  if (node && !CAMPAIGN.completedNodes.includes(node.id)) CAMPAIGN.completedNodes.push(node.id);
+  CAMPAIGN.combatNode = null;
+  CAMPAIGN.heroes.forEach(h => {
+    const tok = tokens.find(t => t._campaignRef === h);
+    if (tok) { h.hp = tok.hp; h.mana = tok.mana; h.dead = tok.dead; }
+  });
+  saveCampaign();
+  renderMap();
+  switchScene('map');
+}
+
+// ----- Shop -----
+let _shopTargetItem = null;
+function openShop(node) {
+  const inv = SHOP_INVENTORIES[node.id];
+  document.getElementById('shopTitle').textContent = node.name;
+  document.getElementById('shopSubtitle').textContent = node.id === 4 ? 'A flickering campfire. A hooded figure.' : 'The last fire before the throne.';
+  document.getElementById('shopFlavor').textContent = inv.flavor;
+  document.getElementById('shopGold').textContent = gold;
+  document.getElementById('shopTargetPrompt').innerHTML = '';
+  _shopTargetItem = null;
+  renderShopItems(node);
+  switchScene('shop');
+}
+function renderShopItems(node) {
+  const inv = SHOP_INVENTORIES[node.id];
+  document.getElementById('shopItems').innerHTML = inv.items.map(it => {
+    const tooExpensive = gold < it.cost;
+    return `<div class="shop-item${it._sold?' sold':''}">
+      <div class="si-name">${it.name}</div>
+      <div class="si-desc">${it.desc}</div>
+      <button class="si-buy" ${tooExpensive||it._sold?'disabled':''} onclick="beginPurchase('${it.id}')">${it._sold?'Sold':`Buy — ${it.cost}g`}</button>
+    </div>`;
+  }).join('');
+}
+function beginPurchase(itemId) {
+  const node = MAP_NODES.find(n=>n.id===CAMPAIGN.currentNode);
+  const inv = SHOP_INVENTORIES[node.id];
+  const it = inv.items.find(x=>x.id===itemId);
+  if (!it || it._sold || gold < it.cost) return;
+  if (it.target === 'all') {
+    applyShopItem(it, null);
+    return;
+  }
+  // Hero pick prompt
+  _shopTargetItem = it;
+  const pool = it.target === 'dead' ? CAMPAIGN.heroes.filter(h=>h.dead) : CAMPAIGN.heroes.filter(h=>!h.dead);
+  if (pool.length === 0) { alert('No valid target.'); return; }
+  const buttons = pool.map(h => `<button onclick="completePurchase('${h.name}')">${h.name} (${h.class}) — HP ${h.hp}/${h.maxHp}</button>`).join('');
+  document.getElementById('shopTargetPrompt').innerHTML = `
+    <div class="shop-target-prompt">
+      Use <strong>${it.name}</strong> on which hero?
+      <div class="shop-hero-pick">${buttons}<button onclick="cancelPurchase()" style="border-color:#8b1a1a;color:#e05555">Cancel</button></div>
+    </div>`;
+}
+function cancelPurchase() {
+  _shopTargetItem = null;
+  document.getElementById('shopTargetPrompt').innerHTML = '';
+}
+function completePurchase(heroName) {
+  const h = CAMPAIGN.heroes.find(x=>x.name===heroName);
+  if (!h || !_shopTargetItem) return;
+  applyShopItem(_shopTargetItem, h);
+  _shopTargetItem = null;
+}
+function applyShopItem(it, hero) {
+  gold -= it.cost;
+  updateGold();
+  it._sold = true;
+  switch(it.type) {
+    case 'heal':      hero.hp = Math.min(hero.maxHp, hero.hp + it.value); break;
+    case 'mana':      hero.mana = Math.min(hero.maxMana, hero.mana + it.value); break;
+    case 'full-mana': hero.mana = hero.maxMana; break;
+    case 'buff-atk':  hero.atk += it.value; break;
+    case 'buff-def':  hero.def += it.value; break;
+    case 'full-heal': CAMPAIGN.heroes.forEach(h => { if (!h.dead) h.hp = h.maxHp; }); break;
+    case 'revive':    if (hero) { hero.dead = false; hero.hp = Math.floor(hero.maxHp/2); } break;
+    case 'all-buff':  CAMPAIGN.heroes.forEach(h => { if (!h.dead) { h.atk += it.value; h.def += it.value; h.maxHp += it.value*2; h.hp += it.value*2; } }); break;
+  }
+  document.getElementById('shopGold').textContent = gold;
+  document.getElementById('shopTargetPrompt').innerHTML = `<div class="shop-target-prompt" style="border-color:#7fb87f;color:#7fb87f">✓ ${it.name} applied${hero?` to ${hero.name}`:''}.</div>`;
+  setTimeout(()=>document.getElementById('shopTargetPrompt').innerHTML='', 1800);
+  renderShopItems(MAP_NODES.find(n=>n.id===CAMPAIGN.currentNode));
+  saveCampaign();
+}
+function leaveShop() {
+  if (!CAMPAIGN.completedNodes.includes(CAMPAIGN.currentNode)) CAMPAIGN.completedNodes.push(CAMPAIGN.currentNode);
+  saveCampaign();
+  renderMap();
+  switchScene('map');
+}
+
+// ----- Ending -----
+function showEnding(victory) {
+  if (CAMPAIGN.endingShown) return;
+  CAMPAIGN.endingShown = true;
+  const box = document.getElementById('endingBox');
+  let title, text, cls;
+  if (!victory) {
+    cls = 'bad'; title = 'YOU FELL';
+    text = `Your party lies in the dirt.\n\nThe sword does not weep.\nIt simply waits — patient, as it has always been — for the next hand to lift it from the ground.\n\nSomewhere far away, in a great hall, a king feels nothing at all.`;
+  } else if (trust === 0) {
+    cls = 'bad'; title = 'THE SWORD WINS';
+    text = `Aldric is dead.\n\nYou stand alone on the bloodied stones. Your party — what remains of them — backed away the moment the killing blow landed. They saw your face. They saw what the sword had done to it.\n\nThe crown lies on the floor between you and them.\n\nYou pick it up.\n\nThe sword does not laugh. It does not need to.\n\nIt only says, quietly:\n\n"another one."`;
+  } else if (trust >= 80) {
+    cls = 'good'; title = 'THE CROWN BROKEN';
+    text = `Aldric falls. The crown rolls from his head and stops at your feet.\n\nYour party stands beside you. Not behind. Not watching. Beside.\n\nAelindra picks up the crown. She looks at it for a long moment, then sets it back down on the floor — gently, like setting down a dead bird.\n\n"It was never his," she says.\n\n"It doesn\'t have to be yours either."\n\nYou leave the sword in the throne room.\n\nThe whispers do not follow.`;
+  } else {
+    cls = ''; title = 'THE LONG ROAD';
+    text = `Aldric is dead. The crown is yours, if you want it.\n\nMost of your party has already left the room — quietly, without looking back. Two remain. They do not look at the crown. They look at you.\n\nYou do not know if they are waiting to see what you choose, or waiting to see whether they should run.\n\nThe sword is silent for the first time in a long while.\n\nIt is waiting too.`;
+  }
+  box.className = 'ending-container ' + cls;
+  document.getElementById('endingTitle').textContent = title;
+  document.getElementById('endingText').textContent = text;
+  const survivors = CAMPAIGN.heroes.filter(h=>!h.dead).length;
+  document.getElementById('endingStats').innerHTML = `
+    Souls absorbed: <strong style="color:#ccaaff">${souls}</strong> ·
+    Final Trust: <strong style="color:#c9a84c">${trust}</strong> ·
+    Survivors: <strong>${survivors}/${CAMPAIGN.heroes.length}</strong>
+  `;
+  clearSave();
+  switchScene('ending');
+}
+
+// ----- Hook checkDeath to detect combat end -----
+const _origCheckDeath = checkDeath;
+checkDeath = function(tok) {
+  _origCheckDeath(tok);
+  if (tok.dead) setTimeout(checkCombatEnd, 100);
+};
+
+// ----- Init: set up title screen on load -----
+function initCampaign() {
+  document.getElementById('btnContinue').style.display = hasSave() ? 'inline-block' : 'none';
+  document.getElementById('btnAbandon').style.display = hasSave() ? 'inline-block' : 'none';
+  switchScene('title');
+}
+
+// =============================================================================
 // START
 // =============================================================================
 init();
 rebindGrid();
-log('Shattered Crown Playtest v2 loaded. Use + buttons to recruit (with trait roll). Click ATTACK to auto-resolve. Design skills in Skill Pool below.', 'sys');
+log('Shattered Crown Playtest v2 loaded.', 'sys');
+initCampaign();
 </script>
+</div><!-- /screen-combat -->
 </body>
 </html>

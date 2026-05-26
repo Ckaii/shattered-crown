@@ -338,6 +338,45 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
 
 /* EMOJI TERRAIN */
 .cell .terrain-emoji{position:absolute;top:2px;right:2px;font-size:1.1rem;opacity:0.9;pointer-events:none;text-shadow:0 0 4px rgba(0,0,0,0.9);z-index:1;line-height:1}
+
+/* ============ PIXEL ART SPRITE SYSTEM ============ */
+/* Idle bob — all tokens gently float */
+@keyframes spriteIdle  {0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+@keyframes spriteAtk   {0%{transform:translate(0,0) scale(1)}30%{transform:translate(var(--lx,0),var(--ly,0)) scale(1.15)}70%{transform:translate(var(--lx,0),var(--ly,0)) scale(1.05)}100%{transform:translate(0,0) scale(1)}}
+@keyframes spriteCast  {0%{transform:scale(1) rotate(0deg);filter:brightness(1)}50%{transform:scale(1.2) rotate(8deg);filter:brightness(2) hue-rotate(60deg)}100%{transform:scale(1) rotate(0deg);filter:brightness(1)}}
+@keyframes weaponFly   {0%{transform:translate(0,0) rotate(0deg) scale(0.6);opacity:0}15%{opacity:1;transform:translate(calc(var(--tx,0px)*0.2),calc(var(--ty,0px)*0.2)) rotate(180deg) scale(1)}85%{opacity:1;transform:translate(calc(var(--tx,0px)*0.85),calc(var(--ty,0px)*0.85)) rotate(720deg) scale(1.1)}100%{opacity:0;transform:translate(var(--tx,0px),var(--ty,0px)) rotate(900deg) scale(0.8)}}
+@keyframes projectile  {0%{transform:translate(0,0) scale(0.5);opacity:0}10%{opacity:1;transform:translate(calc(var(--tx,0px)*0.1),calc(var(--ty,0px)*0.1)) scale(1)}90%{opacity:1;transform:translate(calc(var(--tx,0px)*0.9),calc(var(--ty,0px)*0.9)) scale(1)}100%{opacity:0;transform:translate(var(--tx,0px),var(--ty,0px)) scale(0.4)}}
+@keyframes spellBlast  {0%{transform:scale(0);opacity:0}40%{opacity:1;transform:scale(1.5)}100%{transform:scale(2.5);opacity:0}}
+@keyframes particle    {0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--px,0px),var(--py,0px)) scale(0);opacity:0}}
+@keyframes critFlash   {0%,100%{background:transparent}50%{background:rgba(255,220,80,0.4)}}
+@keyframes spriteSpawn {0%{transform:scale(0) rotate(-180deg);opacity:0;filter:brightness(3)}100%{transform:scale(1) rotate(0);opacity:1;filter:brightness(1)}}
+@keyframes heroPulse   {0%,100%{box-shadow:0 0 6px rgba(74,143,191,0.4)}50%{box-shadow:0 0 14px rgba(74,143,191,0.8)}}
+@keyframes enemyPulse  {0%,100%{box-shadow:0 0 6px rgba(139,48,48,0.4)}50%{box-shadow:0 0 14px rgba(139,48,48,0.7)}}
+
+/* Pixelated rendering for crisp emojis at small size */
+.token{image-rendering:pixelated;image-rendering:-moz-crisp-edges}
+
+/* Sprite portrait inside token */
+.token .sprite-portrait{font-size:1.5rem;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.7));animation:spriteIdle 2.4s ease-in-out infinite;display:block;margin-bottom:-2px}
+.token.ally   .sprite-portrait{animation-delay:0s}
+.token.enemy-tok .sprite-portrait{animation-delay:1.2s}
+.token .weapon-icon{position:absolute;top:-6px;right:-6px;font-size:0.85rem;filter:drop-shadow(0 0 2px #000);pointer-events:none;z-index:4}
+.token.attacking .sprite-portrait{animation:spriteAtk 0.45s ease-out}
+.token.casting   .sprite-portrait{animation:spriteCast 0.6s ease-out}
+.token.spawning  {animation:spriteSpawn 0.5s ease-out}
+
+/* Flying weapon (attack animation) */
+.fx-weapon{position:absolute;font-size:1.6rem;pointer-events:none;z-index:50;animation:weaponFly 0.55s ease-out forwards;filter:drop-shadow(0 0 3px #ffaa00)}
+.fx-projectile{position:absolute;font-size:1.3rem;pointer-events:none;z-index:50;animation:projectile 0.5s linear forwards;filter:drop-shadow(0 0 4px #4af)}
+.fx-blast{position:absolute;font-size:2.5rem;pointer-events:none;z-index:50;animation:spellBlast 0.6s ease-out forwards;filter:drop-shadow(0 0 8px #f80);transform-origin:center}
+.fx-particle{position:absolute;pointer-events:none;z-index:48;font-size:0.7rem;animation:particle 0.7s ease-out forwards}
+
+/* Critical hit overlay flash */
+.crit-flash-overlay{position:fixed;inset:0;pointer-events:none;z-index:9998;animation:critFlash 0.45s ease-out}
+
+/* HP bar under sprite */
+.tok-hpbar{width:38px;height:3px;background:#3a0a0a;border-radius:2px;overflow:hidden;margin:1px auto 0}
+.tok-hpbar-fill{height:100%;background:linear-gradient(to right,#7fb87f,#c9a84c,#e05555);transition:width 0.3s}
 .cell[data-terrain]{cursor:help}
 .cell .terrain-tip{display:none;position:absolute;bottom:62px;left:50%;transform:translateX(-50%);background:#0a0f1c;border:1px solid #c9a84c;color:#dfaf3a;padding:6px 10px;border-radius:4px;font-size:0.7rem;white-space:nowrap;z-index:50;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.6)}
 .cell:hover .terrain-tip{display:block}
@@ -1393,6 +1432,14 @@ function _manaBurstDmg(user) { return Math.min(5, Math.floor(user.mana/2)); }
 // Special: Heavy Shot = 2× ATK
 function _executeEffect_override(sk, user, target) {
   window._lastAttacker = user;
+  spriteAnim(user.id, 'casting');
+  if (sk.name === 'Mana Burst' && target) fxBlast(target.row, target.col, '💜');
+  if (sk.name === 'Fireball' && target) fxBlast(target.row, target.col, '🔥');
+  if (sk.name === 'Heavy Shot' && target) fxFlyingWeapon(user.id, target.id, '➤', 'projectile');
+  if (sk.name === 'Pierce' && target) fxFlyingWeapon(user.id, target.id, '🗡️', 'weapon');
+  if (sk.name === 'Revive Light' && target) fxBlast(target.row, target.col, '✨');
+  if (sk.name === 'Iron Guard') fxBlast(user.row, user.col, '🛡️');
+  if (sk.name === 'Mana Coin') fxBlast(user.row, user.col, '🪙');
   if (sk.name === 'Mana Burst') {
     if (!target) return;
     const d = _manaBurstDmg(user);
@@ -1724,6 +1771,25 @@ function renderBarracks() {
 function resolveAttack(attacker, target) {
   if (!attacker.actions) { log(`${attacker.name} has no Action left.`, 'miss'); return; }
   window._lastAttacker = attacker;
+  // Sprite animation: lunge toward target
+  const sprAtt = spriteFor(attacker.class);
+  spriteAnim(attacker.id, 'attacking');
+  // Set lunge direction CSS var
+  setTimeout(()=>{
+    const att = document.getElementById('tok-'+attacker.id);
+    if (att) {
+      const dx = (target.col - attacker.col) * 12;
+      const dy = (target.row - attacker.row) * 12;
+      att.querySelector('.sprite-portrait')?.style.setProperty('--lx', dx+'px');
+      att.querySelector('.sprite-portrait')?.style.setProperty('--ly', dy+'px');
+    }
+  }, 0);
+  // Weapon/projectile fx
+  if (attacker.range > 1 && sprAtt.projectile) {
+    fxFlyingWeapon(attacker.id, target.id, sprAtt.projectile, 'projectile');
+  } else if (sprAtt.attackFx) {
+    fxFlyingWeapon(attacker.id, target.id, sprAtt.attackFx, 'weapon');
+  }
   // Advantage/Disadvantage detection
   let adv = false, dis = false;
   if (isFlankedBy(target, attacker)) adv = true; // attacker is flanking
@@ -1773,6 +1839,8 @@ function resolveAttack(attacker, target) {
     log(`${attacker.name} CRITICAL HIT on ${target.name}! Rolls ${raw}+${atk}=${total} vs DEF${target.def}. Deals ${dmg} damage.`, 'crit');
     animCell(target.row, target.col, 'anim-crit');
     animToken(target.id, 'anim-shake');
+    fxCritFlash();
+    fxBlast(target.row, target.col, '💥');
     if (attacker.loyal) { changeTrust(1); }
   } else if (total >= target.def) {
     dmg = atk;
@@ -1858,6 +1926,19 @@ function _executeEffect(sk, user, target) {
   const v = sk.effectValue || 0;
   window._lastAttacker = user;
   log(`${user.name} uses ${sk.name}${target&&target!==user?' on '+target.name:''}.`, 'skill');
+  // Sprite cast animation + spell fx
+  spriteAnim(user.id, 'casting');
+  const spr = spriteFor(user.class);
+  if (target && sk.effectType === 'damage' && spr.projectile) {
+    fxFlyingWeapon(user.id, target.id, spr.projectile, 'projectile');
+  }
+  if (target && sk.effectType === 'damage-flat' && spr.spellEmoji) {
+    fxBlast(target.row, target.col, spr.spellEmoji);
+  }
+  if (sk.effectType === 'heal' && (target||user)) {
+    const t = target || user;
+    setTimeout(()=>fxBlast(t.row, t.col, '✨'), 50);
+  }
   switch(sk.effectType) {
     case 'damage': {
       if (!target) break;
@@ -1960,18 +2041,23 @@ function renderGrid() {
       if (t !== 'normal') content += `<span class="terrain-tip"><strong>${tinfo.name}</strong> &mdash; ${tinfo.short}</span>`;
       if (tok) {
         const sel = tok.id===selectedId;
-        const atk = mode==='attack'&&attackingId&&attackingId!==tok.id;
         const pct = tok.hp/tok.maxHp;
         const flk = tok.statuses.includes('flanked')?'<span class="flanked-icon">!</span>':'';
-        content += `<div class="token ${tok.side==='ally'?'ally':'enemy-tok'}${sel?' selected-tok':''}"
+        const sprite = spriteFor(tok.class);
+        const hpClass = pct>0.5?'':pct>0.25?'low':'crit';
+        content += `<div class="token ${tok.side==='ally'?'ally':'enemy-tok'}${sel?' selected-tok':''}" id="tok-${tok.id}"
           style="border-color:${mode==='attack'&&tok.side!==tokens.find(t=>t.id===attackingId)?.side?'#c04040':sel?'#c9a84c':tok.bcolor};background:${tok.color}"
           onclick="event.stopPropagation();selectToken(${tok.id})">
           ${flk}
-          <span class="tok-name">${tok.name}</span>
-          <span class="tok-hp ${pct>0.5?'':pct>0.25?'low':'crit'}">${tok.hp}/${tok.maxHp}</span>
+          ${sprite.weapon?`<span class="weapon-icon">${sprite.weapon}</span>`:''}
+          <span class="sprite-portrait">${sprite.portrait}</span>
+          <span class="tok-name" style="font-size:0.48rem">${tok.name}</span>
+          <div class="tok-hpbar"><div class="tok-hpbar-fill" style="width:${Math.max(0,pct*100)}%"></div></div>
+          <span class="tok-hp ${hpClass}" style="font-size:0.55rem">${tok.hp}/${tok.maxHp}</span>
         </div>`;
       } else if (dead) {
-        content += `<div class="token dead-tok ${dead.side==='ally'?'ally':'enemy-tok'}" style="font-size:0.6rem">&#10013;</div>`;
+        const sprite = spriteFor(dead.class);
+        content += `<div class="token dead-tok ${dead.side==='ally'?'ally':'enemy-tok'}" style="opacity:0.25" title="${dead.name} (fallen)"><span style="font-size:1.2rem;filter:grayscale(1)">${sprite.portrait}</span><span style="font-size:0.5rem">&#10013;</span></div>`;
       }
       cell.innerHTML = content;
       cell.onclick = ()=>cellClick(r,c);
@@ -3841,6 +3927,118 @@ function initCampaign() {
   document.getElementById('btnAbandon').style.display = hasSave() ? 'inline-block' : 'none';
   const exp = document.getElementById('btnExportSave'); if (exp) exp.style.display = hasSave() ? 'inline-block' : 'none';
   switchScene('title');
+}
+
+// =============================================================================
+// PIXEL SPRITE SYSTEM
+// =============================================================================
+const CLASS_SPRITES = {
+  // Allies
+  'Fighter':       {portrait:'🛡️', weapon:'⚔️', attackFx:'⚔️',  projectile:null, spellEmoji:null},
+  'Tank':          {portrait:'🛡️', weapon:'🔨', attackFx:'🔨',  projectile:null, spellEmoji:null},
+  'Rogue':         {portrait:'🥷', weapon:'🗡️', attackFx:'🗡️',  projectile:null, spellEmoji:null},
+  'Ranger':        {portrait:'🏹', weapon:'🏹', attackFx:null,   projectile:'➤', spellEmoji:null},
+  'Cleric':        {portrait:'⛪', weapon:'✨', attackFx:'✨',   projectile:null, spellEmoji:'💫'},
+  'Wizard':        {portrait:'🧙', weapon:'🔮', attackFx:null,   projectile:'✦', spellEmoji:'🔥'},
+  'Mage':          {portrait:'🧙‍♀️', weapon:'📜', attackFx:null, projectile:'✨', spellEmoji:'💥'},
+  // Enemies
+  'Goblin':        {portrait:'👹', weapon:'🗡️', attackFx:'🗡️'},
+  'Ranged Goblin': {portrait:'👹', weapon:'🏹', attackFx:null, projectile:'➤'},
+  'Spear Goblin':  {portrait:'👹', weapon:'🔱', attackFx:'🔱'},
+  'Mage Goblin':   {portrait:'👹', weapon:'🪄', attackFx:null, projectile:'✦', spellEmoji:'💥'},
+  'Orc':           {portrait:'👺', weapon:'🪓', attackFx:'🪓'},
+  'Skeleton':      {portrait:'💀', weapon:'🦴', attackFx:'🦴'},
+  'Zombie':        {portrait:'🧟', weapon:'🤲', attackFx:'💢'},
+  'Soul Eater':    {portrait:'👻', weapon:'🌀', attackFx:null, projectile:'🌀', spellEmoji:'💀'},
+  'Shield Bearer': {portrait:'💂', weapon:'🛡️', attackFx:'🛡️'},
+  'Ranged Soldier':{portrait:'💂', weapon:'🏹', attackFx:null, projectile:'➤'},
+  'Royal Guard':   {portrait:'💂‍♂️', weapon:'⚔️', attackFx:'⚔️'},
+  'Elite':         {portrait:'🥷', weapon:'⚔️', attackFx:'⚔️'},
+  'Hunter':        {portrait:'🤠', weapon:'🏹', attackFx:null, projectile:'➤'},
+  'Elf Warrior':   {portrait:'🧝', weapon:'⚔️', attackFx:'⚔️'},
+  'Elf Shaman':    {portrait:'🧝‍♀️', weapon:'🌿', attackFx:null, projectile:'🍃', spellEmoji:'🌿'},
+  'Aldric':        {portrait:'👑', weapon:'⚔️', attackFx:'⚔️',  projectile:null, spellEmoji:'⚡'},
+};
+function spriteFor(cls) { return CLASS_SPRITES[cls] || {portrait:'❔', weapon:'⚔️', attackFx:'⚔️'}; }
+
+// Trigger sprite animation: 'attacking' or 'casting'
+function spriteAnim(tokId, animClass) {
+  const cell = document.getElementById(`cell-${tokens.find(t=>t.id===tokId)?.row}-${tokens.find(t=>t.id===tokId)?.col}`);
+  if (!cell) return;
+  const el = cell.querySelector('.token');
+  if (!el) return;
+  el.classList.remove('attacking','casting');
+  void el.offsetWidth;
+  el.classList.add(animClass);
+  setTimeout(()=>el.classList.remove(animClass), 650);
+}
+
+// Spawn a flying weapon emoji from attacker to target
+function fxFlyingWeapon(attackerId, targetId, emoji, type) {
+  const att = tokens.find(t=>t.id===attackerId);
+  const tgt = tokens.find(t=>t.id===targetId);
+  if (!att || !tgt) return;
+  const aCell = document.getElementById(`cell-${att.row}-${att.col}`);
+  const tCell = document.getElementById(`cell-${tgt.row}-${tgt.col}`);
+  const grid = document.getElementById('grid');
+  if (!aCell || !tCell || !grid) return;
+  const gRect = grid.getBoundingClientRect();
+  const aRect = aCell.getBoundingClientRect();
+  const tRect = tCell.getBoundingClientRect();
+  const startX = aRect.left - gRect.left + 22;
+  const startY = aRect.top  - gRect.top  + 22;
+  const dx = (tRect.left - aRect.left);
+  const dy = (tRect.top - aRect.top);
+  const el = document.createElement('div');
+  el.className = type === 'projectile' ? 'fx-projectile' : 'fx-weapon';
+  el.textContent = emoji;
+  el.style.left = startX + 'px';
+  el.style.top  = startY + 'px';
+  el.style.setProperty('--tx', dx + 'px');
+  el.style.setProperty('--ty', dy + 'px');
+  document.querySelector('.grid-container').appendChild(el);
+  setTimeout(()=>el.remove(), 650);
+}
+
+// Spell blast at a cell
+function fxBlast(row, col, emoji) {
+  const cell = document.getElementById(`cell-${row}-${col}`);
+  const grid = document.getElementById('grid');
+  if (!cell || !grid) return;
+  const gRect = grid.getBoundingClientRect();
+  const cRect = cell.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = 'fx-blast';
+  el.textContent = emoji || '💥';
+  el.style.left = (cRect.left - gRect.left + 12) + 'px';
+  el.style.top  = (cRect.top  - gRect.top  + 12) + 'px';
+  document.querySelector('.grid-container').appendChild(el);
+  setTimeout(()=>el.remove(), 700);
+  // Particle burst
+  for (let i=0;i<6;i++) fxParticle(row, col, ['✦','✧','•','★','✺'][i%5]);
+}
+function fxParticle(row, col, emoji) {
+  const cell = document.getElementById(`cell-${row}-${col}`);
+  const grid = document.getElementById('grid');
+  if (!cell || !grid) return;
+  const gRect = grid.getBoundingClientRect();
+  const cRect = cell.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = 'fx-particle';
+  el.textContent = emoji || '✦';
+  el.style.color = ['#ffdf80','#ff8040','#ffffff','#80c0ff','#ff80ff'][Math.floor(Math.random()*5)];
+  el.style.left = (cRect.left - gRect.left + 24 + (Math.random()*10-5)) + 'px';
+  el.style.top  = (cRect.top  - gRect.top  + 24 + (Math.random()*10-5)) + 'px';
+  el.style.setProperty('--px', ((Math.random()-0.5)*60) + 'px');
+  el.style.setProperty('--py', ((Math.random()-0.5)*60 - 20) + 'px');
+  document.querySelector('.grid-container').appendChild(el);
+  setTimeout(()=>el.remove(), 750);
+}
+function fxCritFlash() {
+  const o = document.createElement('div');
+  o.className = 'crit-flash-overlay';
+  document.body.appendChild(o);
+  setTimeout(()=>o.remove(), 450);
 }
 
 // =============================================================================

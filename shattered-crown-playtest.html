@@ -322,9 +322,70 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
 .ending-container.good h1{color:#7fb87f}
 .ending-container .ending-text{font-style:italic;color:#ccc;line-height:1.8;margin:20px 0;white-space:pre-line}
 .ending-container .ending-stats{font-size:0.85rem;color:#888;margin-top:20px;padding-top:16px;border-top:1px solid #2a3050}
+
+/* HELP BUTTON */
+.help-btn{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border:1px solid #4a6a8f;border-radius:50%;background:#1a2540;color:#7fb8df;font-size:0.65rem;font-weight:bold;cursor:help;margin-left:4px;user-select:none;line-height:1;transition:all 0.15s}
+.help-btn:hover{background:#4a8fbf;color:#fff;transform:scale(1.15)}
+.help-btn.big{width:20px;height:20px;font-size:0.75rem}
+.help-modal{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:none;align-items:center;justify-content:center;z-index:10000}
+.help-modal.active{display:flex}
+.help-modal-box{background:#0d1420;border:2px solid #4a8fbf;border-radius:8px;padding:24px;max-width:500px;width:90%}
+.help-modal-box h2{color:#4a8fbf;margin-bottom:12px;letter-spacing:1px;font-size:1.1rem}
+.help-modal-box .help-desc{color:#ccc;line-height:1.6;margin-bottom:12px;font-size:0.9rem}
+.help-modal-box .help-example{background:#0a0f1c;border-left:3px solid #c9a84c;padding:10px;font-size:0.85rem;color:#dfaf3a;font-style:italic;margin-bottom:12px;border-radius:0 4px 4px 0}
+.help-modal-box .help-close{background:#1a1f3c;border:1px solid #4a8fbf;color:#7fb8df;padding:6px 14px;cursor:pointer;border-radius:4px;font-size:0.8rem}
+.help-modal-box .help-close:hover{background:#4a8fbf;color:#fff}
+
+/* EMOJI TERRAIN */
+.cell .terrain-emoji{position:absolute;top:2px;right:2px;font-size:1.1rem;opacity:0.9;pointer-events:none;text-shadow:0 0 4px rgba(0,0,0,0.9);z-index:1;line-height:1}
+.cell[data-terrain]{cursor:help}
+.cell .terrain-tip{display:none;position:absolute;bottom:62px;left:50%;transform:translateX(-50%);background:#0a0f1c;border:1px solid #c9a84c;color:#dfaf3a;padding:6px 10px;border-radius:4px;font-size:0.7rem;white-space:nowrap;z-index:50;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.6)}
+.cell:hover .terrain-tip{display:block}
+
+/* CHARACTER DETAIL MODAL */
+.char-detail-modal{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:none;align-items:center;justify-content:center;z-index:10000;padding:20px}
+.char-detail-modal.active{display:flex}
+.char-detail-box{background:#0d1420;border:2px solid #c9a84c;border-radius:8px;padding:20px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto}
+.char-detail-box h2{color:#c9a84c;letter-spacing:2px;margin-bottom:4px;font-size:1.3rem}
+.char-detail-box .cd-subtitle{color:#888;font-size:0.8rem;margin-bottom:14px;border-bottom:1px solid #2a3050;padding-bottom:10px}
+.char-detail-box .cd-section{margin-bottom:14px}
+.char-detail-box .cd-section h3{color:#dfaf3a;font-size:0.85rem;letter-spacing:1px;margin-bottom:6px;text-transform:uppercase}
+.char-detail-box .cd-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font-size:0.8rem}
+.char-detail-box .cd-stat{background:#0a0f1c;padding:6px;border-radius:4px;border:1px solid #2a3050;text-align:center}
+.char-detail-box .cd-stat .label{color:#888;font-size:0.65rem;letter-spacing:1px;display:block}
+.char-detail-box .cd-stat .val{color:#c9a84c;font-size:1rem;font-weight:bold}
+.char-detail-box .cd-skill,.char-detail-box .cd-item{background:#0a0f1c;border:1px solid #2a3050;border-radius:4px;padding:8px;margin-bottom:6px;font-size:0.8rem}
+.char-detail-box .cd-skill strong,.char-detail-box .cd-item strong{color:#c9a84c}
+.char-detail-box .cd-skill em{color:#aaa;font-size:0.75rem;display:block;margin-top:3px}
+.char-detail-box .cd-potion-row{display:flex;gap:6px;align-items:center;background:#0a0f1c;border:1px solid #5a3a1a;border-radius:4px;padding:8px;margin-bottom:6px}
+.char-detail-box .cd-potion-row .pname{flex:1;font-size:0.8rem;color:#dfaf3a}
+.char-detail-box .cd-potion-row .pcharges{font-size:0.7rem;color:#888;padding:2px 6px;background:#1a1410;border-radius:8px}
+.char-detail-box .cd-potion-row .puse{background:#2a4a2a;border:1px solid #4a8f4a;color:#9fdf9f;padding:4px 10px;cursor:pointer;border-radius:3px;font-size:0.7rem}
+.char-detail-box .cd-potion-row .puse:hover{background:#4a8f4a;color:#fff}
+.char-detail-box .cd-potion-row .puse:disabled{background:#1a1a1a;color:#444;border-color:#222;cursor:not-allowed}
+.char-detail-box .cd-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;padding-top:12px;border-top:1px solid #2a3050}
+.char-detail-box .cd-actions button{padding:6px 14px;cursor:pointer;border-radius:4px;font-size:0.8rem;border:1px solid}
+.char-detail-box .cd-actions .btn-close{background:#1a1f3c;border-color:#888;color:#aaa}
+.char-detail-box .cd-actions .btn-give{background:#1a1410;border-color:#dfaf3a;color:#dfaf3a}
+.char-detail-box .cd-actions .btn-give:hover{background:#dfaf3a;color:#0a0f1c}
 </style>
 </head>
 <body>
+
+<!-- HELP MODAL (shared) -->
+<div id="helpModal" class="help-modal" onclick="if(event.target===this)closeHelp()">
+  <div class="help-modal-box">
+    <h2 id="helpTitle">Help</h2>
+    <div class="help-desc" id="helpDesc"></div>
+    <div class="help-example" id="helpExample"></div>
+    <div style="text-align:right"><button class="help-close" onclick="closeHelp()">Got it</button></div>
+  </div>
+</div>
+
+<!-- CHARACTER DETAIL MODAL -->
+<div id="charDetailModal" class="char-detail-modal" onclick="if(event.target===this)closeCharDetail()">
+  <div class="char-detail-box" id="charDetailBox"></div>
+</div>
 
 <!-- TITLE SCREEN -->
 <div id="screen-title" class="game-screen active">
@@ -1865,11 +1926,14 @@ function renderGrid() {
       const cell = document.getElementById(`cell-${r}-${c}`);
       const t = terrain[r][c];
       cell.className = `cell ${t==='normal'?'':t}`;
-      let icon = t==='high-ground'?'&#9650;':t==='fire'?'&#128293;':t==='crack'?'&#128128;':t==='ledge'?'&#11015;':t==='wall'?'&#9632;':'';
+      const tinfo = TERRAIN_INFO[t] || TERRAIN_INFO.normal;
+      const emoji = tinfo.emoji;
+      cell.dataset.terrain = t;
       const tok = tokens.find(tk=>tk.row===r&&tk.col===c&&!tk.dead&&!tk._home);
       const dead = tokens.find(tk=>tk.row===r&&tk.col===c&&tk.dead);
       let content = `<span class="coord">${String.fromCharCode(65+c)}${r+1}</span>`;
-      if (icon) content += `<span class="terrain-icon">${icon}</span>`;
+      if (emoji) content += `<span class="terrain-emoji">${emoji}</span>`;
+      if (t !== 'normal') content += `<span class="terrain-tip"><strong>${tinfo.name}</strong> &mdash; ${tinfo.short}</span>`;
       if (tok) {
         const sel = tok.id===selectedId;
         const atk = mode==='attack'&&attackingId&&attackingId!==tok.id;
@@ -3681,12 +3745,317 @@ function initCampaign() {
 }
 
 // =============================================================================
+// TERRAIN INFO (emojis + tooltips)
+// =============================================================================
+const TERRAIN_INFO = {
+  'normal':      {emoji:'', name:'Normal Floor', short:'No effect.', desc:'Standard ground. No special effects.', example:'Most of the grid.'},
+  'high-ground': {emoji:'⛰️', name:'High Ground', short:'+Advantage on ranged attacks', desc:'Ranged attacks from this tile gain Advantage (roll 2d20, take higher). No effect on melee.', example:'A Ranger on a hill shoots a Goblin below — roll 2d20, take the higher result.'},
+  'fire':        {emoji:'🔥', name:'Fire Barrel', short:'1d4 damage on entry', desc:'When a token enters this tile, it takes 1d4 fire damage immediately. Triggers each time entered.', example:'Varn walks into the barrel — roll 1d4. On a 3, he takes 3 fire damage.'},
+  'crack':       {emoji:'🕳️', name:'Cracked Floor', short:'Roll d20: ≤5 = falls', desc:'Roll d20 when crossing. On 1-5, the token falls through, takes 2d6+2 damage, and becomes Pinned. On 6+, crosses safely.', example:'Rogue tries to cross. Roll 4 — falls through! Take 2d6+2 damage, become Pinned.'},
+  'ledge':       {emoji:'⬇️', name:'Ledge / Drop', short:'Push targets here = 1d6 fall damage', desc:'Tokens pushed onto a Ledge fall to lower level. Takes 1d6 fall damage and is repositioned at the bottom by the GM.', example:'Fighter uses Shield Bash — pushes Goblin onto a Ledge. Roll 1d6 = 4 fall damage.'},
+  'wall':        {emoji:'🟫', name:'Wall', short:'Impassable', desc:'Cannot be entered or moved through. Blocks line-of-sight for ranged attacks.', example:'A pillar in the throne room — ranged shots cannot pass through it.'}
+};
+
+// =============================================================================
+// HELP SYSTEM
+// =============================================================================
+const HELP_TOPICS = {
+  'turn.order':  {title:'Turn Order', desc:'Each round, every token rolls initiative = Speed + 1d4. Highest goes first. The GM can re-roll initiative each round or keep the same order — official rule is one roll per combat.', example:'Fighter (SPD 3) + d4 roll 4 = 7 init. Goblin (SPD 3) + d4 roll 2 = 5 init. Fighter goes first.'},
+  'action.attack': {title:'Attack Action', desc:'Roll 1d20 + ATK. If total ≥ target DEF → hit, deals ATK damage. Natural 20 = critical (×2 damage). Natural 1 = fumble (lose bonus action).', example:'Varn (ATK 5) rolls 14 vs Goblin DEF 10. 14+5=19 ≥10 → hit, deals 5 damage.'},
+  'action.move':   {title:'Move Action', desc:'Each turn you can move up to your SPEED in squares (Manhattan distance — no diagonals). Walls block movement. Some terrain has effects on entry.', example:'Ranger (SPD 3) can move 3 squares per turn, in any combination of up/down/left/right.'},
+  'action.skill':  {title:'Skill / Spell', desc:'Click a skill pip on the character card to enter targeting mode, then click the target on the grid. Skills cost MP and may have cooldowns (rounds before reuse).', example:'Wizard casts Fireball (4 MP, 2 cd) — pick a tile in range, deals 1d6+3 damage in 2×2 area.'},
+  'mana':        {title:'Mana (MP)', desc:'Resource for casting skills. Regenerates by manaRegen each round end. Max varies by class (Wizard 10, Fighter 4, etc.).', example:'Wizard ends turn with 5 MP, regen 3 → starts next round with 8 MP (capped at max).'},
+  'flanking':    {title:'Flanking', desc:'A token is Flanked when two enemies are on directly opposite sides of it (N+S or E+W). Flanked targets are easier to hit — attackers gain Advantage. Rogues get bonus 1d6 Sneak Attack damage vs Flanked.', example:'Goblin between two allies (above and below) → Flanked. Rogue attacks → roll 2d20 take higher, +1d6 damage.'},
+  'trust':       {title:'Trust System', desc:'Varn\'s party trust (0-100). High trust = loyal. Roll d100 before commanding a low-trust ally — if roll > Trust+40, GM controls them; >Trust+70 they flee. Trust=0 → they attack Varn.', example:'Trust=30. Roll 75 → GM controls (75 > 30+40=70). Roll 110 → flees.'},
+  'souls':       {title:'Soul Track', desc:'Every kill feeds the Demon Lord\'s Sword (+1 soul). At 3/7/12/20 souls, Visions unlock revealing the story. 20 = final truth. Higher souls also unlock Monster Recruitment.', example:'Party kills 3 enemies → Vision I plays automatically. From now on, recruited common monsters can join.'},
+  'terrain':     {title:'Terrain Tiles', desc:'Click a terrain button then click grid cells to paint. Each tile has effects shown when you hover over it on the grid.', example:'Place Fire on G5. Any token entering G5 takes 1d4 damage.'},
+  'skill.pool':  {title:'Skill Pool', desc:'GM-editable library of custom skills. Heroes can learn from here or class pools. Pool saves to browser automatically — refreshing keeps your changes. Use Export to share with co-GM.', example:'GM adds "Smite" (3 MP, 1cd, +2 damage vs Undead). Saved. Reload tab — still there.'},
+  'potion':      {title:'Potions', desc:'GM-controlled consumable items. Each potion has charges. Use during your turn (no action cost). Default: every hero starts with 1 Healing Potion.', example:'Cleric is low HP. GM clicks character → Use Healing Potion → +5 HP.'},
+  'equipment':   {title:'Equipment', desc:'Items giving permanent stat bonuses. Buy at shops or find as loot. Click the character to see equipped items.', example:'Whetstone (+1 ATK) bought at Shop A → Fighter\'s ATK is permanently +1 for this run.'},
+  'character':   {title:'Character Panel', desc:'Click any character card or token to open detailed view: all stats, equipment, skills with full descriptions, potions, status effects.', example:'Click Ranger card → see ATK 5, MP 6/6, learned skills with their MP cost and cooldowns.'},
+  'placement':   {title:'Placement (Sandbox)', desc:'Use the Place bar to drop ally or enemy tokens on the grid. In Campaign mode this is automatic. In Sandbox, GM uses this for setup.', example:'Click "+ Goblin" → grid cells light up → click a cell to drop.'},
+  'roll':        {title:'Trait Roll', desc:'Each hero gets 2 random traits to pick from. Traits modify stats (e.g. Brave +1 ATK, Veteran +4 max HP) and give passive abilities (Lucky re-rolls 1s).', example:'Roll for Fighter — get [Veteran, Reckless]. Pick Reckless: +2 ATK, -2 DEF.'},
+};
+function helpBtn(topic, big) {
+  return `<span class="help-btn${big?' big':''}" onclick="event.stopPropagation();showHelp('${topic}')" title="Click for help">?</span>`;
+}
+function showHelp(topic) {
+  const h = HELP_TOPICS[topic];
+  if (!h) { console.warn('Unknown help topic:', topic); return; }
+  document.getElementById('helpTitle').textContent = h.title;
+  document.getElementById('helpDesc').textContent = h.desc;
+  document.getElementById('helpExample').innerHTML = `<strong>Example:</strong> ${h.example}`;
+  document.getElementById('helpModal').classList.add('active');
+}
+function closeHelp() { document.getElementById('helpModal').classList.remove('active'); }
+
+// =============================================================================
+// POTIONS (GM-controlled consumables)
+// =============================================================================
+const POTION_TYPES = {
+  'healing':  {name:'Healing Potion',   effect:'heal',   value:5,  desc:'Restore 5 HP'},
+  'greater':  {name:'Greater Healing',  effect:'heal',   value:10, desc:'Restore 10 HP'},
+  'mana':     {name:'Mana Tonic',       effect:'mana',   value:4,  desc:'Restore 4 MP'},
+  'cure':     {name:'Cure-All',         effect:'cure',   value:0,  desc:'Remove all negative statuses'},
+  'rage':     {name:'Rage Vial',        effect:'rage',   value:2,  desc:'+2 ATK until end of combat'},
+  'shield':   {name:'Stoneskin Brew',   effect:'shield', value:3,  desc:'+3 DEF until end of combat'},
+};
+function usePotion(tokId, potionIdx) {
+  const tok = tokens.find(t => t.id === tokId);
+  if (!tok) return;
+  if (!tok.potions) tok.potions = [];
+  const pot = tok.potions[potionIdx];
+  if (!pot || pot.charges <= 0) return;
+  const type = POTION_TYPES[pot.type];
+  if (!type) return;
+  switch (type.effect) {
+    case 'heal':   tok.hp = Math.min(tok.maxHp, tok.hp + type.value); spawnFloat(tok.row, tok.col, `+${type.value}`, 'fdmg-heal'); animCell(tok.row, tok.col, 'anim-heal'); break;
+    case 'mana':   tok.mana = Math.min(tok.maxMana, tok.mana + type.value); spawnFloat(tok.row, tok.col, `+${type.value} MP`, 'fdmg-heal'); animCell(tok.row, tok.col, 'anim-mp'); break;
+    case 'cure':   tok.statuses = []; break;
+    case 'rage':   tok.atk += type.value; break;
+    case 'shield': tok.def += type.value; break;
+  }
+  pot.charges--;
+  log(`${tok.name} drinks ${type.name} — ${type.desc}.`, 'heal');
+  if (pot.charges <= 0) tok.potions.splice(potionIdx, 1);
+  // Sync to campaign if active
+  if (CAMPAIGN.active && tok._campaignRef) tok._campaignRef.potions = [...(tok.potions||[])];
+  renderAll();
+  renderCharDetail(tokId); // refresh modal
+}
+function givePotion(tokId, potionType) {
+  const tok = tokens.find(t => t.id === tokId);
+  if (!tok) return;
+  if (!tok.potions) tok.potions = [];
+  const existing = tok.potions.find(p => p.type === potionType);
+  if (existing) existing.charges++;
+  else tok.potions.push({type: potionType, charges: 1});
+  if (CAMPAIGN.active && tok._campaignRef) tok._campaignRef.potions = [...(tok.potions||[])];
+  renderCharDetail(tokId);
+}
+
+// =============================================================================
+// CHARACTER DETAIL MODAL
+// =============================================================================
+function openCharDetail(tokId) {
+  renderCharDetail(tokId);
+  document.getElementById('charDetailModal').classList.add('active');
+}
+function closeCharDetail() { document.getElementById('charDetailModal').classList.remove('active'); }
+function renderCharDetail(tokId) {
+  const tok = tokens.find(t => t.id === tokId);
+  if (!tok) return;
+  const tpl = (tok.side==='ally'?ALLY_CLASSES:ENEMY_CLASSES).find(c=>c.name===tok.class);
+  const skillsHtml = (tok.skills||[]).filter(Boolean).map(s => {
+    const cdKey = s.id ? 'pool_'+s.id : 'cls_'+s.name;
+    const cd = tok.cooldowns[cdKey] || 0;
+    return `<div class="cd-skill"><strong>${s.name}</strong>${s.manaCost?` <span style="color:#9f7fdf">[${s.manaCost} MP]</span>`:''}${cd?` <span style="color:#e05555">[CD: ${cd}]</span>`:''}<em>${s.desc||'(no description)'}</em></div>`;
+  }).join('') || '<div style="color:#666;font-style:italic;font-size:0.8rem">No learned skills</div>';
+  const classSk = tpl?.classSkill;
+  const classSkillHtml = classSk ? `<div class="cd-skill" style="border-color:#dfaf3a"><strong>★ ${classSk.name}</strong> <span style="color:#888;font-size:0.7rem">(class skill)</span>${classSk.manaCost?` <span style="color:#9f7fdf">[${classSk.manaCost} MP]</span>`:''}<em>${classSk.desc}</em></div>` : '';
+  const eqHtml = (tok.equipment||[]).length ? tok.equipment.map(e=>`<div class="cd-item"><strong>${e.name||e}</strong>${e.desc?` <em>${e.desc}</em>`:''}</div>`).join('') : '<div style="color:#666;font-style:italic;font-size:0.8rem">No equipment</div>';
+  const potionRows = (tok.potions||[]).length ? tok.potions.map((p,i)=>{
+    const t = POTION_TYPES[p.type]; if(!t) return '';
+    return `<div class="cd-potion-row">
+      <span class="pname">🧪 ${t.name}</span>
+      <span style="font-size:0.7rem;color:#aaa">${t.desc}</span>
+      <span class="pcharges">×${p.charges}</span>
+      <button class="puse" onclick="usePotion(${tok.id},${i})">Use</button>
+    </div>`;
+  }).join('') : '<div style="color:#666;font-style:italic;font-size:0.8rem">No potions</div>';
+  const traitInfo = tok.traitName || '—';
+  const statusInfo = (tok.statuses||[]).length ? tok.statuses.map(s=>`<span style="background:#5a1a1a;color:#e05555;padding:2px 6px;border-radius:8px;font-size:0.7rem;margin-right:4px">${s}</span>`).join('') : '<span style="color:#666;font-style:italic;font-size:0.75rem">None</span>';
+  document.getElementById('charDetailBox').innerHTML = `
+    <h2>${tok.name} ${helpBtn('character')}</h2>
+    <div class="cd-subtitle">${tok.class} · ${tok.side==='ally'?'Ally':'Enemy'}${tok.traitName?` · <span style="color:#dfaf3a">${tok.traitName}</span>`:''}${tok._campaignRef?.level?` · Level ${tok._campaignRef.level}`:''}</div>
+
+    <div class="cd-section">
+      <h3>Vitals</h3>
+      <div class="cd-stats">
+        <div class="cd-stat"><span class="label">HP</span><span class="val" style="color:#7fb87f">${tok.hp}/${tok.maxHp}</span></div>
+        <div class="cd-stat"><span class="label">MP</span><span class="val" style="color:#9f7fdf">${tok.mana}/${tok.maxMana}</span></div>
+        <div class="cd-stat"><span class="label">ATK</span><span class="val">${tok.atk}</span></div>
+        <div class="cd-stat"><span class="label">DEF</span><span class="val">${tok.def}</span></div>
+        <div class="cd-stat"><span class="label">SPD</span><span class="val">${tok.speed}</span></div>
+        <div class="cd-stat"><span class="label">RNG</span><span class="val">${tok.range}</span></div>
+        <div class="cd-stat"><span class="label">REGEN</span><span class="val" style="color:#9f7fdf">+${tok.manaRegen||0}</span></div>
+        <div class="cd-stat"><span class="label">ACT</span><span class="val">${tok.actions?'✓':'✗'}</span></div>
+      </div>
+    </div>
+
+    <div class="cd-section">
+      <h3>Core Stats</h3>
+      <div class="cd-stats">
+        <div class="cd-stat"><span class="label">STR</span><span class="val">${tok.str||1}</span></div>
+        <div class="cd-stat"><span class="label">VIT</span><span class="val">${tok.vit||1}</span></div>
+        <div class="cd-stat"><span class="label">INT</span><span class="val">${tok.int||1}</span></div>
+        <div class="cd-stat"><span class="label">DEX</span><span class="val">${tok.dex||1}</span></div>
+      </div>
+    </div>
+
+    <div class="cd-section">
+      <h3>Status Effects</h3>
+      <div style="font-size:0.8rem">${statusInfo}</div>
+    </div>
+
+    <div class="cd-section">
+      <h3>Skills ${helpBtn('action.skill')}</h3>
+      ${classSkillHtml}
+      ${skillsHtml}
+    </div>
+
+    <div class="cd-section">
+      <h3>Equipment ${helpBtn('equipment')}</h3>
+      ${eqHtml}
+    </div>
+
+    <div class="cd-section">
+      <h3>Potions ${helpBtn('potion')}</h3>
+      ${potionRows}
+      <details style="margin-top:6px"><summary style="cursor:pointer;font-size:0.75rem;color:#888">+ Give potion (GM)</summary>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">
+          ${Object.keys(POTION_TYPES).map(k=>`<button onclick="givePotion(${tok.id},'${k}')" style="background:#1a1410;border:1px solid #5a3a1a;color:#dfaf3a;padding:4px 8px;cursor:pointer;border-radius:3px;font-size:0.7rem">+ ${POTION_TYPES[k].name}</button>`).join('')}
+        </div>
+      </details>
+    </div>
+
+    <div class="cd-actions">
+      <button class="btn-close" onclick="closeCharDetail()">Close</button>
+    </div>
+  `;
+}
+// Hook: clicking a char card opens detail
+window.openCharDetailFromCard = function(tokId) { openCharDetail(tokId); };
+
+// =============================================================================
+// SKILL POOL LOCALSTORAGE
+// =============================================================================
+const SKILL_POOL_KEY = 'shatteredCrownSkillPool_v1';
+function saveSkillPool() {
+  try { localStorage.setItem(SKILL_POOL_KEY, JSON.stringify(skillPool)); }
+  catch(e) { console.warn('Save skill pool failed', e); }
+}
+function loadSkillPool() {
+  try {
+    const raw = localStorage.getItem(SKILL_POOL_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch(e) { return null; }
+}
+// Wrap existing create/delete/import functions to auto-save
+function wrapSkillPoolPersistence() {
+  const fns = ['createSkill','deleteSkill','importSkillPool'];
+  fns.forEach(fn => {
+    if (typeof window[fn] === 'function') {
+      const orig = window[fn];
+      window[fn] = function(...args) { const r = orig.apply(this, args); saveSkillPool(); return r; };
+    }
+  });
+  // Restore on load (only if user has saved something)
+  const saved = loadSkillPool();
+  if (saved && saved.length > 0) {
+    skillPool = saved;
+    if (typeof renderSkillPool === 'function') renderSkillPool();
+    log(`Loaded ${saved.length} saved skill(s) from browser storage.`, 'sys');
+  }
+}
+
+// =============================================================================
+// CARD CLICK -> CHAR DETAIL (sandbox + campaign combat)
+// =============================================================================
+// Find existing cardHTML and wrap it
+const _origRenderCards = (typeof renderCards === 'function') ? renderCards : null;
+if (_origRenderCards) {
+  renderCards = function(...args) {
+    _origRenderCards.apply(this, args);
+    // Add click listeners to char cards
+    document.querySelectorAll('.char-card').forEach(card => {
+      const html = card.innerHTML;
+      const m = html.match(/selectToken\((\d+)\)/);
+      if (!m) return;
+      const tokId = parseInt(m[1]);
+      // Add a small detail button if not present
+      if (!card.querySelector('.cd-open-btn')) {
+        const btn = document.createElement('button');
+        btn.className = 'cd-open-btn';
+        btn.style.cssText = 'position:absolute;top:4px;right:4px;background:#1a1f3c;border:1px solid #4a8fbf;color:#7fb8df;font-size:0.65rem;padding:2px 6px;border-radius:3px;cursor:pointer;z-index:5';
+        btn.textContent = '📋';
+        btn.title = 'Open character details';
+        btn.onclick = (e) => { e.stopPropagation(); openCharDetail(tokId); };
+        card.style.position = 'relative';
+        card.appendChild(btn);
+      }
+    });
+  };
+}
+
+// =============================================================================
+// HELP BUTTONS ON SANDBOX UI (inject into existing toolbar)
+// =============================================================================
+function injectHelpButtons() {
+  // Terrain bar — add help button next to "Normal"
+  const tBar = document.getElementById('terrainBar');
+  if (tBar && !tBar.querySelector('.help-btn')) {
+    const helpEl = document.createElement('span');
+    helpEl.innerHTML = helpBtn('terrain', true);
+    helpEl.style.marginRight = '6px';
+    tBar.insertBefore(helpEl, tBar.firstChild);
+  }
+  // Add help next to Round badge
+  const rb = document.querySelector('.round-badge');
+  if (rb && !rb.parentElement.querySelector('.help-btn-turn')) {
+    const h = document.createElement('span');
+    h.innerHTML = helpBtn('turn.order', true);
+    h.className = 'help-btn-turn';
+    h.style.marginLeft = '6px';
+    rb.parentElement.appendChild(h);
+  }
+  // Add help in header next to Souls/Trust labels
+  document.querySelectorAll('.panel h3').forEach(h3 => {
+    const text = h3.textContent.trim();
+    if (text.includes('Souls') && !h3.querySelector('.help-btn')) h3.innerHTML += ' ' + helpBtn('souls');
+    else if (text.includes('Trust') && !h3.querySelector('.help-btn')) h3.innerHTML += ' ' + helpBtn('trust');
+    else if (text.includes('Allies') && !h3.querySelector('.help-btn')) h3.innerHTML += ' ' + helpBtn('character');
+    else if (text.includes('Enemies') && !h3.querySelector('.help-btn')) h3.innerHTML += ' ' + helpBtn('character');
+    else if (text.toLowerCase().includes('skill') && !h3.querySelector('.help-btn')) h3.innerHTML += ' ' + helpBtn('skill.pool');
+  });
+  // Mode label area — add help on terrain hover
+}
+
+// =============================================================================
+// GIVE EVERY NEW HERO A STARTER POTION
+// =============================================================================
+function ensureStarterPotions() {
+  // Called when entering a campaign combat
+  tokens.forEach(t => {
+    if (t.side === 'ally' && t._campaignRef && !t._campaignRef._gotStarter) {
+      if (!t.potions) t.potions = [];
+      t.potions.push({type:'healing', charges:1});
+      t._campaignRef.potions = [...t.potions];
+      t._campaignRef._gotStarter = true;
+    }
+    // Sync potions from campaign to token
+    if (t._campaignRef && t._campaignRef.potions) {
+      t.potions = JSON.parse(JSON.stringify(t._campaignRef.potions));
+    }
+  });
+}
+// Hook into startCombatNode
+const _origStartCombatNode = startCombatNode;
+startCombatNode = function(node) {
+  _origStartCombatNode(node);
+  ensureStarterPotions();
+};
+
+// =============================================================================
 // START
 // =============================================================================
 init();
 rebindGrid();
-log('Shattered Crown Playtest v2 loaded.', 'sys');
+log('Shattered Crown Playtest v2 loaded. Click ? buttons for help. Hover terrain for effects.', 'sys');
 initCampaign();
+setTimeout(()=>{ wrapSkillPoolPersistence(); injectHelpButtons(); }, 100);
 </script>
 </div><!-- /screen-combat -->
 </body>

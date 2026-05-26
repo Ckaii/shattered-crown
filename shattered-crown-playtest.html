@@ -455,6 +455,10 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
       </div>
       <svg class="map-svg" id="mapSvg" viewBox="0 0 1000 320"></svg>
       <div class="map-party" id="mapParty"></div>
+      <details id="runStatsPanel" style="margin-top:16px;padding-top:12px;border-top:1px solid #1e2540">
+        <summary style="cursor:pointer;color:#c9a84c;font-size:0.85rem;letter-spacing:1px;padding:6px;user-select:none">📊 RUN STATS <span style="color:#888;font-size:0.7rem;font-weight:normal">(click to expand)</span></summary>
+        <div id="runStatsBody" style="margin-top:10px;font-size:0.8rem"></div>
+      </details>
     </div>
     <div class="btn-row">
       <button class="big-btn danger" onclick="if(confirm('Abandon this run? Progress will be lost.')){abandonRun();}" style="font-size:0.7rem;padding:6px 12px">Abandon Run</button>
@@ -1388,10 +1392,12 @@ function _manaBurstDmg(user) { return Math.min(5, Math.floor(user.mana/2)); }
 
 // Special: Heavy Shot = 2× ATK
 function _executeEffect_override(sk, user, target) {
+  window._lastAttacker = user;
   if (sk.name === 'Mana Burst') {
     if (!target) return;
     const d = _manaBurstDmg(user);
     target.hp = Math.max(0, target.hp - d);
+    statsRecordDamage(user, target, d);
     spawnFloat(target.row, target.col, `-${d}`, 'fdmg-hit');
     animCell(target.row, target.col, 'anim-hit'); animToken(target.id, 'anim-shake');
     log(`[Mana Burst] ${user.name} channels ${user.mana} MP → ${d} damage to ${target.name}. HP ${target.hp}/${target.maxHp}.`, 'hit');
@@ -1404,6 +1410,7 @@ function _executeEffect_override(sk, user, target) {
     const atk = user.atk * 2;
     if (roll + user.atk >= target.def) {
       target.hp = Math.max(0, target.hp - atk);
+      statsRecordDamage(user, target, atk);
       spawnFloat(target.row, target.col, `-${atk}`, 'fdmg-crit');
       animCell(target.row, target.col, 'anim-crit'); animToken(target.id, 'anim-shake');
       log(`[Heavy Shot] ${roll}+${user.atk}=${roll+user.atk} vs DEF${target.def}. HITS for ${atk} damage!`, 'crit');
@@ -1434,6 +1441,7 @@ function _executeEffect_override(sk, user, target) {
     if (!target) return;
     const dmg = user.atk;
     target.hp = Math.max(0, target.hp - dmg);
+    statsRecordDamage(user, target, dmg);
     spawnFloat(target.row, target.col, `-${dmg}`, 'fdmg-hit');
     animCell(target.row, target.col, 'anim-hit'); animToken(target.id, 'anim-shake');
     log(`[Pierce] ${user.name} ignores DEF — deals ${dmg} damage to ${target.name}. HP ${target.hp}/${target.maxHp}.`, 'hit');
@@ -1715,6 +1723,7 @@ function renderBarracks() {
 // =============================================================================
 function resolveAttack(attacker, target) {
   if (!attacker.actions) { log(`${attacker.name} has no Action left.`, 'miss'); return; }
+  window._lastAttacker = attacker;
   // Advantage/Disadvantage detection
   let adv = false, dis = false;
   if (isFlankedBy(target, attacker)) adv = true; // attacker is flanking
@@ -1758,6 +1767,7 @@ function resolveAttack(attacker, target) {
     // Rogue sneak attack on crit flanked
     if (attacker.class==='Rogue' && target.statuses.includes('flanked')) dmg += Math.floor(Math.random()*6)+1;
     target.hp = Math.max(0, target.hp - dmg);
+    statsRecordDamage(attacker, target, dmg);
     resultType = 'crit';
     spawnFloat(target.row, target.col, `CRIT! -${dmg}`, 'fdmg-crit');
     log(`${attacker.name} CRITICAL HIT on ${target.name}! Rolls ${raw}+${atk}=${total} vs DEF${target.def}. Deals ${dmg} damage.`, 'crit');
@@ -1772,6 +1782,7 @@ function resolveAttack(attacker, target) {
       log(`${attacker.name} Sneak Attack! +${bonus} bonus damage.`,'skill');
     }
     target.hp = Math.max(0, target.hp - dmg);
+    statsRecordDamage(attacker, target, dmg);
     resultType = 'hit';
     spawnFloat(target.row, target.col, `-${dmg}`, 'fdmg-hit');
     const advStr = adv&&!dis?' [Adv]':dis&&!adv?' [Dis]':'';
@@ -1845,6 +1856,7 @@ function applyClassSkillEffect(sk, user, target) {
 
 function _executeEffect(sk, user, target) {
   const v = sk.effectValue || 0;
+  window._lastAttacker = user;
   log(`${user.name} uses ${sk.name}${target&&target!==user?' on '+target.name:''}.`, 'skill');
   switch(sk.effectType) {
     case 'damage': {
@@ -1873,7 +1885,9 @@ function _executeEffect(sk, user, target) {
     case 'heal': {
       const t = target || user;
       const h = Math.floor(Math.random()*v)+1;
+      const actualHeal = Math.min(t.maxHp - t.hp, h);
       t.hp = Math.min(t.maxHp, t.hp + h);
+      statsRecordHeal(user, actualHeal);
       spawnFloat(t.row, t.col, `+${h}`, 'fdmg-heal');
       log(`${t.name} heals ${h} HP (${t.hp}/${t.maxHp}).`, 'heal');
       break;
@@ -2222,6 +2236,8 @@ function checkDeath(tok) {
   if (tok.hp<=0&&!tok.dead) {
     tok.dead = true;
     animToken(tok.id, 'anim-die');
+    // Stats: track death + attempt to attribute kill to last attacker
+    statsRecordKill(window._lastAttacker, tok);
     log(`&#9760; ${tok.name} has fallen! Soul fed to the Sword.`, 'death');
     changeSouls(1);
     if(tok.side==='ally') trustEvent(-8, `${tok.name} died`);
@@ -2318,6 +2334,7 @@ function changeSouls(delta) {
   const prev=souls;
   souls=Math.max(0,Math.min(MAX_SOULS,souls+delta));
   updateSouls();
+  statsTimelineSnap();
   // Check haunted allies
   THRESHOLDS.forEach(th=>{
     if(souls>=th&&prev<th&&!triggeredThresholds.has(th)) {
@@ -2395,7 +2412,7 @@ function showVisionModal(th) {
 }
 function closeVisionModal(){document.getElementById('visionModal').style.display='none';}
 
-function changeTrust(delta){trust=Math.max(0,Math.min(100,trust+delta));updateTrust();}
+function changeTrust(delta){trust=Math.max(0,Math.min(100,trust+delta));updateTrust();statsTimelineSnap();}
 function trustEvent(delta, reason) {
   const prev=trust;
   trust=Math.max(0,Math.min(100,trust+delta));
@@ -2833,6 +2850,7 @@ function toggleKingdom() {
 function updateGold() {
   const el = document.getElementById('goldDisplay');
   if(el) el.textContent = gold;
+  if (typeof statsTimelineSnap === 'function') statsTimelineSnap();
   const dd = document.getElementById('debtDisplay');
   if(dd) dd.textContent = debt;
   const dep = document.getElementById('depositDisplay');
@@ -3069,7 +3087,8 @@ function saveCampaign() {
     gold: gold,
     triggeredThresholds: [...triggeredThresholds],
     triggeredTrustEvents: [...triggeredTrustEvents],
-    varnStats: window.varnStats || {STR:0,VIT:0,INT:0,DEX:0}
+    varnStats: window.varnStats || {STR:0,VIT:0,INT:0,DEX:0},
+    runStats: CAMPAIGN.runStats || null
   };
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); }
   catch(e) { console.warn('Save failed:', e); }
@@ -3156,6 +3175,9 @@ function continueRun() {
   triggeredThresholds = new Set(data.triggeredThresholds || []);
   triggeredTrustEvents = new Set(data.triggeredTrustEvents || []);
   window.varnStats = data.varnStats || {STR:0,VIT:0,INT:0,DEX:0};
+  // Restore stats if saved, else init fresh
+  if (data.runStats) CAMPAIGN.runStats = data.runStats;
+  else initRunStats();
   updateSouls(); updateTrust(); updateGold();
   renderMap();
   switchScene('map');
@@ -3346,6 +3368,7 @@ function confirmParty() {
   CAMPAIGN.active = true;
   CAMPAIGN.currentNode = 0;
   CAMPAIGN.completedNodes = [0];
+  initRunStats();
   saveCampaign();
   showStoryModal('The Find', 'Varn\'s Perspective',
     'You find the sword in the ruins of an old battlefield. Three years of rain have not rusted it.\n\nIt is warm.\n\nA voice — not in your ear, but in your hand:\n\n"keep going. there is something you need to see."',
@@ -3522,6 +3545,7 @@ function renderMap() {
   });
   svg.innerHTML = lines + nodesSvg;
   // Party display
+  renderRunStats();
   document.getElementById('mapParty').innerHTML = CAMPAIGN.heroes.map(h => {
     const hpPct = Math.max(0, (h.hp / h.maxHp) * 100);
     const mpPct = h.maxMana ? Math.max(0, (h.mana / h.maxMana) * 100) : 0;
@@ -3547,6 +3571,7 @@ function enterNode(nodeId) {
 // ----- Combat Node Integration -----
 function startCombatNode(node) {
   CAMPAIGN.combatNode = node;
+  statsStartCombat(node);
   // Reset combat globals
   tokens = []; turnOrder = []; turnIndex = 0; round = 1;
   document.getElementById('roundNum').textContent = '1';
@@ -3636,6 +3661,7 @@ function checkCombatEnd() {
 function endCombat(victory) {
   const node = CAMPAIGN.combatNode;
   if (!node) return;
+  statsEndCombat(victory);
   // Sync hero state back to campaign
   CAMPAIGN.heroes.forEach(h => {
     const tok = tokens.find(t => t._campaignRef === h);
@@ -3816,6 +3842,225 @@ function initCampaign() {
   const exp = document.getElementById('btnExportSave'); if (exp) exp.style.display = hasSave() ? 'inline-block' : 'none';
   switchScene('title');
 }
+
+// =============================================================================
+// RUN STATS TRACKING
+// =============================================================================
+function initRunStats() {
+  CAMPAIGN.runStats = {
+    startedAt: Date.now(),
+    combats: [],          // {nodeId, nodeName, rounds, durationMs, endedAt}
+    currentCombat: null,  // {nodeId, startedAt, startRound}
+    heroes: {},           // {heroName: {damageDealt, damageTaken, healing, kills, deaths}}
+    enemyKillsByClass: {},// {Goblin: 3, Skeleton: 2, ...}
+    timeline: [{t:0, souls:0, trust:50, gold: gold}]
+  };
+  // Pre-create hero entries
+  CAMPAIGN.heroes.forEach(h => {
+    CAMPAIGN.runStats.heroes[h.name] = {damageDealt:0, damageTaken:0, healing:0, kills:0, deaths:0, class:h.class};
+  });
+}
+function ensureHeroStats(name, cls) {
+  if (!CAMPAIGN.active || !CAMPAIGN.runStats) return null;
+  if (!CAMPAIGN.runStats.heroes[name]) {
+    CAMPAIGN.runStats.heroes[name] = {damageDealt:0, damageTaken:0, healing:0, kills:0, deaths:0, class:cls||'?'};
+  }
+  return CAMPAIGN.runStats.heroes[name];
+}
+function statsRecordDamage(attacker, target, dmg) {
+  if (!CAMPAIGN.active || !CAMPAIGN.runStats || !dmg) return;
+  if (attacker && attacker.side === 'ally') {
+    const s = ensureHeroStats(attacker.name, attacker.class); if (s) s.damageDealt += dmg;
+  }
+  if (target && target.side === 'ally') {
+    const s = ensureHeroStats(target.name, target.class); if (s) s.damageTaken += dmg;
+  }
+}
+function statsRecordHeal(healer, amount) {
+  if (!CAMPAIGN.active || !CAMPAIGN.runStats || !amount) return;
+  if (healer && healer.side === 'ally') {
+    const s = ensureHeroStats(healer.name, healer.class); if (s) s.healing += amount;
+  }
+}
+function statsRecordKill(killer, victim) {
+  if (!CAMPAIGN.active || !CAMPAIGN.runStats) return;
+  if (killer && killer.side === 'ally' && victim && victim.side === 'enemy') {
+    const s = ensureHeroStats(killer.name, killer.class); if (s) s.kills++;
+    const cls = victim.class || '?';
+    CAMPAIGN.runStats.enemyKillsByClass[cls] = (CAMPAIGN.runStats.enemyKillsByClass[cls] || 0) + 1;
+  }
+  if (victim && victim.side === 'ally') {
+    const s = ensureHeroStats(victim.name, victim.class); if (s) s.deaths++;
+  }
+}
+function statsStartCombat(node) {
+  if (!CAMPAIGN.active || !CAMPAIGN.runStats) return;
+  CAMPAIGN.runStats.currentCombat = { nodeId:node.id, nodeName:node.name, startedAt:Date.now(), startRound:1 };
+}
+function statsEndCombat(victory) {
+  if (!CAMPAIGN.active || !CAMPAIGN.runStats || !CAMPAIGN.runStats.currentCombat) return;
+  const cc = CAMPAIGN.runStats.currentCombat;
+  CAMPAIGN.runStats.combats.push({
+    nodeId: cc.nodeId, nodeName: cc.nodeName,
+    rounds: round, durationMs: Date.now() - cc.startedAt,
+    victory: !!victory, endedAt: Date.now()
+  });
+  CAMPAIGN.runStats.currentCombat = null;
+}
+function statsTimelineSnap() {
+  if (!CAMPAIGN.active || !CAMPAIGN.runStats) return;
+  const t = Date.now() - CAMPAIGN.runStats.startedAt;
+  const last = CAMPAIGN.runStats.timeline[CAMPAIGN.runStats.timeline.length-1];
+  if (last && (souls===last.souls && trust===last.trust && gold===last.gold)) return;
+  CAMPAIGN.runStats.timeline.push({t, souls, trust, gold});
+  if (CAMPAIGN.runStats.timeline.length > 200) CAMPAIGN.runStats.timeline.shift();
+}
+
+function formatDuration(ms) {
+  const s = Math.floor(ms/1000);
+  const m = Math.floor(s/60);
+  const sec = s % 60;
+  return `${m}m ${sec.toString().padStart(2,'0')}s`;
+}
+
+function renderRunStats() {
+  const body = document.getElementById('runStatsBody');
+  if (!body) return;
+  if (!CAMPAIGN.active || !CAMPAIGN.runStats) { body.innerHTML = '<div style="color:#666;font-style:italic">No active run.</div>'; return; }
+  const rs = CAMPAIGN.runStats;
+  const totalDur = Date.now() - rs.startedAt;
+  const completedCombats = rs.combats.length;
+  const avgRounds = completedCombats ? (rs.combats.reduce((s,c)=>s+c.rounds,0)/completedCombats).toFixed(1) : '—';
+  const avgDur = completedCombats ? formatDuration(rs.combats.reduce((s,c)=>s+c.durationMs,0)/completedCombats) : '—';
+
+  // Per-hero table
+  const heroRows = Object.entries(rs.heroes).map(([name, s]) => {
+    const isDead = CAMPAIGN.heroes.find(h => h.name === name)?.dead;
+    return `<tr style="${isDead?'opacity:0.5':''}">
+      <td style="padding:4px 6px;color:#c9a84c">${name}${isDead?' †':''}</td>
+      <td style="padding:4px 6px;color:#888;font-size:0.75rem">${s.class}</td>
+      <td style="padding:4px 6px;text-align:right;color:#e0a0a0">${s.damageDealt}</td>
+      <td style="padding:4px 6px;text-align:right;color:#a0a0e0">${s.damageTaken}</td>
+      <td style="padding:4px 6px;text-align:right;color:#a0e0a0">${s.healing}</td>
+      <td style="padding:4px 6px;text-align:right;color:#dfaf3a">${s.kills}</td>
+      <td style="padding:4px 6px;text-align:right;color:#e05555">${s.deaths}</td>
+    </tr>`;
+  }).join('');
+
+  // Combats list
+  const combatList = rs.combats.map(c =>
+    `<tr><td style="padding:3px 6px;color:#aaa">${c.nodeName}</td><td style="padding:3px 6px;text-align:right">${c.rounds} rounds</td><td style="padding:3px 6px;text-align:right;color:#888">${formatDuration(c.durationMs)}</td><td style="padding:3px 6px;text-align:right;color:${c.victory?'#7fb87f':'#e05555'}">${c.victory?'Win':'Loss'}</td></tr>`
+  ).join('') || '<tr><td colspan="4" style="padding:6px;color:#666;font-style:italic">No combats completed yet.</td></tr>';
+
+  // Enemy kills
+  const killsByClass = Object.entries(rs.enemyKillsByClass).sort((a,b)=>b[1]-a[1])
+    .map(([cls,n]) => `<span style="background:#2a0a0a;border:1px solid #5a1a1a;color:#ffaaaa;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-right:4px">${cls} ×${n}</span>`).join('') || '<span style="color:#666;font-style:italic">No kills yet.</span>';
+
+  // Timeline summary (start vs now)
+  const tStart = rs.timeline[0];
+  const dSouls = souls - (tStart?.souls||0);
+  const dTrust = trust - (tStart?.trust||50);
+  const dGold  = gold - (tStart?.gold||50);
+
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:14px">
+      <div style="background:#0a0f1c;padding:8px;border-radius:4px;border:1px solid #2a3050">
+        <div style="color:#888;font-size:0.65rem;letter-spacing:1px">RUN TIME</div>
+        <div style="color:#c9a84c;font-size:1.1rem;font-weight:bold">${formatDuration(totalDur)}</div>
+      </div>
+      <div style="background:#0a0f1c;padding:8px;border-radius:4px;border:1px solid #2a3050">
+        <div style="color:#888;font-size:0.65rem;letter-spacing:1px">COMBATS</div>
+        <div style="color:#c9a84c;font-size:1.1rem;font-weight:bold">${completedCombats}</div>
+      </div>
+      <div style="background:#0a0f1c;padding:8px;border-radius:4px;border:1px solid #2a3050">
+        <div style="color:#888;font-size:0.65rem;letter-spacing:1px">AVG ROUNDS</div>
+        <div style="color:#c9a84c;font-size:1.1rem;font-weight:bold">${avgRounds}</div>
+      </div>
+      <div style="background:#0a0f1c;padding:8px;border-radius:4px;border:1px solid #2a3050">
+        <div style="color:#888;font-size:0.65rem;letter-spacing:1px">AVG COMBAT</div>
+        <div style="color:#c9a84c;font-size:1.1rem;font-weight:bold">${avgDur}</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:12px">
+      <div style="color:#dfaf3a;font-size:0.75rem;letter-spacing:1px;margin-bottom:6px">PER HERO</div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.75rem;background:#0a0f1c;border-radius:4px">
+        <thead><tr style="background:#1a1f3c;color:#888;font-size:0.65rem;letter-spacing:1px">
+          <th style="padding:6px;text-align:left">Hero</th><th style="padding:6px;text-align:left">Class</th>
+          <th style="padding:6px;text-align:right">DMG Out</th><th style="padding:6px;text-align:right">DMG In</th>
+          <th style="padding:6px;text-align:right">Heal</th><th style="padding:6px;text-align:right">Kills</th><th style="padding:6px;text-align:right">Deaths</th>
+        </tr></thead>
+        <tbody>${heroRows}</tbody>
+      </table></div>
+    </div>
+
+    <div style="margin-bottom:12px">
+      <div style="color:#dfaf3a;font-size:0.75rem;letter-spacing:1px;margin-bottom:6px">COMBAT HISTORY</div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.75rem;background:#0a0f1c;border-radius:4px">
+        <tbody>${combatList}</tbody>
+      </table></div>
+    </div>
+
+    <div style="margin-bottom:12px">
+      <div style="color:#dfaf3a;font-size:0.75rem;letter-spacing:1px;margin-bottom:6px">ENEMIES DEFEATED</div>
+      <div>${killsByClass}</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px">
+      <div style="background:#0a0f1c;padding:8px;border-radius:4px;border:1px solid #4a1a8b">
+        <div style="color:#888;font-size:0.65rem;letter-spacing:1px">SOULS</div>
+        <div style="color:#ccaaff;font-size:1rem">${souls} <span style="color:#888;font-size:0.7rem">(+${dSouls})</span></div>
+      </div>
+      <div style="background:#0a0f1c;padding:8px;border-radius:4px;border:1px solid #c9a84c">
+        <div style="color:#888;font-size:0.65rem;letter-spacing:1px">TRUST</div>
+        <div style="color:#c9a84c;font-size:1rem">${trust} <span style="color:${dTrust>=0?'#7fb87f':'#e05555'};font-size:0.7rem">(${dTrust>=0?'+':''}${dTrust})</span></div>
+      </div>
+      <div style="background:#0a0f1c;padding:8px;border-radius:4px;border:1px solid #dfaf3a">
+        <div style="color:#888;font-size:0.65rem;letter-spacing:1px">GOLD</div>
+        <div style="color:#dfaf3a;font-size:1rem">${gold} <span style="color:${dGold>=0?'#7fb87f':'#e05555'};font-size:0.7rem">(${dGold>=0?'+':''}${dGold})</span></div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:10px">
+      <button onclick="exportRunStatsCSV()" style="background:#1a1f3c;border:1px solid #4a8fbf;color:#7fb8df;padding:5px 10px;cursor:pointer;border-radius:3px;font-size:0.7rem">📥 Export CSV</button>
+    </div>
+  `;
+}
+
+function exportRunStatsCSV() {
+  if (!CAMPAIGN.runStats) return;
+  const rs = CAMPAIGN.runStats;
+  let csv = 'SECTION,key,value\n';
+  csv += `META,started_at,${new Date(rs.startedAt).toISOString()}\n`;
+  csv += `META,duration_ms,${Date.now()-rs.startedAt}\n`;
+  csv += `META,souls,${souls}\n`;
+  csv += `META,trust,${trust}\n`;
+  csv += `META,gold,${gold}\n\n`;
+  csv += 'HEROES,name,class,damage_dealt,damage_taken,healing,kills,deaths\n';
+  Object.entries(rs.heroes).forEach(([name,s]) => {
+    csv += `HEROES,${name},${s.class},${s.damageDealt},${s.damageTaken},${s.healing},${s.kills},${s.deaths}\n`;
+  });
+  csv += '\nCOMBATS,node_name,rounds,duration_ms,victory\n';
+  rs.combats.forEach(c => { csv += `COMBATS,${c.nodeName},${c.rounds},${c.durationMs},${c.victory}\n`; });
+  csv += '\nKILLS_BY_CLASS,class,count\n';
+  Object.entries(rs.enemyKillsByClass).forEach(([cls,n]) => { csv += `KILLS_BY_CLASS,${cls},${n}\n`; });
+  csv += '\nTIMELINE,t_ms,souls,trust,gold\n';
+  rs.timeline.forEach(p => { csv += `TIMELINE,${p.t},${p.souls},${p.trust},${p.gold}\n`; });
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const stamp = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
+  const a = document.createElement('a');
+  a.href = url; a.download = `shattered-crown_stats_${stamp}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// Live timer tick for the Run Time stat
+setInterval(() => {
+  if (CAMPAIGN.scene === 'map' && CAMPAIGN.active && document.getElementById('runStatsPanel')?.open) {
+    renderRunStats();
+  }
+}, 1000);
 
 // =============================================================================
 // TERRAIN INFO (emojis + tooltips)

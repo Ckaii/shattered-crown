@@ -3311,7 +3311,7 @@ function rerollDiePair(stat) {
 }
 
 function rollAllDice3D() {
-  const stats = ['hp','atk','speed'];
+  const stats = ['hp','atk','speed','mana'];
   stats.forEach((st, i) => {
     window._diceState[st] = [rollD4(), rollD4()];
     animateDie(st, 0, window._diceState[st][0], i * 120);
@@ -3324,7 +3324,7 @@ function updateDiceSum(stat) {
   const el = document.getElementById(`dsum-${stat}`);
   if (!el || !window._diceState[stat]) return;
   const sum = window._diceState[stat][0] + window._diceState[stat][1];
-  const isDouble = stat === 'hp';
+  const isDouble = stat === 'hp' || stat === 'mana';
   el.textContent = isDouble ? `${sum} ×2 = ${sum*2}` : `${sum}`;
 }
 
@@ -3332,23 +3332,14 @@ function syncDiceToRollState() {
   if (!window._rollState) return;
   const d = window._diceState;
   const cls = ALLY_CLASSES.find(c=>c.name===window._rollState.clsName);
-  // HP: 2d4 ×2 replaces class base HP
-  window._rollState.hp = (d.hp[0]+d.hp[1]) * 2;
-  // ATK/SPD: 2d4 replaces class base; DEF always 0 (equipment only)
-  window._rollState.atk = d.atk[0]+d.atk[1];
-  window._rollState.def = 0;
+  // HP and MP: 2d4 ×2; ATK/SPD: 2d4; DEF always 0 (equipment only)
+  window._rollState.hp    = (d.hp[0]+d.hp[1]) * 2;
+  window._rollState.atk   = d.atk[0]+d.atk[1];
+  window._rollState.def   = 0;
   window._rollState.speed = d.speed[0]+d.speed[1];
+  window._rollState.mana  = (d.mana[0]+d.mana[1]) * 2;
   // Update sum displays
-  ['hp','atk','speed'].forEach(st => updateDiceSum(st));
-  // Update MP display (class base + collar preview)
-  const mpEl = document.getElementById('dsum-mana');
-  if (mpEl && cls) {
-    const collar = CLASS_COLLARS[window._rollState.clsName];
-    const bonus = collar && collar.stats.includes('MP') ? (parseInt(collar.stats.match(/\+(\d+) MP/)?.[1])||0) : 0;
-    const mp = cls.maxMana + bonus;
-    window._rollState.mana = mp;
-    mpEl.textContent = `${mp} MP`;
-  }
+  ['hp','atk','speed','mana'].forEach(st => updateDiceSum(st));
 }
 
 // =============================================================================
@@ -4976,6 +4967,7 @@ function openHeroRollModal(clsName, slotIdx) {
     hp:    [rollD4(), rollD4()],
     atk:   [rollD4(), rollD4()],
     speed: [rollD4(), rollD4()],
+    mana:  [rollD4(), rollD4()],
   };
   const d = window._diceState;
   window._rollState = {
@@ -4986,7 +4978,8 @@ function openHeroRollModal(clsName, slotIdx) {
     atk:   d.atk[0]+d.atk[1],
     def:   0,
     speed: d.speed[0]+d.speed[1],
-    mana: cls.maxMana, manaRegen: cls.manaRegen,
+    mana:  (d.mana[0]+d.mana[1]) * 2,
+    manaRegen: cls.manaRegen,
     skillIdx: null,
     skillChoices
   };
@@ -5019,26 +5012,22 @@ function renderHeroRollModal() {
         <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;background:#0a0f1c;padding:10px;border-radius:4px;align-items:end" id="diceGrid">
           ${['hp','atk','speed','def','mana'].map(k => {
             const label = k==='hp'?'HP':k==='atk'?'ATK':k==='speed'?'SPD':k==='def'?'DEF':'MP';
-            const isDouble = k==='hp';
-            const isStatic = k==='def' || k==='mana';
-            const isMp = k==='mana';
+            const isDouble = k==='hp' || k==='mana';
             const isDef = k==='def';
-            const cls = isMp ? 'mp-stat' : '';
+            const cls = k==='mana' ? 'mp-stat' : '';
+            const dsum = isDef ? '0' : isDouble ? `${window._diceState[k][0]+window._diceState[k][1]} ×2 = ${(window._diceState[k][0]+window._diceState[k][1])*2}` : s[k];
             return `<div style="text-align:center">
               <div class="die-pair-label">${label}${isDouble?' ×2':''}</div>
               ${isDef ? `
                 <div style="font-size:1.1rem;color:#555;padding:8px 0">🛡️</div>
                 <div style="font-size:0.6rem;color:#555;line-height:1.4">From<br>equipment</div>
-              ` : isMp ? `
-                <div style="font-size:1rem;color:#7a9aba;padding:8px 0">💙</div>
-                <div style="font-size:0.65rem;color:#555;line-height:1.4">From class<br>+ collar</div>
               ` : `
                 <div style="display:flex;gap:4px;justify-content:center;margin-bottom:4px">
                   ${renderDie3D(k,0)} ${renderDie3D(k,1)}
                 </div>
                 <button onclick="rerollDiePair('${k}')" style="background:#0d1420;border:1px solid #2a3050;color:#4a6a8a;padding:2px 6px;cursor:pointer;border-radius:3px;font-size:0.55rem">↻ reroll</button>
               `}
-              <div class="die-pair-sum ${cls}" id="dsum-${k}">${isDef ? '0' : isDouble ? (s[k])+' ×2='+(s[k]) : isMp ? s.mana+' MP' : s[k]}</div>
+              <div class="die-pair-sum ${cls}" id="dsum-${k}">${dsum}</div>
             </div>`;
           }).join('')}
         </div>

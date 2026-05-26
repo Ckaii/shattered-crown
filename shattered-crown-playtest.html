@@ -1655,7 +1655,7 @@ function placeToken(cls, side, r, c, name, trait) {
     moralImmune: false, lucky: false, loyal: false, haunted: false, stoic: false, berserker: false,
   };
   if (trait) trait.apply(tok);
-  tokens.push(tok);
+  tokens.push(makeToken(tok));  // OOP: wrap with Hero/Enemy/Token class
   rebuildTurnOrder();
   renderAll();
   log(`${tok.name} (${cls}${trait?' ['+trait.name+']':''}) placed at ${coord(r,c)}.`, 'sys');
@@ -3147,15 +3147,9 @@ function importSkillPool(event) {
 // =============================================================================
 const SAVE_KEY = 'shatteredCrownSave_v1';
 
-const CAMPAIGN = {
-  scene: 'title',
-  active: false,
-  heroes: [],          // {class,name,hp,maxHp,mana,maxMana,cooldowns,statuses,equipment,skills,traits...}
-  currentNode: 0,
-  completedNodes: [],
-  combatNode: null,
-  endingShown: false
-};
+// CAMPAIGN is a CampaignManager instance (OOP) — all existing code uses
+// CAMPAIGN.heroes, .active etc. so the class is backward-compatible.
+const CAMPAIGN = new CampaignManager();
 
 const MAP_NODES = [
   {id:0, type:'camp',   x: 60, y:160, name:'Camp',                connects:[1]},
@@ -3167,6 +3161,8 @@ const MAP_NODES = [
   {id:6, type:'shop',   x:740, y:160, name:'Last Camp',           connects:[7]},
   {id:7, type:'boss',   x:880, y:160, name:'Aldric',              encounter:'aldric',    connects:[]}
 ];
+// OOP: GameMap instance over MAP_NODES — new code can use GAME_MAP.availableFrom() etc.
+const GAME_MAP = new GameMap(MAP_NODES);
 
 const ENCOUNTERS = {
   goblins:   [{cls:'Goblin', r:2, c:7}, {cls:'Goblin', r:4, c:7}, {cls:'Ranged Goblin', r:6, c:8}],
@@ -3303,7 +3299,8 @@ function continueRun() {
   const data = loadCampaign();
   if (!data) { alert('No save found.'); return; }
   CAMPAIGN.active = true;
-  CAMPAIGN.heroes = data.heroes;
+  // OOP: rehydrate plain hero data into Hero instances
+  CAMPAIGN.heroes = (data.heroes || []).map(h => h instanceof Hero ? h : new Hero(h));
   CAMPAIGN.currentNode = data.currentNode;
   CAMPAIGN.completedNodes = data.completedNodes || [];
   souls = data.souls || 0;
@@ -3606,11 +3603,12 @@ function confirmParty() {
       atk:       r.atk       ?? tpl.atk,
       def:       r.def       ?? tpl.def,
       speed:     r.speed     ?? tpl.speed,
-      range:     1, // base range always 1
+      range:     1,
       maxMana:   r.mana      ?? tpl.maxMana,
       manaRegen: r.manaRegen ?? tpl.manaRegen,
     };
-    const h = {
+    // OOP: construct Hero instance
+    const h = new Hero({
       class: slot.class,
       name: slot.name,
       baseStats: base,
@@ -3619,21 +3617,17 @@ function confirmParty() {
       manaRegen: base.manaRegen,
       atk: base.atk, def: base.def, speed: base.speed, range: base.range,
       str: r.str ?? tpl.str, vit: r.vit ?? tpl.vit, int: r.int ?? tpl.int, dex: r.dex ?? tpl.dex,
-      cooldowns: {}, statuses: [],
       skills: [null, null],
       equipment: [],
       potions: [],
       level: 1, xp: 0,
       traitName: slot.trait ? slot.trait.name : null,
-      lucky: false, loyal: false, haunted: false, stoic: false, berserker: false, moralImmune: false,
-      dead: false
-    };
+    });
     if (slot.trait) slot.trait.apply(h);
-    // Auto-equip starter weapon
     const starterId = STARTER_WEAPONS[slot.class];
     if (starterId) h.equipment.push(starterId);
-    recalcHeroStats(h);
-    h.hp = h.maxHp; h.mana = h.maxMana; // top up after equipment
+    h.recalcStats();
+    h.hp = h.maxHp; h.mana = h.maxMana;
     return h;
   });
   CAMPAIGN.active = true;
@@ -3884,7 +3878,7 @@ function startCombatNode(node) {
 function placeHeroFromCampaign(h, r, c) {
   const tpl = ALLY_CLASSES.find(x => x.name === h.class) || ALLY_CLASSES[0];
   const id = (tokens.reduce((m,t)=>Math.max(m,t.id),0) || 0) + 1;
-  tokens.push({
+  tokens.push(makeToken({
     id, side:'ally', class:h.class, name:h.name,
     row:r, col:c,
     hp:h.hp, maxHp:h.maxHp,
@@ -3896,7 +3890,7 @@ function placeHeroFromCampaign(h, r, c) {
     skills:[...(h.skills||[null,null])],
     actions:true, bonusAction:true, reaction:true,
     dead:false, _campaignRef:h
-  });
+  }));
 }
 function placeEnemyFromEncounter(clsName, r, c) {
   let tpl = ENEMY_CLASSES.find(x => x.name === clsName);
@@ -3904,7 +3898,7 @@ function placeEnemyFromEncounter(clsName, r, c) {
   if (!tpl) tpl = ENEMY_CLASSES[0];
   const id = (tokens.reduce((m,t)=>Math.max(m,t.id),0) || 0) + 1;
   const names = NAMES[tpl.name] || ['Foe'];
-  tokens.push({
+  tokens.push(makeToken({
     id, side:'enemy', class:tpl.name, name:names[Math.floor(Math.random()*names.length)],
     row:r, col:c,
     hp:tpl.hp, maxHp:tpl.hp,
@@ -3915,7 +3909,7 @@ function placeEnemyFromEncounter(clsName, r, c) {
     cooldowns:{}, statuses:[],
     skills:[],
     actions:true, bonusAction:true, reaction:true, dead:false
-  });
+  }));
 }
 
 // Aldric & Royal Guard templates (boss-only)
@@ -4133,6 +4127,225 @@ function initCampaign() {
   document.getElementById('btnAbandon').style.display = hasSave() ? 'inline-block' : 'none';
   const exp = document.getElementById('btnExportSave'); if (exp) exp.style.display = hasSave() ? 'inline-block' : 'none';
   switchScene('title');
+}
+
+// =============================================================================
+// OOP DATA CLASSES — wrappers over existing data for clean API + future features
+// =============================================================================
+//
+// Design notes:
+// - All classes use Object.assign(this, data) in constructor so existing code
+//   reading `tok.atk` etc. continues working unchanged.
+// - Class methods encapsulate common queries/mutations so new features can
+//   compose them instead of repeating logic.
+// - Token / Hero / Enemy form an inheritance chain; equipment / skills are
+//   value objects with helper methods.
+// - Campaign / Combat / GameMap wrap the game state singletons.
+
+class GameEntity {
+  constructor(data = {}) { Object.assign(this, data); }
+}
+
+class Token extends GameEntity {
+  constructor(data) {
+    super(data);
+    if (this.cooldowns === undefined) this.cooldowns = {};
+    if (this.statuses === undefined) this.statuses = [];
+    if (this.skills === undefined)   this.skills = [null, null];
+    if (this.actions === undefined)  this.actions = true;
+    if (this.dead === undefined)     this.dead = false;
+    if (this.moved === undefined)    this.moved = false;
+  }
+  // ─── Vitals ───────────────────────────────────
+  get hpPct()    { return this.maxHp ? this.hp / this.maxHp : 0; }
+  get manaPct()  { return this.maxMana ? this.mana / this.maxMana : 0; }
+  get isAlive()  { return !this.dead && this.hp > 0; }
+  get isLowHP()  { return this.hpPct < 0.5; }
+  get isCritHP() { return this.hpPct < 0.25; }
+  // ─── Turn / Actions ───────────────────────────
+  canAct()   { return !this.dead && this.actions; }
+  hasMoved() { return !!this.moved; }
+  isMyTurn() { return typeof isItMyTurn === 'function' ? isItMyTurn(this.id) : true; }
+  endTurn()  { this.actions = false; this.moved = true; }
+  // ─── Damage / Healing ─────────────────────────
+  takeDamage(dmg) {
+    const before = this.hp;
+    this.hp = Math.max(0, this.hp - dmg);
+    return before - this.hp;
+  }
+  heal(amt) {
+    const before = this.hp;
+    this.hp = Math.min(this.maxHp, this.hp + amt);
+    return this.hp - before;
+  }
+  // ─── Mana ─────────────────────────────────────
+  canAfford(cost) { return this.mana >= (cost || 0); }
+  spendMana(cost) { this.mana = Math.max(0, this.mana - (cost || 0)); }
+  regenMana()     { this.mana = Math.min(this.maxMana, this.mana + (this.manaRegen || 0)); }
+  // ─── Movement / Targeting ─────────────────────
+  distTo(other)   { return Math.abs(this.row - other.row) + Math.abs(this.col - other.col); }
+  canReach(r, c)  { return (Math.abs(this.row - r) + Math.abs(this.col - c)) <= this.speed; }
+  inRangeOf(target) { return this.distTo(target) <= (this.range || 1); }
+  // ─── Status ───────────────────────────────────
+  hasStatus(s)    { return this.statuses.includes(s); }
+  addStatus(s)    { if (!this.hasStatus(s)) this.statuses.push(s); }
+  removeStatus(s) { this.statuses = this.statuses.filter(x => x !== s); }
+  // ─── Cooldowns ────────────────────────────────
+  isOnCooldown(key) { return (this.cooldowns[key] || 0) > 0; }
+  setCooldown(key, rounds) { if (rounds > 0) this.cooldowns[key] = rounds; }
+  tickCooldowns() {
+    Object.keys(this.cooldowns).forEach(k => { if (this.cooldowns[k] > 0) this.cooldowns[k]--; });
+  }
+}
+
+class Hero extends Token {
+  constructor(data) {
+    super({...data, side: 'ally'});
+    if (this.equipment === undefined) this.equipment = [];
+    if (this.potions === undefined)   this.potions = [];
+    if (this.level === undefined)     this.level = 1;
+    if (this.baseStats === undefined) this.baseStats = this._snapshotStats();
+  }
+  _snapshotStats() {
+    return {
+      hp: this.maxHp, atk: this.atk, def: this.def,
+      speed: this.speed, range: this.range || 1,
+      maxMana: this.maxMana, manaRegen: this.manaRegen
+    };
+  }
+  // ─── Equipment ────────────────────────────────
+  hasEquipped(slot) { return this.equipment.some(id => EQUIPMENT[id]?.slot === slot); }
+  getEquipped(slot) { return this.equipment.map(id => EQUIPMENT[id]).find(it => it?.slot === slot); }
+  recalcStats()     { if (typeof recalcHeroStats === 'function') recalcHeroStats(this); }
+  equipById(itemId) {
+    const idx = CAMPAIGN.heroes.indexOf(this);
+    return idx >= 0 ? equipItem(idx, itemId) : false;
+  }
+  unequipById(itemId) {
+    const idx = CAMPAIGN.heroes.indexOf(this);
+    if (idx >= 0) unequipItem(idx, itemId);
+  }
+  // ─── Potions ──────────────────────────────────
+  givePotion(type) {
+    const existing = this.potions.find(p => p.type === type);
+    if (existing) existing.charges++;
+    else this.potions.push({type, charges: 1});
+  }
+  // ─── Level Up ─────────────────────────────────
+  applyLevelUp() {
+    this.level = (this.level || 1) + 1;
+    const choices = [
+      {label:'+2 HP',  apply: () => { this.baseStats.hp += 2; }},
+      {label:'+1 ATK', apply: () => { this.baseStats.atk += 1; }},
+      {label:'+1 DEF', apply: () => { this.baseStats.def += 1; }},
+      {label:'+1 SPD', apply: () => { this.baseStats.speed += 1; }},
+      {label:'+1 MP',  apply: () => { this.baseStats.maxMana += 1; }},
+    ];
+    const pick = choices[Math.floor(Math.random() * choices.length)];
+    pick.apply();
+    this.recalcStats();
+    return pick.label;
+  }
+}
+
+class Enemy extends Token {
+  constructor(data) { super({...data, side: 'enemy'}); }
+  isBoss() { return this.class === 'Aldric'; }
+}
+
+class EquipmentItem extends GameEntity {
+  constructor(data) { super(data); }
+  canBeUsedBy(className) {
+    if (this.classes === 'all') return true;
+    return Array.isArray(this.classes) && this.classes.includes(className);
+  }
+  sellValue() { return (this.tier + 1) * 8; }
+  statSummary() {
+    return Object.entries(this.stats || {})
+      .map(([k,v]) => `${v >= 0 ? '+' : ''}${v} ${k.toUpperCase()}`)
+      .join(', ');
+  }
+}
+
+class GameSkill extends GameEntity {
+  constructor(data) { super(data); }
+  isPassive()    { return this.targetType === 'passive' || this.effectType === 'passive'; }
+  cooldownKey()  { return this.id ? 'pool_' + this.id : 'cls_' + this.name; }
+  canBeUsedBy(tok) {
+    if (!tok.canAct()) return false;
+    if (tok.mana < (this.manaCost || 0)) return false;
+    if (tok.isOnCooldown(this.cooldownKey())) return false;
+    return true;
+  }
+}
+
+class CampaignManager {
+  constructor() {
+    this.scene = 'title';
+    this.active = false;
+    this.heroes = [];
+    this.currentNode = 0;
+    this.completedNodes = [];
+    this.combatNode = null;
+    this.endingShown = false;
+    this.storage = [];
+    this.runStats = null;
+  }
+  // Convenience getters
+  get livingHeroes() { return this.heroes.filter(h => !h.dead); }
+  get deadHeroes()   { return this.heroes.filter(h => h.dead); }
+  get partySize()    { return this.heroes.length; }
+  get isAtFullParty(){ return this.livingHeroes.length === this.heroes.length; }
+  hasHero(name)      { return this.heroes.some(h => h.name === name); }
+  findHero(name)     { return this.heroes.find(h => h.name === name); }
+  // Storage
+  addToStorage(itemId) { if (!this.storage) this.storage = []; this.storage.push(itemId); }
+  removeFromStorage(itemId) {
+    const i = this.storage.indexOf(itemId);
+    if (i >= 0) this.storage.splice(i, 1);
+  }
+  // Save delegations
+  save()    { saveCampaign(); }
+  load()    { return loadCampaign(); }
+  hasSave() { return hasSave(); }
+  reset()   { abandonRun(); }
+}
+
+class GameMap extends GameEntity {
+  constructor(nodes) { super(); this.nodes = nodes; }
+  getNode(id) { return this.nodes.find(n => n.id === id); }
+  availableFrom(currentId, completedIds = []) {
+    const completed = new Set(completedIds);
+    const cur = this.getNode(currentId);
+    if (!cur) return [];
+    return cur.connects.filter(id => !completed.has(id));
+  }
+  isBossNode(id) { return this.getNode(id)?.type === 'boss'; }
+  isShopNode(id) { return this.getNode(id)?.type === 'shop'; }
+  isCombatNode(id){ return ['combat','boss'].includes(this.getNode(id)?.type); }
+}
+
+class CombatScene extends GameEntity {
+  constructor(node) { super(); this.node = node; this.startedAt = Date.now(); }
+  get isEnded()    { return this.aliveAllies.length === 0 || this.aliveEnemies.length === 0; }
+  get isVictory()  { return this.aliveEnemies.length === 0; }
+  get isDefeat()   { return this.aliveAllies.length === 0; }
+  get aliveAllies(){ return tokens.filter(t => t.side === 'ally' && !t.dead); }
+  get aliveEnemies(){ return tokens.filter(t => t.side === 'enemy' && !t.dead); }
+  get currentTokenId() { return turnOrder[turnIndex]?.id ?? null; }
+}
+
+// Factory: wrap a plain object as the right class based on side
+function makeToken(data) {
+  if (data.side === 'ally')  return new Hero(data);
+  if (data.side === 'enemy') return new Enemy(data);
+  return new Token(data);
+}
+
+// Helper to look up an EquipmentItem instance from id
+function equipmentItem(id) {
+  const data = EQUIPMENT[id];
+  return data ? new EquipmentItem(data) : null;
 }
 
 // =============================================================================

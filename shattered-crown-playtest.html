@@ -3311,7 +3311,7 @@ function rerollDiePair(stat) {
 }
 
 function rollAllDice3D() {
-  const stats = ['hp','atk','def','speed'];
+  const stats = ['hp','atk','speed'];
   stats.forEach((st, i) => {
     window._diceState[st] = [rollD4(), rollD4()];
     animateDie(st, 0, window._diceState[st][0], i * 120);
@@ -3334,12 +3334,12 @@ function syncDiceToRollState() {
   const cls = ALLY_CLASSES.find(c=>c.name===window._rollState.clsName);
   // HP: 2d4 ×2 replaces class base HP
   window._rollState.hp = (d.hp[0]+d.hp[1]) * 2;
-  // ATK/DEF/SPD: 2d4 replaces class base
+  // ATK/SPD: 2d4 replaces class base; DEF always 0 (equipment only)
   window._rollState.atk = d.atk[0]+d.atk[1];
-  window._rollState.def = d.def[0]+d.def[1];
+  window._rollState.def = 0;
   window._rollState.speed = d.speed[0]+d.speed[1];
   // Update sum displays
-  ['hp','atk','def','speed'].forEach(st => updateDiceSum(st));
+  ['hp','atk','speed'].forEach(st => updateDiceSum(st));
   // Update MP display (class base + collar preview)
   const mpEl = document.getElementById('dsum-mana');
   if (mpEl && cls) {
@@ -4971,11 +4971,10 @@ function openHeroRollModal(clsName, slotIdx) {
   const classSkills = CLASS_SKILL_POOLS[clsName] || [];
   const shuffledSkills = [...classSkills].sort(()=>Math.random()-0.5);
   const skillChoices = shuffledSkills.slice(0, 2);
-  // Init dice state with random rolls
+  // Init dice state with random rolls (DEF not rolled — comes from equipment)
   window._diceState = {
     hp:    [rollD4(), rollD4()],
     atk:   [rollD4(), rollD4()],
-    def:   [rollD4(), rollD4()],
     speed: [rollD4(), rollD4()],
   };
   const d = window._diceState;
@@ -4985,7 +4984,7 @@ function openHeroRollModal(clsName, slotIdx) {
     str: cls.str, vit: cls.vit, int: cls.int, dex: cls.dex,
     hp:    (d.hp[0]+d.hp[1]) * 2,
     atk:   d.atk[0]+d.atk[1],
-    def:   d.def[0]+d.def[1],
+    def:   0,
     speed: d.speed[0]+d.speed[1],
     mana: cls.maxMana, manaRegen: cls.manaRegen,
     skillIdx: null,
@@ -5018,14 +5017,19 @@ function renderHeroRollModal() {
           <button onclick="rollAllDice3D()" style="background:#2a4a2a;border:1px solid #7fb87f;color:#9fdf9f;padding:4px 10px;cursor:pointer;border-radius:3px;font-size:0.7rem">🎲 Roll All</button>
         </div>
         <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;background:#0a0f1c;padding:10px;border-radius:4px;align-items:end" id="diceGrid">
-          ${['hp','atk','def','speed','mana'].map(k => {
-            const label = k==='hp'?'HP':k==='atk'?'ATK':k==='def'?'DEF':k==='speed'?'SPD':'MP';
-            const isDouble = k==='hp'||k==='mana';
+          ${['hp','atk','speed','def','mana'].map(k => {
+            const label = k==='hp'?'HP':k==='atk'?'ATK':k==='speed'?'SPD':k==='def'?'DEF':'MP';
+            const isDouble = k==='hp';
+            const isStatic = k==='def' || k==='mana';
             const isMp = k==='mana';
+            const isDef = k==='def';
             const cls = isMp ? 'mp-stat' : '';
             return `<div style="text-align:center">
               <div class="die-pair-label">${label}${isDouble?' ×2':''}</div>
-              ${isMp ? `
+              ${isDef ? `
+                <div style="font-size:1.1rem;color:#555;padding:8px 0">🛡️</div>
+                <div style="font-size:0.6rem;color:#555;line-height:1.4">From<br>equipment</div>
+              ` : isMp ? `
                 <div style="font-size:1rem;color:#7a9aba;padding:8px 0">💙</div>
                 <div style="font-size:0.65rem;color:#555;line-height:1.4">From class<br>+ collar</div>
               ` : `
@@ -5034,7 +5038,7 @@ function renderHeroRollModal() {
                 </div>
                 <button onclick="rerollDiePair('${k}')" style="background:#0d1420;border:1px solid #2a3050;color:#4a6a8a;padding:2px 6px;cursor:pointer;border-radius:3px;font-size:0.55rem">↻ reroll</button>
               `}
-              <div class="die-pair-sum ${cls}" id="dsum-${k}">${isDouble && !isMp ? (s[k])+' ×2='+(s[k]) : isMp ? s.mana+' MP' : s[k]}</div>
+              <div class="die-pair-sum ${cls}" id="dsum-${k}">${isDef ? '0' : isDouble ? (s[k])+' ×2='+(s[k]) : isMp ? s.mana+' MP' : s[k]}</div>
             </div>`;
           }).join('')}
         </div>

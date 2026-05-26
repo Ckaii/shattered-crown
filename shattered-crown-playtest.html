@@ -22,7 +22,7 @@ header h1{color:#c9a84c;font-size:1.2rem;letter-spacing:1px}
 .grid{display:grid;grid-template-columns:repeat(10,60px);grid-template-rows:repeat(10,60px);border:2px solid #c9a84c;gap:1px;background:#c9a84c44}
 .cell{width:60px;height:60px;background:#12192a;position:relative;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.1s}
 .cell:hover{background:#1a2540}
-.cell.high-ground{background:#0e1e10}.cell.fire{background:#1f1008}.cell.crack{background:#1a1510}.cell.ledge{background:#080d18}.cell.wall{background:#050508;cursor:not-allowed}
+.cell.high-ground{background:#0e1e10}.cell.fire{background:#1f1008}.cell.crack{background:#1a1510}.cell.ledge{background:#080d18}.cell.wall{background:#050508;cursor:not-allowed}.cell.water{background:#081828;outline:1px solid #2a5a8a}
 .cell.in-range{background:#142414;outline:1px solid #2d6a2d}
 .cell.target-range{background:#241414;outline:1px solid #6a2d2d}
 .cell.atk-range{background:#2a0e0e;outline:2px solid #c04040;cursor:crosshair}
@@ -75,6 +75,7 @@ header h1{color:#c9a84c;font-size:1.2rem;letter-spacing:1px}
 .s-tag.bleeding{background:#5a1010;color:#ffaaaa}.s-tag.burning{background:#5a3010;color:#ffccaa}
 .s-tag.flanked{background:#10305a;color:#aaccff}.s-tag.distrust{background:#30105a;color:#ccaaff}
 .s-tag.rattled{background:#3a3a10;color:#ffeeaa}.s-tag.pinned{background:#103a10;color:#aaffaa}
+.s-tag.wet{background:#082040;color:#60b0ff}
 /* SKILL ROWS ON CARDS */
 .skill-row{display:flex;gap:3px;margin-top:4px;flex-wrap:wrap}
 .skill-pip{font-size:0.58rem;padding:2px 5px;border-radius:3px;border:1px solid #2a3050;color:#8899bb;cursor:pointer;background:#0a1020}
@@ -684,6 +685,7 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
       <button class="t-btn" onclick="setTerrainMode('crack',this)">Cracked Floor</button>
       <button class="t-btn" onclick="setTerrainMode('ledge',this)">Ledge</button>
       <button class="t-btn" onclick="setTerrainMode('wall',this)">&#9632; Wall</button>
+      <button class="t-btn" onclick="setTerrainMode('water',this)">🌊 Water</button>
       <button class="t-btn t-active" style="border-color:#4a8fbf;color:#4a8fbf" onclick="setMode('select',this)" id="selectModeBtn">&#9678; Select/Move</button>
     </div>
     <div class="place-bar" id="placeBar"></div>
@@ -2469,7 +2471,7 @@ function enterClassSkillMode(tokenId) {
 
 function cancelTargetMode() {
   attackMode = false; attackingId = null; skillTargetMode = null;
-  if (mode === 'attack' || mode === 'skill') mode = 'select';
+  if (mode === 'attack' || mode === 'skill' || mode === 'turret') mode = 'select';
   clearHighlights();
 }
 
@@ -2613,6 +2615,44 @@ function cellClick(r, c) {
     placeToken(placeMode.cls, placeMode.side, r, c);
     return;
   }
+  // Turret line-fire mode
+  if (mode === 'turret') {
+    const turret = tokens.find(t=>t.id===attackingId);
+    if (!turret) { cancelTargetMode(); setMode('select', document.getElementById('selectModeBtn')); return; }
+    // Determine direction: must be same row or column
+    if (r !== turret.row && c !== turret.col) {
+      log('Turret can only fire in straight N/S/E/W lines!', 'miss');
+      return;
+    }
+    // Find all tokens in that line (same row or col) in the direction clicked
+    let lineTokens = [];
+    if (r === turret.row) {
+      const dc = Math.sign(c - turret.col);
+      for (let tc = turret.col + dc; tc >= 0 && tc < GRID_SIZE; tc += dc) {
+        if (terrain[turret.row][tc] === 'wall') break;
+        const hit = tokens.find(t=>!t.dead && t.row===turret.row && t.col===tc);
+        if (hit) lineTokens.push(hit);
+      }
+    } else {
+      const dr = Math.sign(r - turret.row);
+      for (let tr = turret.row + dr; tr >= 0 && tr < GRID_SIZE; tr += dr) {
+        if (terrain[tr][turret.col] === 'wall') break;
+        const hit = tokens.find(t=>!t.dead && t.row===tr && t.col===turret.col);
+        if (hit) lineTokens.push(hit);
+      }
+    }
+    lineTokens.forEach(t => {
+      t.hp = Math.max(0, t.hp - turret.atk);
+      spawnFloat(t.row, t.col, `-${turret.atk}(turret)`, 'fdmg-crit');
+      log(`🔫 Turret LINE FIRE hits ${t.name} for ${turret.atk} damage!`, 'hit');
+      checkDeath(t);
+    });
+    turret.actions = false;
+    fxBlast(turret.row, turret.col, '🔫');
+    cancelTargetMode(); setMode('select', document.getElementById('selectModeBtn'));
+    detectFlanking(); renderAll();
+    return;
+  }
   if (mode === 'attack') {
     // Check if clicking on a corpse — attacking a corpse clears it
     const corpse = tokens.find(t=>t.row===r&&t.col===c&&t.dead);
@@ -2688,8 +2728,14 @@ function cellClick(r, c) {
       if (dist <= sel.speed) {
         log(`${sel.name} moves ${coord(sel.row,sel.col)} -> ${coord(r,c)} (${dist}/${sel.speed})`,'sys');
         sel.facing = getFacing(sel.row, sel.col, r, c);
+        const oldR = sel.row, oldC = sel.col;
         sel.row = r; sel.col = c;
         sel.moved = true; // lock further movement
+        // Remove wet if leaving water
+        if (terrain[oldR][oldC]==='water' && terrain[r][c]!=='water') {
+          sel.statuses = sel.statuses.filter(s=>s!=='wet');
+          log(`${sel.name} leaves the water.`, 'sys');
+        }
         triggerTerrainEffect(sel, r, c);
         detectFlanking(); renderAll(); clearHighlights();
         // Re-show range to display current state (movement hidden, attack range only)
@@ -2749,6 +2795,9 @@ function triggerTerrainEffect(tok, r, c) {
     } else {
       log(`${tok.name} crosses cracked floor safely. (roll ${roll}, need 16+)`, 'sys');
     }
+  } else if (t === 'water') {
+    if (!tok.statuses.includes('wet')) tok.statuses.push('wet');
+    log(`${tok.name} wades into water.`, 'sys');
   }
 }
 
@@ -2920,6 +2969,18 @@ function renderBarracks() {
 function resolveAttack(attacker, target) {
   if (!attacker.actions) { log(`${attacker.name} has no Action left.`, 'miss'); return; }
   window._lastAttacker = attacker;
+
+  // Sneak: target dodge check (25% dodge if target is sneaking)
+  if (target.sneaking) {
+    if (Math.random() < 0.25) {
+      log(`${target.name} DODGES from stealth!`, 'miss');
+      spawnFloat(target.row, target.col, 'DODGE!', 'fdmg-miss');
+      target.sneaking = false;
+      return;
+    }
+    target.sneaking = false;
+  }
+
   // Sprite animation: lunge toward target
   const sprAtt = spriteFor(attacker.class);
   spriteAnim(attacker.id, 'attacking');
@@ -2981,6 +3042,8 @@ function resolveAttack(attacker, target) {
     dmg = atk * 2;
     // Rogue sneak attack on crit flanked
     if (attacker.class==='Rogue' && target.statuses.includes('flanked')) dmg += Math.floor(Math.random()*6)+1;
+    // Sneak attacker bonus: +10% damage (round up)
+    if (attacker.sneaking) dmg = Math.ceil(dmg * 1.1);
     target.hp = Math.max(0, target.hp - dmg);
     statsRecordDamage(attacker, target, dmg);
     resultType = 'crit';
@@ -2998,6 +3061,8 @@ function resolveAttack(attacker, target) {
       dmg += bonus;
       log(`${attacker.name} Sneak Attack! +${bonus} bonus damage.`,'skill');
     }
+    // Sneak attacker bonus: +10% damage (round up)
+    if (attacker.sneaking) dmg = Math.ceil(dmg * 1.1);
     target.hp = Math.max(0, target.hp - dmg);
     statsRecordDamage(attacker, target, dmg);
     resultType = 'hit';
@@ -3015,10 +3080,42 @@ function resolveAttack(attacker, target) {
     log(`${attacker.name} misses ${target.name}. Roll ${raw}${advStr}+${atk}=${total} vs DEF${target.def}.`, 'miss');
   }
 
+  // Clear attacker sneak after attacking
+  if (attacker.sneaking) attacker.sneaking = false;
+
   // Mark action used
   attacker.actions = false;
   // Set facing direction toward target
   attacker.facing = getFacing(attacker.row, attacker.col, target.row, target.col);
+
+  // Goblin Pack Attack
+  const packClasses = ['Goblin','Ranged Goblin','Spear Goblin','Mage Goblin','Goblin King','Orc'];
+  if (packClasses.includes(attacker.class) && (resultType==='hit' || resultType==='crit')) {
+    window._roundPackAttacks = window._roundPackAttacks || {};
+    window._roundPackAttacks[target.id] = (window._roundPackAttacks[target.id]||0)+1;
+    const count = window._roundPackAttacks[target.id];
+    if (count > 1) {
+      const extraDmg = count - 1;
+      target.hp = Math.max(0, target.hp - extraDmg);
+      spawnFloat(target.row, target.col, `+${extraDmg}(pack)`, 'fdmg-crit');
+      log(`Pack Attack! ${count} goblins — +${extraDmg} damage on ${target.name}!`, 'skill');
+    }
+  }
+
+  // Orc Knockback
+  if (attacker.class === 'Orc' && (resultType==='hit' || resultType==='crit')) {
+    const dr = Math.sign(target.row - attacker.row);
+    const dc = Math.sign(target.col - attacker.col);
+    const nr = target.row + dr;
+    const nc = target.col + dc;
+    if (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE &&
+        terrain[nr][nc] !== 'wall' &&
+        !tokens.find(t=>!t.dead && t.row===nr && t.col===nc)) {
+      target.row = nr; target.col = nc;
+      log(`${target.name} is knocked back by ${attacker.name}!`, 'skill');
+      spawnFloat(target.row, target.col, '← KNOCKBACK', 'fdmg-miss');
+    }
+  }
 
   // Hunter Pinning Shot
   if (attacker.class==='Hunter' && resultType==='hit' && !target.statuses.includes('pinned')) {
@@ -3052,6 +3149,164 @@ function isFlankedBy(target, attacker) {
   const dc = attacker.col - target.col;
   if (Math.abs(dr)+Math.abs(dc) !== 1) return false; // must be adjacent
   return opp.some(o => o.row===target.row-dr && o.col===target.col-dc);
+}
+
+// =============================================================================
+// SNEAK
+// =============================================================================
+function enterSneakMode(id) {
+  const tok = tokens.find(t=>t.id===id); if (!tok) return;
+  if (!enforceTurn(tok)) return;
+  tok.actions = false;
+  tok.sneaking = true;
+  log(`${tok.name} slips into the shadows — sneaking! Next attack may dodge enemy, +10% damage.`, 'skill');
+  spawnFloat(tok.row, tok.col, '🥷 SNEAK', 'fdmg-heal');
+  renderCards();
+}
+
+// =============================================================================
+// TURRET
+// =============================================================================
+function showTurretRange(tok) {
+  clearHighlights();
+  for (let r=0; r<GRID_SIZE; r++) {
+    for (let c=0; c<GRID_SIZE; c++) {
+      if (terrain[r][c]==='wall') continue;
+      if (r===tok.row || c===tok.col) {
+        const cell = document.getElementById(`cell-${r}-${c}`);
+        if (cell) cell.classList.add('atk-range');
+      }
+    }
+  }
+}
+
+function enterTurretMode(tok) {
+  cancelTargetMode();
+  if (!tok.actions) { log(`${tok.name} has no action.`, 'miss'); return; }
+  if (!enforceTurn(tok)) return;
+  attackMode = true; attackingId = tok.id;
+  mode = 'turret';
+  document.getElementById('modeLabel').textContent = `[TURRET] ${tok.name}: Click a target in same row/column — pierces all in line`;
+  showTurretRange(tok);
+  renderCards();
+}
+
+function enterAttackModeTurret(id) {
+  const tok = tokens.find(t=>t.id===id); if (!tok) return;
+  if (tok.class === 'Turret') { enterTurretMode(tok); return; }
+  enterAttackMode(id);
+}
+
+// =============================================================================
+// GOBLIN KING RALLY
+// =============================================================================
+function goblinKingRally(id) {
+  const king = tokens.find(t=>t.id===id); if (!king) return;
+  const goblinClasses = ['Goblin','Ranged Goblin','Spear Goblin','Mage Goblin','Orc'];
+  const rallied = tokens.filter(t=>!t.dead && t.side===king.side && goblinClasses.includes(t.class));
+  rallied.forEach(t => { t.actions = true; });
+  log(`👑 Goblin King rallies the horde! ${rallied.length} goblin(s) may attack again.`, 'skill');
+  fxBlast(king.row, king.col, '👑');
+  renderCards();
+}
+
+// =============================================================================
+// ALDRIC BOSS ABILITIES
+// =============================================================================
+function aldricPullAll(id) {
+  const aldric = tokens.find(t=>t.id===id); if (!aldric) return;
+  const enemies = tokens.filter(t=>!t.dead && t.side!==aldric.side);
+  enemies.forEach(t => {
+    const dr = Math.sign(aldric.row - t.row);
+    const dc = Math.sign(aldric.col - t.col);
+    if (dr===0 && dc===0) return; // same cell
+    const nr = t.row + dr;
+    const nc = t.col + dc;
+    if (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE &&
+        terrain[nr][nc] !== 'wall' &&
+        !tokens.find(x=>!x.dead && x.row===nr && x.col===nc && x.id!==t.id)) {
+      t.row = nr; t.col = nc;
+      log(`${t.name} is pulled 1 step toward ${aldric.name}.`, 'skill');
+    }
+  });
+  fxBlast(aldric.row, aldric.col, '🌀');
+  detectFlanking(); renderAll();
+}
+
+function aldricSpinAttack(id) {
+  const aldric = tokens.find(t=>t.id===id); if (!aldric) return;
+  const enemies = tokens.filter(t=>!t.dead && t.side!==aldric.side);
+  enemies.forEach(t => {
+    const dist = Math.abs(t.row - aldric.row) + Math.abs(t.col - aldric.col);
+    if (dist === 1) {
+      // Direct adjacency: ATK damage + knockback 2
+      t.hp = Math.max(0, t.hp - aldric.atk);
+      spawnFloat(t.row, t.col, `-${aldric.atk}`, 'fdmg-crit');
+      log(`⚡ Aldric SPIN hits ${t.name} for ${aldric.atk} damage!`, 'crit');
+      const dr = Math.sign(t.row - aldric.row);
+      const dc = Math.sign(t.col - aldric.col);
+      for (let i=0; i<2; i++) {
+        const nr = t.row + dr;
+        const nc = t.col + dc;
+        if (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE &&
+            terrain[nr][nc] !== 'wall' &&
+            !tokens.find(x=>!x.dead && x.row===nr && x.col===nc)) {
+          t.row = nr; t.col = nc;
+        }
+      }
+      checkDeath(t);
+    } else if (dist === 2) {
+      // Distance 2: 5 damage
+      t.hp = Math.max(0, t.hp - 5);
+      spawnFloat(t.row, t.col, `-5(spin)`, 'fdmg-hit');
+      log(`⚡ Aldric SPIN shockwave hits ${t.name} for 5 damage!`, 'hit');
+      checkDeath(t);
+    }
+  });
+  fxBlast(aldric.row, aldric.col, '⚡');
+  detectFlanking(); renderAll();
+}
+
+// =============================================================================
+// ELECTRIC EEL ZONE ATTACK
+// =============================================================================
+function getConnectedWater(r0, c0) {
+  const visited = new Set();
+  const queue = [[r0, c0]];
+  const result = [];
+  while (queue.length) {
+    const [r, c] = queue.shift();
+    const key = r+','+c;
+    if (visited.has(key)) continue;
+    visited.add(key);
+    if (terrain[r][c] !== 'water') continue;
+    result.push([r, c]);
+    for (const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+      const nr=r+dr, nc=c+dc;
+      if (nr>=0&&nr<GRID_SIZE&&nc>=0&&nc<GRID_SIZE&&!visited.has(nr+','+nc)&&terrain[nr][nc]==='water')
+        queue.push([nr,nc]);
+    }
+  }
+  return result;
+}
+
+function electricEelZoneAttack(id) {
+  const eel = tokens.find(t=>t.id===id); if (!eel) return;
+  if (terrain[eel.row][eel.col] !== 'water') {
+    log(`${eel.name} must be in water to use Electric Surge!`, 'miss'); return;
+  }
+  const waterCells = getConnectedWater(eel.row, eel.col);
+  const waterSet = new Set(waterCells.map(([r,c])=>r+','+c));
+  const victims = tokens.filter(t=>!t.dead && t.side!==eel.side && waterSet.has(t.row+','+t.col));
+  if (!victims.length) { log(`${eel.name} zaps the water — no enemies in range!`, 'sys'); return; }
+  victims.forEach(t => {
+    t.hp = Math.max(0, t.hp - eel.atk);
+    spawnFloat(t.row, t.col, `⚡-${eel.atk}`, 'fdmg-crit');
+    log(`⚡ ${t.name} is electrocuted in the water! -${eel.atk} damage.`, 'hit');
+    checkDeath(t);
+  });
+  fxBlast(eel.row, eel.col, '⚡');
+  detectFlanking(); renderAll();
 }
 
 // =============================================================================
@@ -3128,7 +3383,8 @@ function _executeEffect(sk, user, target) {
     }
     case 'heal': {
       const t = target || user;
-      const h = Math.floor(Math.random()*v)+1;
+      const healVal = user.class === 'Healer' ? user.atk : (v || 1);
+      const h = Math.floor(Math.random()*healVal)+1;
       const actualHeal = Math.min(t.maxHp - t.hp, h);
       t.hp = Math.min(t.maxHp, t.hp + h);
       statsRecordHeal(user, actualHeal);
@@ -3543,7 +3799,7 @@ function cardHTML(tok) {
   const bc = pct>0.5?'#2d7a2d':pct>0.25?'#c9a84c':'#8b1a1a';
   const sel = tok.id===selectedId;
   const isAtking = attackMode && attackingId===tok.id;
-  const statuses = ['bleeding','burning','flanked','distrust','rattled','pinned'];
+  const statuses = ['bleeding','burning','flanked','distrust','rattled','pinned','wet'];
   const statusHTML = statuses.map(s=>`<span class="s-tag ${s}" style="${tok.statuses.includes(s)?'':'opacity:0.2'}"
     onclick="event.stopPropagation();toggleStatus(${tok.id},'${s}')">${s}</span>`).join('');
 
@@ -3591,7 +3847,11 @@ function cardHTML(tok) {
       <button class="mini-btn" onclick="event.stopPropagation();changeHp(${tok.id},1)">+1</button>
     </div>
     ${!tok.dead?`<div class="ctrl-row" style="margin-top:3px">
-      <button class="mini-btn atk-btn ${isAtking?'active':''}" onclick="event.stopPropagation();enterAttackMode(${tok.id})">&#9876; ATTACK</button>
+      <button class="mini-btn atk-btn ${isAtking?'active':''}" onclick="event.stopPropagation();${tok.class==='Turret'?`enterTurretMode(tokens.find(t=>t.id===${tok.id}))`:`enterAttackMode(${tok.id})`}">&#9876; ATTACK</button>
+      ${tok.side==='ally'&&!tok.dead?`<button class="mini-btn" style="border-color:#4a4a8a;color:#8a8acf;font-size:0.55rem" onclick="event.stopPropagation();enterSneakMode(${tok.id})">🥷 SNEAK</button>`:''}
+      ${tok.class==='Goblin King'&&!tok.dead?`<button class="mini-btn" style="border-color:#cf9f20;color:#f0c840;font-size:0.55rem" onclick="event.stopPropagation();goblinKingRally(${tok.id})">👑 RALLY</button>`:''}
+      ${tok.class==='Aldric'&&!tok.dead?`<button class="mini-btn" style="border-color:#5050af;color:#9090df;font-size:0.55rem" onclick="event.stopPropagation();aldricPullAll(${tok.id})">🌀 PULL</button><button class="mini-btn" style="border-color:#af5000;color:#df9000;font-size:0.55rem" onclick="event.stopPropagation();aldricSpinAttack(${tok.id})">⚡ SPIN</button>`:''}
+      ${tok.class==='Electric Eel'&&!tok.dead?`<button class="mini-btn" style="border-color:#dfdf20;color:#ffff60;font-size:0.55rem" onclick="event.stopPropagation();electricEelZoneAttack(${tok.id})">⚡ ZAP</button>`:''}
       ${tok.side==='enemy'&&!tok.dead&&souls>=3?`<button class="mini-btn" style="border-color:#4a8b4a;color:#8abf8a;font-size:0.55rem" onclick="event.stopPropagation();attemptRecruit(${tok.id})">&#9670; Recruit</button>`:''}
     </div>`:''}
     <div class="actions-row">
@@ -3721,6 +3981,13 @@ function applyDmg(id, sign) {
 function checkDeath(tok) {
   if (tok.hp<=0&&!tok.dead) {
     tok.dead = true;
+    // Soul Stealer absorbs essence on every death
+    const ss = tokens.find(t => !t.dead && t.class === 'Soul Stealer');
+    if (ss) {
+      ss.atk += 1; ss.def += 1; ss.maxHp += 1;
+      ss.hp = Math.min(ss.hp + 1, ss.maxHp);
+      log(`💀 Soul Stealer absorbs ${tok.name}'s essence — ATK ${ss.atk}, DEF ${ss.def}, HP ${ss.hp}/${ss.maxHp}.`, 'vision');
+    }
     animToken(tok.id, 'anim-die');
     // Stats: track death + attempt to attribute kill to last attacker
     statsRecordKill(window._lastAttacker, tok);
@@ -4060,6 +4327,8 @@ function nextTurn(){
 function nextRound(){
   round++;document.getElementById('roundNum').textContent=round;
   log(`=== Round ${round} begins ===`,'sys');
+  // Reset pack attack tracker each round
+  window._roundPackAttacks = {};
   tokens.filter(t=>!t.dead&&!t._home).forEach(t=>{
     // Bleed / burn tick
     if(t.statuses.includes('bleeding')){t.hp=Math.max(0,t.hp-1);spawnFloat(t.row,t.col,'-1(bleed)','fdmg-hit');log(`${t.name} bleeds. -1 HP.`,'hit');checkDeath(t);}
@@ -4073,6 +4342,24 @@ function nextRound(){
     Object.keys(t.cooldowns).forEach(k=>{if(t.cooldowns[k]>0){t.cooldowns[k]--;if(t.cooldowns[k]===0)log(`${t.name}: ${k.replace('cls_','').replace('pool_','')} is ready.`,'skill');}});
     // Clear pinned
     t.statuses=t.statuses.filter(s=>s!=='pinned');
+    // Plant growth timer
+    const plantChain = ['Seed','Seedling','Sapling','Tree','Final Tree'];
+    const growthTurns = {Seed:2, Seedling:4, Sapling:10, Tree:20};
+    if (plantChain.includes(t.class) && t.class !== 'Final Tree') {
+      if (t.growthTimer === undefined) t.growthTimer = growthTurns[t.class];
+      t.growthTimer--;
+      log(`🌱 ${t.name} (${t.class}) grows... ${t.growthTimer} rounds left.`, 'sys');
+      if (t.growthTimer <= 0) {
+        const nextClass = plantChain[plantChain.indexOf(t.class)+1];
+        const tmpl = ENEMY_CLASSES.find(e=>e.name===nextClass);
+        if (tmpl) {
+          const old = t.class;
+          Object.assign(t, {class:nextClass, maxHp:tmpl.hp, hp:tmpl.hp, atk:tmpl.atk, def:tmpl.def, speed:tmpl.speed, range:tmpl.range, classSkill:tmpl.classSkill, growthTimer: growthTurns[nextClass]||undefined});
+          log(`🌳 ${t.name} grew from ${old} into ${nextClass}!`, 'skill');
+          fxBlast(t.row, t.col, '🌿');
+        }
+      }
+    }
   });
   resetActions();rebuildTurnOrder();turnIndex=0;detectFlanking();
   renderAll();renderBarracks();
@@ -5805,7 +6092,8 @@ const TERRAIN_INFO = {
   'fire':        {emoji:'🔥', name:'Fire Barrel', short:'1d4 damage on entry', desc:'When a token enters this tile, it takes 1d4 fire damage immediately. Triggers each time entered.', example:'Varn walks into the barrel — roll 1d4. On a 3, he takes 3 fire damage.'},
   'crack':       {emoji:'✱', name:'Cracked Floor', short:'Roll d20: 16-20 = 1d4 damage', desc:'Roll d20 when entering. On 16-20, the floor gives way — token takes 1d4 damage. On 1-15, crosses safely.', example:'Goblin crosses cracked floor. Roll 18 (≥16) — takes 3 damage!'},
   'ledge':       {emoji:'⬇️', name:'Ledge / Drop', short:'Push targets here = 1d6 fall damage', desc:'Tokens pushed onto a Ledge fall to lower level. Takes 1d6 fall damage and is repositioned at the bottom by the GM.', example:'Fighter uses Shield Bash — pushes Goblin onto a Ledge. Roll 1d6 = 4 fall damage.'},
-  'wall':        {emoji:'🟫', name:'Wall', short:'Impassable', desc:'Cannot be entered or moved through. Blocks line-of-sight for ranged attacks.', example:'A pillar in the throne room — ranged shots cannot pass through it.'}
+  'wall':        {emoji:'🟫', name:'Wall', short:'Impassable', desc:'Cannot be entered or moved through. Blocks line-of-sight for ranged attacks.', example:'A pillar in the throne room — ranged shots cannot pass through it.'},
+  'water':       {emoji:'🌊', name:'Water', short:'Electric spreads; Icefish can freeze', desc:'Tokens standing in water can be hit by Electric Eel zone attacks and frozen by Icefish.', example:'Electric Eel activates — all tokens in connected water take damage.'}
 };
 
 // =============================================================================

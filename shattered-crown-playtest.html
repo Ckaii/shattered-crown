@@ -1588,7 +1588,11 @@ function cellClick(r, c) {
         sel.moved = true; // lock further movement
         triggerTerrainEffect(sel, r, c);
         detectFlanking(); renderAll(); clearHighlights();
-        document.getElementById('modeLabel').textContent = `${sel.name} has moved. Use Attack/Skill or End Turn.`;
+        // Re-show range to display current state (movement hidden, attack range only)
+        showMoveRange(sel);
+        const label = sel.actions ? `${sel.name} moved (${dist}/${sel.speed}). Has action remaining — Attack/Skill or End Turn.` : `${sel.name} moved. No action left. Click End Turn.`;
+        document.getElementById('modeLabel').textContent = label;
+        maybeAutoEndTurn(sel);
       } else { log(`${sel.name} can't reach ${coord(r,c)} (${dist} > ${sel.speed})`,'miss'); }
     }
   }
@@ -1897,6 +1901,7 @@ function resolveAttack(attacker, target) {
   checkDeath(target);
   detectFlanking();
   renderAll();
+  maybeAutoEndTurn(attacker);
 }
 
 function isFlankedBy(target, attacker) {
@@ -1925,6 +1930,7 @@ function applySkillEffect(skill, user, target) {
   if (!_executeEffect_override(skill, user, target)) _executeEffect(skill, user, target);
   animCell(target ? target.row : user.row, target ? target.col : user.col, 'anim-skill');
   renderAll();
+  maybeAutoEndTurn(user);
 }
 
 function applyClassSkillEffect(sk, user, target) {
@@ -1939,6 +1945,7 @@ function applyClassSkillEffect(sk, user, target) {
   if (!_executeEffect_override(sk, user, target)) _executeEffect(sk, user, target);
   animCell(target ? target.row : user.row, target ? target.col : user.col, 'anim-skill');
   renderAll();
+  maybeAutoEndTurn(user);
 }
 
 function _executeEffect(sk, user, target) {
@@ -2064,10 +2071,15 @@ function renderGrid() {
         const flk = tok.statuses.includes('flanked')?'<span class="flanked-icon">!</span>':'';
         const sprite = spriteFor(tok.class);
         const hpClass = pct>0.5?'':pct>0.25?'low':'crit';
+        // Action status indicators (move + action remaining)
+        const isCurrentTurn = turnOrder.length > 0 && currentTurnTokenId() === tok.id;
+        const movedMark = tok.moved ? '<span title="Moved" style="position:absolute;bottom:-1px;left:-2px;font-size:0.55rem;background:#1a1a1a;color:#666;border-radius:3px;padding:0 2px;line-height:1">✓M</span>' : '';
+        const actedMark = !tok.actions ? '<span title="Used Action" style="position:absolute;bottom:-1px;left:18px;font-size:0.55rem;background:#1a1a1a;color:#666;border-radius:3px;padding:0 2px;line-height:1">✓A</span>' : '';
+        const turnMark = isCurrentTurn ? '<span title="Current Turn" style="position:absolute;top:-6px;left:-4px;font-size:0.8rem;line-height:1">⏵</span>' : '';
         content += `<div class="token ${tok.side==='ally'?'ally':'enemy-tok'}${sel?' selected-tok':''}" id="tok-${tok.id}"
-          style="border-color:${mode==='attack'&&tok.side!==tokens.find(t=>t.id===attackingId)?.side?'#c04040':sel?'#c9a84c':tok.bcolor};background:${tok.color}"
+          style="border-color:${mode==='attack'&&tok.side!==tokens.find(t=>t.id===attackingId)?.side?'#c04040':sel?'#c9a84c':isCurrentTurn?'#c9a84c':tok.bcolor};background:${tok.color}${tok.moved&&!tok.actions?';filter:grayscale(0.5)':''}"
           onclick="event.stopPropagation();selectToken(${tok.id})">
-          ${flk}
+          ${flk}${turnMark}${movedMark}${actedMark}
           ${sprite.weapon?`<span class="weapon-icon">${sprite.weapon}</span>`:''}
           <span class="sprite-portrait">${sprite.portrait}</span>
           <span class="tok-name" style="font-size:0.48rem">${tok.name}</span>
@@ -2104,13 +2116,15 @@ function selectToken(id) {
 
 function showMoveRange(tok) {
   clearHighlights();
+  // If token has already moved this turn, don't show movement highlights
+  const canMove = !tok.moved;
   for (let r=0;r<GRID_SIZE;r++) for (let c=0;c<GRID_SIZE;c++) {
     if (terrain[r][c]==='wall') continue;
     const dist = Math.abs(tok.row-r)+Math.abs(tok.col-c);
     const cell = document.getElementById(`cell-${r}-${c}`);
     const occ = tokens.find(t=>t.row===r&&t.col===c&&!t.dead&&!t._home&&t.id!==tok.id);
-    if (dist>0&&dist<=tok.speed&&!occ) cell.classList.add('in-range');
-    if (tok.range>1&&dist>0&&dist<=tok.range&&occ&&occ.side!==tok.side) cell.classList.add('target-range');
+    if (canMove && dist>0 && dist<=tok.speed && !occ) cell.classList.add('in-range');
+    if (tok.range>1 && dist>0 && dist<=tok.range && occ && occ.side!==tok.side) cell.classList.add('target-range');
   }
 }
 
@@ -2586,9 +2600,24 @@ function currentTurnTokenId() {
   if (!turnOrder || turnOrder.length === 0) return null;
   return turnOrder[turnIndex]?.id ?? null;
 }
+// If token has used both movement and action, prompt/auto-advance turn (campaign only)
+function maybeAutoEndTurn(tok) {
+  if (!CAMPAIGN.active) return;
+  if (!tok || tok.dead) return;
+  // Only auto-end for the current turn token
+  if (tok.id !== currentTurnTokenId()) return;
+  if (tok.moved && !tok.actions) {
+    log(`${tok.name} has used movement + action. Auto-advancing to next turn in 1s...`, 'sys');
+    setTimeout(() => {
+      // Double-check still current turn (user might have clicked something)
+      if (currentTurnTokenId() === tok.id) nextTurn();
+    }, 1000);
+  }
+}
 function isItMyTurn(tokId) {
-  // In GM Sandbox (no active campaign), allow any token to act
-  if (!CAMPAIGN.active) return true;
+  // If turnOrder is empty (no initiative rolled), allow any token (placement phase)
+  if (!turnOrder || turnOrder.length === 0) return true;
+  // Otherwise: strict turn enforcement in BOTH campaign and sandbox modes
   return tokId === currentTurnTokenId();
 }
 function enforceTurn(tok) {

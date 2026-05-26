@@ -2198,14 +2198,9 @@ function cardHTML(tok) {
       <button class="mini-btn" style="font-size:0.55rem;padding:1px 4px" onclick="event.stopPropagation();changeMana(${tok.id},-1)">-1</button>
       <button class="mini-btn" style="font-size:0.55rem;padding:1px 4px" onclick="event.stopPropagation();changeMana(${tok.id},1)">+1</button>
     </div>
-    <div style="display:flex;gap:3px;font-size:0.55rem;color:#555;margin-top:2px;flex-wrap:wrap">
-      <span title="Strength">STR ${tok.str}</span><span style="color:#2a2f4a">|</span>
-      <span title="Vitality">VIT ${tok.vit}</span><span style="color:#2a2f4a">|</span>
-      <span title="Intelligence">INT ${tok.int}</span><span style="color:#2a2f4a">|</span>
-      <span title="Dexterity">DEX ${tok.dex}</span>
-      <button class="mini-btn" style="font-size:0.5rem;padding:0px 4px;margin-left:4px" onclick="event.stopPropagation();openStatUp(${tok.id})" title="Level up a stat">+STAT</button>
-      ${tok.side==='ally'?`<button class="mini-btn" style="font-size:0.5rem;padding:0px 4px;margin-left:4px;border-color:#4a2a6a;color:#aa88cc" onclick="event.stopPropagation();openAbilityPicker(tokens.find(t=>t.id===${tok.id}))" title="Pick a class ability">+SKILL</button>`:''}
-
+    <div style="display:flex;gap:6px;font-size:0.55rem;color:#888;margin-top:2px;flex-wrap:wrap">
+      <button class="mini-btn" style="font-size:0.5rem;padding:0px 4px" onclick="event.stopPropagation();openStatUp(${tok.id})" title="Level up a stat">+STAT</button>
+      ${tok.side==='ally'?`<button class="mini-btn" style="font-size:0.5rem;padding:0px 4px;border-color:#4a2a6a;color:#aa88cc" onclick="event.stopPropagation();openAbilityPicker(tokens.find(t=>t.id===${tok.id}))" title="Pick a class ability">+SKILL</button>`:''}
     </div>
     <div class="skill-row">${csBtn}${poolSkills}</div>
     <div class="status-row">${statusHTML}</div>
@@ -2333,21 +2328,25 @@ function checkDeath(tok) {
     rebuildTurnOrder();
   }
 }
-// Roguelike: Demon Lord's Sword absorbs dead character's stats — Varn gains a random stat point
+// Roguelike: Demon Lord's Sword absorbs dead character's stats — random HP/ATK/DEF/SPD gain
 function swordStatGain(tok) {
-  const pool = [];
-  for(let i=0;i<tok.str;i++) pool.push('STR');
-  for(let i=0;i<tok.vit;i++) pool.push('VIT');
-  for(let i=0;i<tok.int;i++) pool.push('INT');
-  for(let i=0;i<tok.dex;i++) pool.push('DEX');
-  if(pool.length===0) return;
-  const gained = pool[Math.floor(Math.random()*pool.length)];
+  const choices = ['HP','ATK','DEF','SPD'];
+  const gained = choices[Math.floor(Math.random()*choices.length)];
   log(`&#9876; The Sword absorbs ${tok.name}'s essence. Varn gains +1 ${gained} from the sword.`, 'vision');
-  // Track on window object as persistent Varn stats (paper reference)
-  if(!window.varnStats) window.varnStats={STR:0,VIT:0,INT:0,DEX:0};
+  if(!window.varnStats) window.varnStats={HP:0,ATK:0,DEF:0,SPD:0};
+  if(window.varnStats[gained]===undefined) window.varnStats[gained]=0;
   window.varnStats[gained]++;
   const vs=window.varnStats;
-  log(`Varn's sword-gains: STR+${vs.STR} VIT+${vs.VIT} INT+${vs.INT} DEX+${vs.DEX}`, 'vision');
+  log(`Varn's sword-gains: HP+${vs.HP||0} ATK+${vs.ATK||0} DEF+${vs.DEF||0} SPD+${vs.SPD||0}`, 'vision');
+  // Apply to Varn if in party
+  const varn = CAMPAIGN.active ? CAMPAIGN.heroes.find(h => h.name === 'Varn' || (CAMPAIGN.heroes[0] && h === CAMPAIGN.heroes[0])) : null;
+  if (varn && varn.baseStats) {
+    if (gained==='HP')  varn.baseStats.hp += 1;
+    if (gained==='ATK') varn.baseStats.atk += 1;
+    if (gained==='DEF') varn.baseStats.def += 1;
+    if (gained==='SPD') varn.baseStats.speed += 1;
+    recalcHeroStats(varn);
+  }
 }
 function toggleAction(id, type) {
   const tok = tokens.find(t=>t.id===id); if(!tok) return;
@@ -2625,21 +2624,23 @@ function changeMana(id, delta) {
   renderCards();
 }
 
-// STAT UP (threshold ability unlock — manual GM prompt)
+// STAT UP — GM gives a stat point manually
 function openStatUp(id) {
   const tok=tokens.find(t=>t.id===id); if(!tok) return;
-  const stat=prompt(`Increase which stat for ${tok.name}?\nSTR / VIT / INT / DEX`,'STR');
+  const stat=prompt(`Increase which stat for ${tok.name}?\nHP / ATK / DEF / SPD / MP`,'HP');
   if(!stat) return;
   const s=stat.toUpperCase().trim();
-  if(!['STR','VIT','INT','DEX'].includes(s)){alert('Invalid stat.');return;}
-  tok[s.toLowerCase()]++;
-  // Apply mechanical effect of stat gain
-  if(s==='VIT'){tok.maxHp+=2;tok.hp=Math.min(tok.hp+2,tok.maxHp);log(`${tok.name} VIT+1 → maxHP+2 (${tok.hp}/${tok.maxHp}).`,'skill');}
-  else if(s==='STR'){log(`${tok.name} STR+1 (physical damage bonus applies on GM discretion).`,'skill');}
-  else if(s==='INT'){tok.maxMana+=1;tok.mana=Math.min(tok.mana+1,tok.maxMana);log(`${tok.name} INT+1 → maxMP+1 (${tok.mana}/${tok.maxMana}).`,'skill');}
-  else if(s==='DEX'){log(`${tok.name} DEX+1 (speed/crit applies on GM discretion).`,'skill');}
-  // Threshold check for ability unlock
-  checkStatThreshold(tok, s.toLowerCase());
+  if(!['HP','ATK','DEF','SPD','MP'].includes(s)){alert('Invalid stat. Choose HP / ATK / DEF / SPD / MP.');return;}
+  if(s==='HP'){ tok.maxHp+=2; tok.hp=Math.min(tok.hp+2,tok.maxHp); log(`${tok.name} +2 max HP (${tok.hp}/${tok.maxHp}).`,'skill'); }
+  else if(s==='ATK'){ tok.atk+=1; log(`${tok.name} +1 ATK (now ${tok.atk}).`,'skill'); }
+  else if(s==='DEF'){ tok.def+=1; log(`${tok.name} +1 DEF (now ${tok.def}).`,'skill'); }
+  else if(s==='SPD'){ tok.speed+=1; log(`${tok.name} +1 SPD (now ${tok.speed}).`,'skill'); }
+  else if(s==='MP'){ tok.maxMana+=1; tok.mana=Math.min(tok.mana+1,tok.maxMana); log(`${tok.name} +1 max MP (${tok.mana}/${tok.maxMana}).`,'skill'); }
+  // Also sync to baseStats if this is a campaign hero
+  if (tok._campaignRef && tok._campaignRef.baseStats) {
+    const b = tok._campaignRef.baseStats;
+    if(s==='HP') b.hp+=2; else if(s==='ATK') b.atk+=1; else if(s==='DEF') b.def+=1; else if(s==='SPD') b.speed+=1; else if(s==='MP') b.maxMana+=1;
+  }
   renderAll();
 }
 
@@ -3469,20 +3470,6 @@ function renderHeroRollModal() {
           </div>
         </div>
 
-        <div style="margin:14px 0 6px 0;color:#dfaf3a;font-size:0.75rem;letter-spacing:1px;display:flex;justify-content:space-between;align-items:center">
-          <span>🎲 CORE STATS (1-6)</span>
-          <span style="color:#666;font-size:0.65rem">3d6 drop low ÷ 2</span>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:#0a0f1c;padding:10px;border-radius:4px">
-          ${['str','vit','int','dex'].map(k => `
-            <div style="text-align:center">
-              <div style="color:#888;font-size:0.6rem;letter-spacing:1px">${k.toUpperCase()}</div>
-              <input type="number" min="1" max="6" value="${s[k]}" id="core-${k}" oninput="window._rollState.${k}=parseInt(this.value)||1"
-                style="background:#1a1f2c;border:1px solid #2a3050;color:#c9a84c;font-size:0.95rem;font-weight:bold;text-align:center;padding:4px;border-radius:3px;width:48px"/>
-              <button onclick="rollCoreStat('${k}')" style="display:block;margin:3px auto 0;background:#1a1f3c;border:1px solid #4a8fbf;color:#4a8fbf;padding:2px 6px;cursor:pointer;border-radius:3px;font-size:0.6rem">🎲</button>
-            </div>`).join('')}
-        </div>
-
         <div style="margin-top:14px;color:#dfaf3a;font-size:0.75rem;letter-spacing:1px">⭐ TRAIT (optional)</div>
         <div id="heroTraitChoices" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
           ${s.choices.map((tr,i)=>`
@@ -3525,7 +3512,6 @@ function rollCoreStat(key) {
 }
 function rollAllStats() {
   [['hp',1,40],['atk',1,12],['def',8,20],['speed',1,6],['mana',0,12]].forEach(([k,min,max]) => rollOneStat(k,min,max));
-  ['str','vit','int','dex'].forEach(k => rollCoreStat(k));
 }
 function rerollHeroName2() {
   const names = NAMES[window._rollState.clsName] || [window._rollState.clsName];
@@ -3619,22 +3605,27 @@ function confirmParty() {
 }
 
 // ----- Level Up after Combat -----
+// Pick 1 random stat from HP/ATK/DEF/SPD/MP. Range only grows via equipment.
 function levelUpHeroes() {
   const survivors = CAMPAIGN.heroes.filter(h => !h.dead);
   if (survivors.length === 0) return;
   const reports = [];
   survivors.forEach(h => {
     h.level = (h.level || 1) + 1;
-    // +1 random core stat
-    const stats = ['str','vit','int','dex'];
-    const pick = stats[Math.floor(Math.random()*stats.length)];
-    h[pick]++;
-    // Stat-driven bonus
-    let bonus = '';
-    if (pick === 'str')      { h.atk++; bonus = '+1 ATK'; }
-    else if (pick === 'vit') { h.maxHp += 2; h.hp = Math.min(h.maxHp, h.hp+2); bonus = '+2 HP'; }
-    else if (pick === 'int') { h.maxMana++; h.mana = Math.min(h.maxMana, h.mana+1); bonus = '+1 MP'; }
-    else if (pick === 'dex') { if (Math.random()<0.5) { h.def++; bonus = '+1 DEF'; } else { h.speed++; bonus = '+1 SPD'; } }
+    // Pick a random stat to bump on baseStats so equipment recalc still works
+    const choices = [
+      {key:'hp',      label:'+2 max HP', apply: () => { h.baseStats.hp += 2; }},
+      {key:'atk',     label:'+1 ATK',    apply: () => { h.baseStats.atk += 1; }},
+      {key:'def',     label:'+1 DEF',    apply: () => { h.baseStats.def += 1; }},
+      {key:'speed',   label:'+1 SPD',    apply: () => { h.baseStats.speed += 1; }},
+      {key:'maxMana', label:'+1 max MP', apply: () => { h.baseStats.maxMana += 1; }},
+    ];
+    const pick = choices[Math.floor(Math.random()*choices.length)];
+    pick.apply();
+    recalcHeroStats(h);
+    // Heal a bit on level up
+    h.hp = Math.min(h.maxHp, h.hp + 2);
+    h.mana = Math.min(h.maxMana, h.mana + 1);
     // Learn a new skill from class pool if slot empty
     const pool = CLASS_SKILL_POOLS[h.class] || [];
     const knownNames = (h.skills||[]).filter(Boolean).map(s=>s.name);
@@ -3647,7 +3638,7 @@ function levelUpHeroes() {
         h.skills[emptySlot] = learnedSkill;
       }
     }
-    reports.push({hero:h, stat:pick.toUpperCase(), bonus, skill: learnedSkill});
+    reports.push({hero:h, statLabel: pick.label, skill: learnedSkill});
   });
   return reports;
 }
@@ -3657,7 +3648,7 @@ function showLevelUpModal(reports, onClose) {
     <div style="background:#0d1420;border:1px solid #c9a84c;border-radius:6px;padding:10px;margin:6px 0">
       <div style="color:#c9a84c;font-weight:bold">${r.hero.name} <span style="color:#888;font-size:0.8rem">(${r.hero.class}) → Lv ${r.hero.level}</span></div>
       <div style="font-size:0.8rem;color:#aaa;margin-top:4px">
-        <span style="color:#dfaf3a">+1 ${r.stat}</span> · <span style="color:#7fb87f">${r.bonus}</span>
+        <span style="color:#7fb87f">${r.statLabel}</span>
         ${r.skill ? `<br><span style="color:#9f7fdf">&#10010; Learned: <strong>${r.skill.name}</strong></span><br><span style="font-size:0.7rem;color:#888;font-style:italic">${r.skill.desc}</span>` : ''}
       </div>
     </div>`).join('');
@@ -4814,16 +4805,6 @@ function renderCharDetail(tokId) {
         <div class="cd-stat"><span class="label">RNG</span><span class="val">${tok.range}</span></div>
         <div class="cd-stat"><span class="label">REGEN</span><span class="val" style="color:#9f7fdf">+${tok.manaRegen||0}</span></div>
         <div class="cd-stat"><span class="label">ACT</span><span class="val">${tok.actions?'✓':'✗'}</span></div>
-      </div>
-    </div>
-
-    <div class="cd-section">
-      <h3>Core Stats</h3>
-      <div class="cd-stats">
-        <div class="cd-stat"><span class="label">STR</span><span class="val">${tok.str||1}</span></div>
-        <div class="cd-stat"><span class="label">VIT</span><span class="val">${tok.vit||1}</span></div>
-        <div class="cd-stat"><span class="label">INT</span><span class="val">${tok.int||1}</span></div>
-        <div class="cd-stat"><span class="label">DEX</span><span class="val">${tok.dex||1}</span></div>
       </div>
     </div>
 

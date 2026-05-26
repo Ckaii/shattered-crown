@@ -2148,6 +2148,15 @@ const CLASS_SKILL_POOLS = {
   ],
 };
 
+// Class-specific collars — automatically applied on character creation (replaces generic traits)
+const CLASS_COLLARS = {
+  Fighter: { name:'Iron Collar',    stats:'+2 DEF, +2 HP',       desc:'Battle-hardened. Stood when others fled.',          apply: h => { h.def+=2; h.maxHp+=2; h.hp+=2; if(h.baseStats){h.baseStats.def+=2;h.baseStats.hp+=2;} } },
+  Rogue:   { name:'Shadow Collar',  stats:'+1 SPD, +1 ATK',      desc:'Fluid as smoke. Strikes when least expected.',       apply: h => { h.speed+=1; h.atk+=1;   if(h.baseStats){h.baseStats.speed+=1;h.baseStats.atk+=1;} } },
+  Ranger:  { name:"Hunter's Collar",stats:'+1 RNG, +1 SPD',      desc:'Patient. Deadly at distance.',                       apply: h => { h.range+=1; h.speed+=1;  if(h.baseStats){h.baseStats.range=(h.baseStats.range||1)+1;h.baseStats.speed+=1;} } },
+  Cleric:  { name:'Holy Collar',    stats:'+2 MP, +1 MP regen',  desc:'Faith sustains them. Light in the dark.',            apply: h => { h.maxMana+=2; h.mana+=2; h.manaRegen+=1; if(h.baseStats){h.baseStats.maxMana+=2;h.baseStats.manaRegen+=1;} } },
+  Wizard:  { name:'Arcane Collar',  stats:'+3 MP, +1 MP regen',  desc:'Power flows through practised hands.',               apply: h => { h.maxMana+=3; h.mana+=3; h.manaRegen+=1; if(h.baseStats){h.baseStats.maxMana+=3;h.baseStats.manaRegen+=1;} } },
+};
+
 const TRAITS = [
   {name:'Brave',     stats:'+1 ATK',            desc:'Immune to morale breaks. Attacks never suffer Disadvantage from low Trust.', apply:t=>{t.atk+=1; t.moralImmune=true;}},
   {name:'Reckless',  stats:'+2 ATK, -2 DEF',    desc:'Hits hard, guards poorly. High-risk striker.', apply:t=>{t.atk+=2; t.def-=2;}},
@@ -2647,6 +2656,7 @@ function cellClick(r, c) {
       if (corpseBlock) { log(`${sel.name} can't move there — ${corpseBlock.name}'s body blocks the path. Use Attack mode and click the body to clear it.`,'miss'); return; }
       if (dist <= sel.speed) {
         log(`${sel.name} moves ${coord(sel.row,sel.col)} -> ${coord(r,c)} (${dist}/${sel.speed})`,'sys');
+        sel.facing = getFacing(sel.row, sel.col, r, c);
         sel.row = r; sel.col = c;
         sel.moved = true; // lock further movement
         triggerTerrainEffect(sel, r, c);
@@ -2977,6 +2987,8 @@ function resolveAttack(attacker, target) {
 
   // Mark action used
   attacker.actions = false;
+  // Set facing direction toward target
+  attacker.facing = getFacing(attacker.row, attacker.col, target.row, target.col);
 
   // Hunter Pinning Shot
   if (attacker.class==='Hunter' && resultType==='hit' && !target.statuses.includes('pinned')) {
@@ -2988,6 +3000,19 @@ function resolveAttack(attacker, target) {
   detectFlanking();
   renderAll();
   maybeAutoEndTurn(attacker);
+}
+
+function getFacing(r1, c1, r2, c2) {
+  const dr = r2 - r1, dc = c2 - c1;
+  if (dr === 0 && dc > 0) return '→';
+  if (dr === 0 && dc < 0) return '←';
+  if (dr < 0 && dc === 0) return '↑';
+  if (dr > 0 && dc === 0) return '↓';
+  if (dr < 0 && dc > 0) return '↗';
+  if (dr < 0 && dc < 0) return '↖';
+  if (dr > 0 && dc > 0) return '↘';
+  if (dr > 0 && dc < 0) return '↙';
+  return '→';
 }
 
 function isFlankedBy(target, attacker) {
@@ -3162,11 +3187,12 @@ function renderGrid() {
         const movedMark = tok.moved ? '<span title="Moved" style="position:absolute;bottom:-1px;left:-2px;font-size:0.55rem;background:#1a1a1a;color:#666;border-radius:3px;padding:0 2px;line-height:1">✓M</span>' : '';
         const actedMark = !tok.actions ? '<span title="Used Action" style="position:absolute;bottom:-1px;left:18px;font-size:0.55rem;background:#1a1a1a;color:#666;border-radius:3px;padding:0 2px;line-height:1">✓A</span>' : '';
         const turnMark = isCurrentTurn ? '<span title="Current Turn" style="position:absolute;top:-6px;left:-4px;font-size:0.8rem;line-height:1">⏵</span>' : '';
+        const facingMark = tok.facing ? `<span title="Facing" style="position:absolute;top:0;right:0;font-size:0.75rem;line-height:1;background:#0a0f1c99;border-radius:2px;padding:0 1px">${tok.facing}</span>` : '';
         content += `<div class="token ${tok.side==='ally'?'ally':'enemy-tok'}${sel?' selected-tok':''}" id="tok-${tok.id}"
           style="border-color:${mode==='attack'&&tok.side!==tokens.find(t=>t.id===attackingId)?.side?'#c04040':sel?'#c9a84c':isCurrentTurn?'#c9a84c':tok.bcolor};background:${tok.color}${tok.moved&&!tok.actions?';filter:grayscale(0.5)':''}"
           onclick="event.stopPropagation();selectToken(${tok.id})"
           ondblclick="event.stopPropagation();openGMTokenModal(${tok.id})">
-          ${flk}${turnMark}${movedMark}${actedMark}
+          ${flk}${turnMark}${movedMark}${actedMark}${facingMark}
           ${sprite.weapon?`<span class="weapon-icon">${sprite.weapon}</span>`:''}
           <span class="sprite-portrait">${sprite.portrait}</span>
           <span class="tok-name" style="font-size:0.48rem">${tok.name}</span>
@@ -4741,7 +4767,7 @@ function renderSlotPanel() {
             <span style="font-size:1.5rem">${spr.portrait}</span>
             <div>
               <div style="color:#c9a84c;font-weight:bold;font-size:0.95rem">${s.name}</div>
-              <div style="color:#aaa;font-size:0.7rem">${s.class}${s.trait?` · <em style="color:#dfaf3a">${s.trait.name}</em>`:''}</div>
+              <div style="color:#aaa;font-size:0.7rem">${s.class}${s.collar?` · <em style="color:#7fb87f">🔱 ${s.collar.name}</em>`:''}${s.startingSkill?` · <em style="color:#c9a84c">✨ ${s.startingSkill.name}</em>`:''}</div>
             </div>
           </div>
           ${r ? `<div style="font-size:0.65rem;color:#7a8a9a;background:#0a0f1c;padding:4px 6px;border-radius:3px;margin-top:4px">HP ${r.hp} · ATK ${r.atk} · DEF ${r.def} · SPD ${r.speed} · MP ${r.mana}</div>` : ''}
@@ -4760,10 +4786,10 @@ function editSlot(idx) {
   // Restore previous values
   if (s.rolled) Object.assign(window._rollState, s.rolled);
   window._rollState.name = s.name;
-  if (s.trait) {
-    const ti = window._rollState.choices.findIndex(t=>t.name===s.trait.name);
-    if (ti < 0) window._rollState.choices.unshift(s.trait);
-    window._rollState.traitIdx = window._rollState.choices.findIndex(t=>t.name===s.trait.name);
+  if (s.startingSkill) {
+    const si = window._rollState.skillChoices.findIndex(sk=>sk.name===s.startingSkill.name);
+    if (si < 0) window._rollState.skillChoices.unshift(s.startingSkill);
+    window._rollState.skillIdx = window._rollState.skillChoices.findIndex(sk=>sk.name===s.startingSkill.name);
   }
   renderHeroRollModal();
 }
@@ -4792,17 +4818,18 @@ function openHeroRollModal(clsName, slotIdx) {
   const cls = ALLY_CLASSES.find(c => c.name === clsName);
   const names = NAMES[clsName] || [clsName];
   const rolledName = names[Math.floor(Math.random()*names.length)];
-  const shuffled = [...TRAITS].sort(()=>Math.random()-0.5);
-  const choices = shuffled.slice(0,2);
-  // Stash defaults; user can roll or edit
+  // Pick 2 random skills from class skill pool for player to choose from
+  const classSkills = CLASS_SKILL_POOLS[clsName] || [];
+  const shuffledSkills = [...classSkills].sort(()=>Math.random()-0.5);
+  const skillChoices = shuffledSkills.slice(0, 2);
   window._rollState = {
     clsName, slotIdx,
     name: rolledName,
     str: cls.str, vit: cls.vit, int: cls.int, dex: cls.dex,
     hp: cls.hp, atk: cls.atk, def: cls.def, speed: cls.speed,
     mana: cls.maxMana, manaRegen: cls.manaRegen,
-    traitIdx: null,
-    choices
+    skillIdx: null,
+    skillChoices
   };
   renderHeroRollModal();
 }
@@ -4844,19 +4871,34 @@ function renderHeroRollModal() {
           </div>
         </div>
 
-        <div style="margin-top:14px;color:#dfaf3a;font-size:0.75rem;letter-spacing:1px">⭐ TRAIT (optional)</div>
-        <div id="heroTraitChoices" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
-          ${s.choices.map((tr,i)=>`
-            <div class="trait-card-opt" onclick="window._rollState.traitIdx=${i};renderHeroRollModal()"
-              style="background:${s.traitIdx===i?'#1a1f3c':'#0a0f1c'};border:2px solid ${s.traitIdx===i?'#c9a84c':'#2a3050'};border-radius:6px;padding:8px;cursor:pointer">
-              <div style="color:#c9a84c;font-weight:bold;font-size:0.85rem">${tr.name}</div>
-              <div style="color:#dfaf3a;font-size:0.65rem;margin:2px 0">${tr.stats}</div>
-              <div style="color:#aaa;font-size:0.65rem;line-height:1.3">${tr.desc}</div>
-            </div>`).join('')}
+        <!-- COLLAR: class-specific, auto-applied -->
+        ${(()=>{ const col = CLASS_COLLARS[s.clsName]; return col ? `
+        <div style="margin-top:14px;background:#12201a;border:1px solid #4a8f4a;border-radius:6px;padding:8px">
+          <div style="color:#7fb87f;font-size:0.7rem;letter-spacing:1px;margin-bottom:4px">🔱 CLASS COLLAR — AUTO-APPLIED</div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="color:#9fdf9f;font-weight:bold;font-size:0.9rem">${col.name}</div>
+              <div style="color:#7fb87f;font-size:0.65rem;margin:2px 0">${col.stats}</div>
+              <div style="color:#aaa;font-size:0.65rem">${col.desc}</div>
+            </div>
+            <span style="font-size:1.4rem">🔱</span>
+          </div>
+        </div>` : ''; })()}
+
+        <!-- STARTING SKILL: choose 1 of 2 -->
+        <div style="margin-top:14px;color:#dfaf3a;font-size:0.75rem;letter-spacing:1px">✨ STARTING SKILL <span style="color:#888;font-size:0.65rem;font-weight:normal">(pick 1)</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+          ${s.skillChoices.length > 0 ? s.skillChoices.map((sk,i)=>`
+            <div onclick="window._rollState.skillIdx=${i};renderHeroRollModal()"
+              style="background:${s.skillIdx===i?'#0a1428':'#0a0f1c'};border:2px solid ${s.skillIdx===i?'#c9a84c':'#2a3050'};border-radius:6px;padding:8px;cursor:pointer">
+              <div style="color:#c9a84c;font-weight:bold;font-size:0.85rem">${sk.name}</div>
+              <div style="color:#7a9aba;font-size:0.6rem;margin:2px 0">${sk.manaCost}MP · ${sk.cooldown>0?sk.cooldown+'cd':'no cd'}</div>
+              <div style="color:#aaa;font-size:0.62rem;line-height:1.3">${sk.desc||''}</div>
+            </div>`).join('') : '<div style="color:#555;font-style:italic;font-size:0.75rem;grid-column:span 2">No skills available for this class yet.</div>'}
         </div>
         <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end">
-          <button onclick="window._rollState.traitIdx=null;renderHeroRollModal()" style="background:#0d1420;border:1px solid #888;color:#888;padding:4px 10px;cursor:pointer;border-radius:3px;font-size:0.7rem">No Trait</button>
-          <button onclick="rerollTraits()" style="background:#1a1f3c;border:1px solid #4a8fbf;color:#4a8fbf;padding:4px 10px;cursor:pointer;border-radius:3px;font-size:0.7rem">🎲 Re-roll Traits</button>
+          <button onclick="window._rollState.skillIdx=null;renderHeroRollModal()" style="background:#0d1420;border:1px solid #888;color:#888;padding:4px 10px;cursor:pointer;border-radius:3px;font-size:0.7rem">No Skill</button>
+          <button onclick="rerollSkillChoices()" style="background:#1a1f3c;border:1px solid #4a8fbf;color:#4a8fbf;padding:4px 10px;cursor:pointer;border-radius:3px;font-size:0.7rem">🎲 Re-roll Skills</button>
         </div>
 
         <div style="display:flex;gap:8px;justify-content:center;margin-top:16px;padding-top:12px;border-top:1px solid #2a3050">
@@ -4899,13 +4941,23 @@ function rerollTraits() {
   window._rollState.traitIdx = null;
   renderHeroRollModal();
 }
+function rerollSkillChoices() {
+  const classSkills = CLASS_SKILL_POOLS[window._rollState.clsName] || [];
+  const shuffled = [...classSkills].sort(()=>Math.random()-0.5);
+  window._rollState.skillChoices = shuffled.slice(0, 2);
+  window._rollState.skillIdx = null;
+  renderHeroRollModal();
+}
 function confirmHeroRoll2() {
   const s = window._rollState;
   if (!s) return;
   if (!s.name || s.name.trim()==='') { alert('Hero needs a name.'); return; }
-  const trait = s.traitIdx !== null ? s.choices[s.traitIdx] : null;
+  const startingSkill = s.skillIdx !== null ? s.skillChoices[s.skillIdx] : null;
+  const collar = CLASS_COLLARS[s.clsName] || null;
   _heroSlots[s.slotIdx] = {
-    class: s.clsName, name: s.name.trim(), trait,
+    class: s.clsName, name: s.name.trim(),
+    collar,         // class collar (auto-applied at party confirm)
+    startingSkill,  // chosen from 2 options
     rolled: { hp:s.hp, atk:s.atk, def:s.def, speed:s.speed, mana:s.mana, manaRegen:s.manaRegen,
               str:s.str, vit:s.vit, int:s.int, dex:s.dex }
   };
@@ -4950,9 +5002,15 @@ function confirmParty() {
       equipment: [],
       potions: [],
       level: 1, xp: 0,
-      traitName: slot.trait ? slot.trait.name : null,
+      collarName: slot.collar ? slot.collar.name : null,
     });
-    if (slot.trait) slot.trait.apply(h);
+    // Apply class collar (replaces trait)
+    if (slot.collar) slot.collar.apply(h);
+    // Apply chosen starting skill
+    if (slot.startingSkill) {
+      const sk = new GameSkill(slot.startingSkill);
+      h.skills[0] = sk;
+    }
     const starterId = STARTER_WEAPONS[slot.class];
     if (starterId) h.equipment.push(starterId);
     h.recalcStats();
@@ -5425,9 +5483,18 @@ function renderShopItems(node) {
   const inv = SHOP_INVENTORIES[node.id];
   document.getElementById('shopItems').innerHTML = inv.items.map(it => {
     const tooExpensive = gold < it.cost;
+    const isMpItem = it.type === 'mana' || it.type === 'full-mana';
+    let mpInfoHtml = '';
+    if (isMpItem && CAMPAIGN.heroes && CAMPAIGN.heroes.length > 0) {
+      const mpLines = CAMPAIGN.heroes.filter(h=>!h.dead).map(h=>
+        `<span style="color:${h.mana<h.maxMana?'#ccaaff':'#7fb87f'}">${h.name.split(' ')[0]}: ${h.mana}/${h.maxMana} MP</span>`
+      ).join(' · ');
+      mpInfoHtml = `<div style="font-size:0.6rem;margin-top:4px;padding:3px 5px;background:#0a0a1c;border-radius:3px">💙 ${mpLines}</div>`;
+    }
     return `<div class="shop-item${it._sold?' sold':''}" style="position:relative">
       <div class="si-name">${it.name}</div>
       <div class="si-desc">${it.desc}</div>
+      ${mpInfoHtml}
       <button class="si-buy" ${tooExpensive||it._sold?'disabled':''} onclick="beginPurchase('${it.id}')">${it._sold?'Sold':`Buy — ${it.cost}g`}</button>
     </div>`;
   }).join('');

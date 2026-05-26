@@ -970,6 +970,964 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
 const GRID_SIZE = 10;
 const MAX_SOULS = 20;
 const THRESHOLDS = [3, 7, 12, 20];
+// OOP DATA CLASSES — wrappers over existing data for clean API + future features
+// =============================================================================
+//
+// Design notes:
+// - All classes use Object.assign(this, data) in constructor so existing code
+//   reading `tok.atk` etc. continues working unchanged.
+// - Class methods encapsulate common queries/mutations so new features can
+//   compose them instead of repeating logic.
+// - Token / Hero / Enemy form an inheritance chain; equipment / skills are
+//   value objects with helper methods.
+// - Campaign / Combat / GameMap wrap the game state singletons.
+
+class GameEntity {
+  constructor(data = {}) { Object.assign(this, data); }
+}
+
+class Token extends GameEntity {
+  constructor(data) {
+    super(data);
+    if (this.cooldowns === undefined) this.cooldowns = {};
+    if (this.statuses === undefined) this.statuses = [];
+    if (this.skills === undefined)   this.skills = [null, null];
+    if (this.actions === undefined)  this.actions = true;
+    if (this.dead === undefined)     this.dead = false;
+    if (this.moved === undefined)    this.moved = false;
+  }
+  // ─── Vitals ───────────────────────────────────
+  get hpPct()    { return this.maxHp ? this.hp / this.maxHp : 0; }
+  get manaPct()  { return this.maxMana ? this.mana / this.maxMana : 0; }
+  get isAlive()  { return !this.dead && this.hp > 0; }
+  get isLowHP()  { return this.hpPct < 0.5; }
+  get isCritHP() { return this.hpPct < 0.25; }
+  // ─── Turn / Actions ───────────────────────────
+  canAct()   { return !this.dead && this.actions; }
+  hasMoved() { return !!this.moved; }
+  isMyTurn() { return typeof isItMyTurn === 'function' ? isItMyTurn(this.id) : true; }
+  endTurn()  { this.actions = false; this.moved = true; }
+  // ─── Damage / Healing ─────────────────────────
+  takeDamage(dmg) {
+    const before = this.hp;
+    this.hp = Math.max(0, this.hp - dmg);
+    return before - this.hp;
+  }
+  heal(amt) {
+    const before = this.hp;
+    this.hp = Math.min(this.maxHp, this.hp + amt);
+    return this.hp - before;
+  }
+  // ─── Mana ─────────────────────────────────────
+  canAfford(cost) { return this.mana >= (cost || 0); }
+  spendMana(cost) { this.mana = Math.max(0, this.mana - (cost || 0)); }
+  regenMana()     { this.mana = Math.min(this.maxMana, this.mana + (this.manaRegen || 0)); }
+  // ─── Movement / Targeting ─────────────────────
+  distTo(other)   { return Math.abs(this.row - other.row) + Math.abs(this.col - other.col); }
+  canReach(r, c)  { return (Math.abs(this.row - r) + Math.abs(this.col - c)) <= this.speed; }
+  inRangeOf(target) { return this.distTo(target) <= (this.range || 1); }
+  // ─── Status ───────────────────────────────────
+  hasStatus(s)    { return this.statuses.includes(s); }
+  addStatus(s)    { if (!this.hasStatus(s)) this.statuses.push(s); }
+  removeStatus(s) { this.statuses = this.statuses.filter(x => x !== s); }
+  // ─── Cooldowns ────────────────────────────────
+  isOnCooldown(key) { return (this.cooldowns[key] || 0) > 0; }
+  setCooldown(key, rounds) { if (rounds > 0) this.cooldowns[key] = rounds; }
+  tickCooldowns() {
+    Object.keys(this.cooldowns).forEach(k => { if (this.cooldowns[k] > 0) this.cooldowns[k]--; });
+  }
+}
+
+class Hero extends Token {
+  constructor(data) {
+    super({...data, side: 'ally'});
+    if (this.equipment === undefined) this.equipment = [];
+    if (this.potions === undefined)   this.potions = [];
+    if (this.level === undefined)     this.level = 1;
+    if (this.baseStats === undefined) this.baseStats = this._snapshotStats();
+  }
+  _snapshotStats() {
+    return {
+      hp: this.maxHp, atk: this.atk, def: this.def,
+      speed: this.speed, range: this.range || 1,
+      maxMana: this.maxMana, manaRegen: this.manaRegen
+    };
+  }
+  // ─── Equipment ────────────────────────────────
+  hasEquipped(slot) { return this.equipment.some(id => EQUIPMENT[id]?.slot === slot); }
+  getEquipped(slot) { return this.equipment.map(id => EQUIPMENT[id]).find(it => it?.slot === slot); }
+  recalcStats()     { if (typeof recalcHeroStats === 'function') recalcHeroStats(this); }
+  equipById(itemId) {
+    const idx = CAMPAIGN.heroes.indexOf(this);
+    return idx >= 0 ? equipItem(idx, itemId) : false;
+  }
+  unequipById(itemId) {
+    const idx = CAMPAIGN.heroes.indexOf(this);
+    if (idx >= 0) unequipItem(idx, itemId);
+  }
+  // ─── Potions ──────────────────────────────────
+  givePotion(type) {
+    const existing = this.potions.find(p => p.type === type);
+    if (existing) existing.charges++;
+    else this.potions.push({type, charges: 1});
+  }
+  // ─── Level Up ─────────────────────────────────
+  applyLevelUp() {
+    this.level = (this.level || 1) + 1;
+    const choices = [
+      {label:'+2 HP',  apply: () => { this.baseStats.hp += 2; }},
+      {label:'+1 ATK', apply: () => { this.baseStats.atk += 1; }},
+      {label:'+1 DEF', apply: () => { this.baseStats.def += 1; }},
+      {label:'+1 SPD', apply: () => { this.baseStats.speed += 1; }},
+      {label:'+1 MP',  apply: () => { this.baseStats.maxMana += 1; }},
+    ];
+    const pick = choices[Math.floor(Math.random() * choices.length)];
+    pick.apply();
+    this.recalcStats();
+    return pick.label;
+  }
+}
+
+class Enemy extends Token {
+  constructor(data) { super({...data, side: 'enemy'}); }
+  isBoss() { return this.class === 'Aldric'; }
+}
+
+class EquipmentItem extends GameEntity {
+  constructor(data) { super(data); }
+  canBeUsedBy(className) {
+    if (this.classes === 'all') return true;
+    return Array.isArray(this.classes) && this.classes.includes(className);
+  }
+  sellValue() { return (this.tier + 1) * 8; }
+  statSummary() {
+    return Object.entries(this.stats || {})
+      .map(([k,v]) => `${v >= 0 ? '+' : ''}${v} ${k.toUpperCase()}`)
+      .join(', ');
+  }
+}
+
+class GameSkill extends GameEntity {
+  constructor(data) { super(data); }
+  isPassive()    { return this.targetType === 'passive' || this.effectType === 'passive'; }
+  cooldownKey()  { return this.id ? 'pool_' + this.id : 'cls_' + this.name; }
+  canBeUsedBy(tok) {
+    if (!tok.canAct()) return false;
+    if (tok.mana < (this.manaCost || 0)) return false;
+    if (tok.isOnCooldown(this.cooldownKey())) return false;
+    return true;
+  }
+}
+
+class CampaignManager {
+  constructor() {
+    this.scene = 'title';
+    this.active = false;
+    this.heroes = [];
+    this.currentNode = 0;
+    this.completedNodes = [];
+    this.combatNode = null;
+    this.endingShown = false;
+    this.storage = [];
+    this.runStats = null;
+  }
+  // Convenience getters
+  get livingHeroes() { return this.heroes.filter(h => !h.dead); }
+  get deadHeroes()   { return this.heroes.filter(h => h.dead); }
+  get partySize()    { return this.heroes.length; }
+  get isAtFullParty(){ return this.livingHeroes.length === this.heroes.length; }
+  hasHero(name)      { return this.heroes.some(h => h.name === name); }
+  findHero(name)     { return this.heroes.find(h => h.name === name); }
+  // Storage
+  addToStorage(itemId) { if (!this.storage) this.storage = []; this.storage.push(itemId); }
+  removeFromStorage(itemId) {
+    const i = this.storage.indexOf(itemId);
+    if (i >= 0) this.storage.splice(i, 1);
+  }
+  // Save delegations
+  save()    { saveCampaign(); }
+  load()    { return loadCampaign(); }
+  hasSave() { return hasSave(); }
+  reset()   { abandonRun(); }
+}
+
+class GameMap extends GameEntity {
+  constructor(nodes) { super(); this.nodes = nodes; }
+  getNode(id) { return this.nodes.find(n => n.id === id); }
+  availableFrom(currentId, completedIds = []) {
+    const completed = new Set(completedIds);
+    const cur = this.getNode(currentId);
+    if (!cur) return [];
+    return cur.connects.filter(id => !completed.has(id));
+  }
+  isBossNode(id) { return this.getNode(id)?.type === 'boss'; }
+  isShopNode(id) { return this.getNode(id)?.type === 'shop'; }
+  isCombatNode(id){ return ['combat','boss'].includes(this.getNode(id)?.type); }
+}
+
+class CombatScene extends GameEntity {
+  constructor(node) { super(); this.node = node; this.startedAt = Date.now(); }
+  get isEnded()    { return this.aliveAllies.length === 0 || this.aliveEnemies.length === 0; }
+  get isVictory()  { return this.aliveEnemies.length === 0; }
+  get isDefeat()   { return this.aliveAllies.length === 0; }
+  get aliveAllies(){ return tokens.filter(t => t.side === 'ally' && !t.dead); }
+  get aliveEnemies(){ return tokens.filter(t => t.side === 'enemy' && !t.dead); }
+  get currentTokenId() { return turnOrder[turnIndex]?.id ?? null; }
+}
+
+// Factory: wrap a plain object as the right class based on side
+function makeToken(data) {
+  if (data.side === 'ally')  return new Hero(data);
+  if (data.side === 'enemy') return new Enemy(data);
+  return new Token(data);
+}
+
+// Helper to look up an EquipmentItem instance from id
+function equipmentItem(id) {
+  const data = EQUIPMENT[id];
+  return data ? new EquipmentItem(data) : null;
+}
+
+// =============================================================================
+// EQUIPMENT SYSTEM (weapons, armor, accessories)
+// =============================================================================
+const EQUIPMENT = {
+  // ── TIER 0: Starting weapons (one per class, fixed) ─────────────────────
+  ironSword:    {id:'ironSword',    name:'Iron Sword',    icon:'⚔️',  slot:'weapon',    stats:{atk:1},                          desc:'A simple soldier\'s blade. +1 ATK',                tier:0, classes:['Fighter']},
+  rustyDagger:  {id:'rustyDagger',  name:'Rusty Dagger',  icon:'🗡️',  slot:'weapon',    stats:{atk:0, speed:1},                 desc:'Light and quick. +1 SPD',                          tier:0, classes:['Rogue']},
+  shortBow:     {id:'shortBow',     name:'Short Bow',     icon:'🏹',  slot:'weapon',    stats:{atk:1, range:2},                 desc:'A hunter\'s tool. +1 ATK, +2 RNG (range 3)',       tier:0, classes:['Ranger']},
+  woodMace:     {id:'woodMace',     name:'Wooden Mace',   icon:'🔨',  slot:'weapon',    stats:{atk:0, manaRegen:1},             desc:'Blessed wood. +1 MP regen',                        tier:0, classes:['Cleric']},
+  apprenticeStaff:{id:'apprenticeStaff',name:'Apprentice Staff',icon:'🪄',slot:'weapon',stats:{atk:0, range:1, maxMana:2},      desc:'A novice\'s focus. +1 RNG, +2 max MP',             tier:0, classes:['Wizard','Mage']},
+  warHammer:    {id:'warHammer',    name:'War Hammer',    icon:'🔨',  slot:'weapon',    stats:{atk:2, speed:-1},                desc:'Heavy and brutal. +2 ATK, -1 SPD',                 tier:0, classes:['Tank']},
+
+  // ── TIER 1: Common loot ─────────────────────────────────────────────────
+  longSword:    {id:'longSword',    name:'Long Sword',    icon:'⚔️',  slot:'weapon',    stats:{atk:2},                          desc:'Standard military issue. +2 ATK',                  tier:1, classes:['Fighter','Rogue']},
+  shadowBlade:  {id:'shadowBlade',  name:'Shadow Blade',  icon:'🗡️',  slot:'weapon',    stats:{atk:2, speed:1},                 desc:'Whispers to its wielder. +2 ATK, +1 SPD',          tier:1, classes:['Rogue']},
+  longBow:      {id:'longBow',      name:'Long Bow',      icon:'🏹',  slot:'weapon',    stats:{atk:2, range:3},                 desc:'Reaches further. +2 ATK, +3 RNG (range 4)',        tier:1, classes:['Ranger']},
+  battleStaff:  {id:'battleStaff',  name:'Battle Staff',  icon:'🪄',  slot:'weapon',    stats:{atk:1, range:2, maxMana:3},      desc:'Carved with old runes. +1 ATK, +2 RNG, +3 MP',     tier:1, classes:['Wizard','Mage']},
+  warMace:      {id:'warMace',      name:'War Mace',      icon:'⚒️',  slot:'weapon',    stats:{atk:1, manaRegen:1, maxMana:2},  desc:'Channels divine fury. +1 ATK, +1 regen, +2 MP',    tier:1, classes:['Cleric']},
+  greatHammer:  {id:'greatHammer',  name:'Great Hammer',  icon:'🔨',  slot:'weapon',    stats:{atk:3, def:1, speed:-1},         desc:'Two-handed crusher. +3 ATK, +1 DEF, -1 SPD',       tier:1, classes:['Tank','Fighter']},
+
+  // ── TIER 2: Rare drops ──────────────────────────────────────────────────
+  flameSword:   {id:'flameSword',   name:'Flame Tongue',  icon:'🔥',  slot:'weapon',    stats:{atk:3, range:0},                 desc:'Burns with old magic. +3 ATK, applies Burning (GM)',tier:2, classes:['Fighter','Tank']},
+  voidDagger:   {id:'voidDagger',   name:'Void Fang',     icon:'🗡️',  slot:'weapon',    stats:{atk:3, speed:2},                 desc:'Drinks light. +3 ATK, +2 SPD',                     tier:2, classes:['Rogue']},
+  hunterRifle:  {id:'hunterRifle',  name:'Crossbow',      icon:'🎯',  slot:'weapon',    stats:{atk:3, range:4},                 desc:'Pre-war craftsmanship. +3 ATK, +4 RNG (range 5)',  tier:2, classes:['Ranger']},
+  archStaff:    {id:'archStaff',    name:'Archmage Staff',icon:'🔮',  slot:'weapon',    stats:{atk:2, range:3, maxMana:5, manaRegen:1}, desc:'+2 ATK, +3 RNG, +5 MP, +1 regen',         tier:2, classes:['Wizard','Mage']},
+  holyHammer:   {id:'holyHammer',   name:'Holy Hammer',   icon:'✨',  slot:'weapon',    stats:{atk:2, manaRegen:2, maxMana:3, def:1}, desc:'+2 ATK, +2 regen, +3 MP, +1 DEF',          tier:2, classes:['Cleric']},
+
+  // ── ARMOR (universal) ───────────────────────────────────────────────────
+  leatherArmor: {id:'leatherArmor', name:'Leather Armor', icon:'🦺',  slot:'armor',     stats:{def:2},                          desc:'+2 DEF',                                            tier:0, classes:'all'},
+  chainmail:    {id:'chainmail',    name:'Chainmail',     icon:'⛓️',  slot:'armor',     stats:{def:3, speed:-1},                desc:'+3 DEF, -1 SPD',                                    tier:1, classes:'all'},
+  fullPlate:    {id:'fullPlate',    name:'Full Plate',    icon:'🛡️',  slot:'armor',     stats:{def:5, speed:-2, hp:5},          desc:'+5 DEF, -2 SPD, +5 max HP',                         tier:2, classes:['Fighter','Tank']},
+  mysticRobes:  {id:'mysticRobes',  name:'Mystic Robes',  icon:'🥋',  slot:'armor',     stats:{def:1, maxMana:3, manaRegen:1},  desc:'+1 DEF, +3 MP, +1 regen',                           tier:1, classes:['Wizard','Mage','Cleric']},
+
+  // ── ACCESSORIES (universal) ─────────────────────────────────────────────
+  ringHaste:    {id:'ringHaste',    name:'Ring of Haste', icon:'💍',  slot:'accessory', stats:{speed:1},                        desc:'+1 SPD',                                            tier:1, classes:'all'},
+  vitalAmulet:  {id:'vitalAmulet',  name:'Vital Amulet',  icon:'📿',  slot:'accessory', stats:{hp:5},                           desc:'+5 max HP',                                         tier:1, classes:'all'},
+  warBanner:    {id:'warBanner',    name:'War Banner',    icon:'🚩',  slot:'accessory', stats:{atk:1, def:1},                   desc:'+1 ATK, +1 DEF',                                    tier:2, classes:'all'},
+  manaPendant:  {id:'manaPendant',  name:'Mana Pendant',  icon:'💠',  slot:'accessory', stats:{maxMana:2, manaRegen:1},         desc:'+2 max MP, +1 regen',                               tier:1, classes:'all'},
+
+  // ════════════════ DANIEL'S FULL EQUIPMENT (Skills&Equipment.docx) ════════════════
+  // Main Hand — Cleric/holy
+  wand:           {id:'wand',           name:'Wand',              icon:'🪄', slot:'weapon', stats:{maxMana:1, manaRegen:1},                        desc:'+1 MP, +1 MP regen',                                            tier:0, classes:['Cleric','Wizard']},
+  wandOfLife:     {id:'wandOfLife',     name:'Wand of Life',      icon:'🪄', slot:'weapon', stats:{maxMana:2, manaRegen:1},                        desc:'+2 MP, +1 regen, +25% heal/shield (GM)',                        tier:1, classes:['Cleric']},
+  eternalGrace:   {id:'eternalGrace',   name:'Eternal Grace Wand',icon:'🪄', slot:'weapon', stats:{maxMana:3, manaRegen:2},                        desc:'+3 MP, +2 regen, +50% heal/shield (GM)',                        tier:2, classes:['Cleric']},
+  // Main Hand — Fighter
+  shortSwordD:    {id:'shortSwordD',    name:'Short Sword',       icon:'⚔️', slot:'weapon', stats:{atk:1},                                         desc:'+1 ATK',                                                        tier:0, classes:['Fighter','Rogue']},
+  steelSword:     {id:'steelSword',     name:'Steel Sword',       icon:'⚔️', slot:'weapon', stats:{atk:2, def:1},                                  desc:'+2 ATK, +1 DEF',                                                tier:1, classes:['Fighter']},
+  ironOathblade:  {id:'ironOathblade',  name:'Iron Oathblade',    icon:'⚔️', slot:'weapon', stats:{atk:3, def:2},                                  desc:'+3 ATK, +2 DEF, +1 dmg vs armoured (GM)',                       tier:2, classes:['Fighter']},
+  // Main Hand — Ranger spears
+  huntingSpear:   {id:'huntingSpear',   name:'Hunting Spear',     icon:'🔱', slot:'weapon', stats:{atk:1, range:1},                                desc:'+1 ATK, +1 RNG',                                                tier:0, classes:['Ranger','Fighter']},
+  falconSpear:    {id:'falconSpear',    name:'Falcon Spear',      icon:'🔱', slot:'weapon', stats:{atk:2, range:1},                                desc:'+2 ATK, +1 RNG',                                                tier:1, classes:['Ranger','Fighter']},
+  skypiercer:     {id:'skypiercer',     name:'Skypiercer Spear',  icon:'🔱', slot:'weapon', stats:{atk:3, range:2},                                desc:'+3 ATK, +2 RNG, first atk/combat +1 ATK (GM)',                  tier:2, classes:['Ranger']},
+  // Main Hand — Cleric maces
+  prayerMace:     {id:'prayerMace',     name:'Prayer Mace',       icon:'🔨', slot:'weapon', stats:{atk:1, maxMana:1},                              desc:'+1 ATK, +1 MP',                                                 tier:0, classes:['Cleric']},
+  sacredMace:     {id:'sacredMace',     name:'Sacred Mace',       icon:'🔨', slot:'weapon', stats:{atk:2, manaRegen:1},                            desc:'+2 ATK, +1 MP regen',                                           tier:1, classes:['Cleric']},
+  dawnSaintMace:  {id:'dawnSaintMace',  name:'Dawn Saint Mace',   icon:'🔨', slot:'weapon', stats:{atk:3, maxMana:2},                              desc:'+3 ATK, +2 MP, heal 1 HP on kill (GM)',                         tier:2, classes:['Cleric']},
+  // Main Hand — Wizard wands
+  apprenticeWand: {id:'apprenticeWand', name:'Apprentice Wand',   icon:'🪄', slot:'weapon', stats:{maxMana:2},                                     desc:'+2 MP',                                                         tier:0, classes:['Wizard','Mage']},
+  arcaneWand:     {id:'arcaneWand',     name:'Arcane Wand',       icon:'🪄', slot:'weapon', stats:{maxMana:3, manaRegen:1},                        desc:'+3 MP, +1 regen',                                               tier:1, classes:['Wizard','Mage']},
+  voidStarWand:   {id:'voidStarWand',   name:'Void Star Wand',    icon:'🪄', slot:'weapon', stats:{maxMana:5, manaRegen:2, range:1},               desc:'+5 MP, +2 regen, +1 spell RNG',                                 tier:2, classes:['Wizard']},
+
+  // Off Hand — shields
+  shield:         {id:'shield',         name:'Shield',            icon:'🛡️', slot:'accessory', stats:{def:4},                                      desc:'+4 DEF',                                                        tier:0, classes:'all'},
+  guardianShield: {id:'guardianShield', name:'Guardian Shield',   icon:'🛡️', slot:'accessory', stats:{def:5, hp:1},                                desc:'+5 DEF, +1 HP',                                                 tier:1, classes:'all'},
+  lastStand:      {id:'lastStand',      name:'Last Stand Shield', icon:'🛡️', slot:'accessory', stats:{def:7, hp:2},                                desc:'+7 DEF, +2 HP, once/combat reduce dmg by 2 (GM)',               tier:2, classes:'all'},
+  // Off Hand — Rogue
+  daggerGuard:    {id:'daggerGuard',    name:'Dagger Guard',      icon:'🗡️', slot:'accessory', stats:{atk:1, def:1},                               desc:'+1 ATK, +1 DEF',                                                tier:0, classes:['Rogue']},
+  shadowBuckler:  {id:'shadowBuckler',  name:'Shadow Buckler',    icon:'🗡️', slot:'accessory', stats:{atk:2, def:2},                               desc:'+2 ATK, +2 DEF',                                                tier:1, classes:['Rogue']},
+  nightfang:      {id:'nightfang',      name:'Nightfang Buckler', icon:'🗡️', slot:'accessory', stats:{atk:3, def:3},                               desc:'+3 ATK, +3 DEF, +1 ATK after dodge/move (GM)',                  tier:2, classes:['Rogue']},
+  // Off Hand — Ranger
+  quiver:         {id:'quiver',         name:'Quiver',            icon:'🏹', slot:'accessory', stats:{range:1},                                    desc:'+1 RNG',                                                        tier:0, classes:['Ranger']},
+  reinforcedQuiver:{id:'reinforcedQuiver',name:'Reinforced Quiver',icon:'🏹',slot:'accessory', stats:{range:1, atk:1},                             desc:'+1 RNG, +1 ATK',                                                tier:1, classes:['Ranger']},
+  stormfeather:   {id:'stormfeather',   name:'Stormfeather Quiver',icon:'🏹',slot:'accessory', stats:{range:2, atk:2},                             desc:'+2 RNG, +2 ATK, first ranged atk -1 MP (GM)',                   tier:2, classes:['Ranger']},
+  // Off Hand — Cleric
+  cross:          {id:'cross',          name:'Cross',             icon:'✝️', slot:'accessory', stats:{},                                           desc:'+1 to heal/shield (GM)',                                        tier:0, classes:['Cleric']},
+  holyCross:      {id:'holyCross',      name:'Holy Cross',        icon:'✝️', slot:'accessory', stats:{manaRegen:1},                                desc:'+2 heal/shield, +1 regen',                                      tier:1, classes:['Cleric']},
+  martyrCross:    {id:'martyrCross',    name:'Martyr\'s Cross',   icon:'✝️', slot:'accessory', stats:{manaRegen:2},                                desc:'+3 heal/shield, +2 regen, +1 DEF when healing (GM)',            tier:2, classes:['Cleric']},
+  // Off Hand — Wizard
+  manaCrystal:    {id:'manaCrystal',    name:'Mana Crystal',      icon:'💠', slot:'accessory', stats:{maxMana:5, manaRegen:1},                     desc:'+5 MP, +1 regen',                                               tier:0, classes:['Wizard','Mage','Cleric']},
+  arcaneOrb:      {id:'arcaneOrb',      name:'Arcane Orb',        icon:'🔮', slot:'accessory', stats:{maxMana:6, manaRegen:2},                     desc:'+6 MP, +2 regen',                                               tier:1, classes:['Wizard','Mage']},
+  abyssOrb:       {id:'abyssOrb',       name:'Abyss Orb',         icon:'🔮', slot:'accessory', stats:{maxMana:8, manaRegen:3},                     desc:'+8 MP, +3 regen, once/combat spell -2 MP (GM)',                 tier:2, classes:['Wizard']},
+  tome:           {id:'tome',           name:'Tome',              icon:'📕', slot:'accessory', stats:{},                                           desc:'+2 MP on kill (GM)',                                            tier:0, classes:['Wizard','Mage']},
+  forbiddenTome:  {id:'forbiddenTome',  name:'Forbidden Tome',    icon:'📕', slot:'accessory', stats:{manaRegen:1},                                desc:'+3 MP on kill, +1 regen',                                       tier:1, classes:['Wizard']},
+  ruinTome:       {id:'ruinTome',       name:'Ruin Tome',         icon:'📕', slot:'accessory', stats:{manaRegen:2},                                desc:'+4 MP on kill, +2 regen, +1 spell dmg vs <50% HP (GM)',         tier:2, classes:['Wizard']},
+
+  // Double-Handed — bows
+  bow:            {id:'bow',            name:'Bow',               icon:'🏹', slot:'weapon', stats:{range:3},                                       desc:'+3 RNG',                                                        tier:0, classes:['Ranger']},
+  heavyBow:       {id:'heavyBow',       name:'Heavy Bow',         icon:'🏹', slot:'weapon', stats:{range:4, atk:1},                                desc:'+4 RNG, +1 ATK',                                                tier:1, classes:['Ranger']},
+  moonrendingBow: {id:'moonrendingBow', name:'Moonrending Bow',   icon:'🏹', slot:'weapon', stats:{range:5, atk:2},                                desc:'+5 RNG, +2 ATK, +1 dmg at max range (GM)',                      tier:2, classes:['Ranger']},
+  warHammerD:     {id:'warHammerD',     name:'War Hammer',        icon:'🔨', slot:'weapon', stats:{atk:3},                                         desc:'+3 ATK, knockback 1 on basic atk (GM)',                         tier:1, classes:['Fighter','Tank']},
+  greatAxe:       {id:'greatAxe',       name:'Great Axe',         icon:'🪓', slot:'weapon', stats:{atk:4},                                         desc:'+4 ATK',                                                        tier:1, classes:['Fighter','Tank']},
+  titanbreaker:   {id:'titanbreaker',   name:'Titanbreaker Axe',  icon:'🪓', slot:'weapon', stats:{atk:5},                                         desc:'+5 ATK, cleave 1 dmg to adjacent enemy (GM)',                   tier:2, classes:['Fighter']},
+  rapidFireBow:   {id:'rapidFireBow',   name:'Rapid Fire Bow',    icon:'🏹', slot:'weapon', stats:{atk:-1, range:3, manaRegen:1},                  desc:'-1 ATK, -1 MP cost, +1 regen, +3 RNG',                          tier:1, classes:['Ranger']},
+  stormBow:       {id:'stormBow',       name:'Storm Bow',         icon:'🏹', slot:'weapon', stats:{atk:1, range:4, speed:1},                       desc:'+1 ATK, +4 RNG, +1 SPD',                                        tier:1, classes:['Ranger']},
+  thunderhawk:    {id:'thunderhawk',    name:'Thunderhawk Bow',   icon:'🏹', slot:'weapon', stats:{atk:2, range:5, speed:1},                       desc:'+2 ATK, +5 RNG, +1 SPD, first atk after move +1 ATK (GM)',      tier:2, classes:['Ranger']},
+  staff:          {id:'staff',          name:'Staff',             icon:'🪄', slot:'weapon', stats:{maxMana:4, manaRegen:1},                        desc:'+4 MP, +1 regen',                                               tier:0, classes:['Cleric','Wizard']},
+  holyStaff:      {id:'holyStaff',      name:'Holy Staff',        icon:'🪄', slot:'weapon', stats:{maxMana:5, manaRegen:2},                        desc:'+5 MP, +2 regen, +1 heal/shield (GM)',                          tier:1, classes:['Cleric']},
+  seraphimStaff:  {id:'seraphimStaff',  name:'Seraphim Staff',    icon:'🪄', slot:'weapon', stats:{maxMana:7, manaRegen:2},                        desc:'+7 MP, +2 regen, +2 heal/shield, healing gives +1 DEF (GM)',    tier:2, classes:['Cleric']},
+  arcaneStaff:    {id:'arcaneStaff',    name:'Arcane Staff',      icon:'🪄', slot:'weapon', stats:{maxMana:6, manaRegen:1, range:1},               desc:'+6 MP, +1 regen, +1 RNG',                                       tier:1, classes:['Wizard','Mage']},
+  blackStarStaff: {id:'blackStarStaff', name:'Black Star Staff',  icon:'🪄', slot:'weapon', stats:{maxMana:8, manaRegen:3, range:2},               desc:'+8 MP, +3 regen, +2 RNG, +1 spell dmg (GM)',                    tier:2, classes:['Wizard']},
+
+  // Single-Handed
+  dagger:         {id:'dagger',         name:'Dagger',            icon:'🗡️', slot:'weapon', stats:{atk:1},                                         desc:'+1 ATK',                                                        tier:0, classes:['Rogue']},
+  steelDagger:    {id:'steelDagger',    name:'Steel Dagger',      icon:'🗡️', slot:'weapon', stats:{atk:2},                                         desc:'+2 ATK',                                                        tier:1, classes:['Rogue']},
+  venomedge:      {id:'venomedge',      name:'Venomedge Dagger',  icon:'🗡️', slot:'weapon', stats:{atk:3},                                         desc:'+3 ATK, +1 ATK after moving (GM)',                              tier:2, classes:['Rogue']},
+  swordD:         {id:'swordD',         name:'Sword',             icon:'⚔️', slot:'weapon', stats:{atk:2},                                         desc:'+2 ATK',                                                        tier:0, classes:['Fighter','Rogue']},
+  knightSword:    {id:'knightSword',    name:'Knight Sword',      icon:'⚔️', slot:'weapon', stats:{atk:3, def:1},                                  desc:'+3 ATK, +1 DEF',                                                tier:1, classes:['Fighter']},
+  dragonslayer:   {id:'dragonslayer',   name:'Dragonslayer Sword',icon:'⚔️', slot:'weapon', stats:{atk:4, def:2},                                  desc:'+4 ATK, +2 DEF, +1 vs large enemies (GM)',                      tier:2, classes:['Fighter']},
+  huntingKnife:   {id:'huntingKnife',   name:'Hunting Knife',     icon:'🗡️', slot:'weapon', stats:{atk:1, speed:1},                                desc:'+1 ATK, +1 SPD',                                                tier:0, classes:['Rogue','Ranger']},
+  falconKnife:    {id:'falconKnife',    name:'Falcon Knife',      icon:'🗡️', slot:'weapon', stats:{atk:2, speed:1},                                desc:'+2 ATK, +1 SPD',                                                tier:1, classes:['Rogue','Ranger']},
+  windcutter:     {id:'windcutter',     name:'Windcutter Knife',  icon:'🗡️', slot:'weapon', stats:{atk:3, speed:1, range:1},                       desc:'+3 ATK, +1 SPD, +1 RNG',                                        tier:2, classes:['Rogue','Ranger']},
+  sacredBlade:    {id:'sacredBlade',    name:'Sacred Blade',      icon:'⚔️', slot:'weapon', stats:{atk:1, maxMana:1},                              desc:'+1 ATK, +1 MP',                                                 tier:0, classes:['Cleric','Wizard']},
+  blessedBlade:   {id:'blessedBlade',   name:'Blessed Blade',     icon:'⚔️', slot:'weapon', stats:{atk:2, manaRegen:1},                            desc:'+2 ATK, +1 regen',                                              tier:1, classes:['Cleric']},
+  angelborn:      {id:'angelborn',      name:'Angelborn Blade',   icon:'⚔️', slot:'weapon', stats:{atk:3, maxMana:2},                              desc:'+3 ATK, +2 MP, heal 1 HP on kill (GM)',                         tier:2, classes:['Cleric']},
+  runeDagger:     {id:'runeDagger',     name:'Rune Dagger',       icon:'🗡️', slot:'weapon', stats:{atk:1, maxMana:2},                              desc:'+1 ATK, +2 MP',                                                 tier:0, classes:['Wizard','Mage','Rogue']},
+  mageBlade:      {id:'mageBlade',      name:'Mage Blade',        icon:'🗡️', slot:'weapon', stats:{atk:2, maxMana:3},                              desc:'+2 ATK, +3 MP',                                                 tier:1, classes:['Wizard','Mage']},
+  voidSpellblade: {id:'voidSpellblade', name:'Void Spellblade',   icon:'🗡️', slot:'weapon', stats:{atk:3, maxMana:5},                              desc:'+3 ATK, +5 MP, +1 spell dmg after basic atk (GM)',              tier:2, classes:['Wizard']},
+
+  // Helmet / Head
+  leatherCap:     {id:'leatherCap',     name:'Leather Cap',       icon:'🧢', slot:'armor', stats:{def:3},                                          desc:'+3 DEF',                                                        tier:0, classes:'all'},
+  shadowHood:     {id:'shadowHood',     name:'Shadow Hood',       icon:'🎩', slot:'armor', stats:{def:3, speed:1},                                 desc:'+3 DEF, +1 SPD',                                                tier:0, classes:['Rogue','Ranger']},
+  nightHood:      {id:'nightHood',      name:'Night Assassin Hood',icon:'🎩',slot:'armor', stats:{def:4, speed:2},                                 desc:'+4 DEF, +2 SPD, 1st move/turn -1 MP (GM)',                      tier:2, classes:['Rogue']},
+  ironHelmet:     {id:'ironHelmet',     name:'Iron Helmet',       icon:'⛑️', slot:'armor', stats:{def:6},                                          desc:'+6 DEF',                                                        tier:1, classes:['Fighter','Tank']},
+  steelHelmet:    {id:'steelHelmet',    name:'Steel Helmet',      icon:'⛑️', slot:'armor', stats:{def:7, speed:-1},                                desc:'+7 DEF, -1 SPD',                                                tier:1, classes:['Fighter','Tank']},
+  ironLegion:     {id:'ironLegion',     name:'Iron Legion Helmet',icon:'⛑️', slot:'armor', stats:{def:9, hp:1, speed:-1},                          desc:'+9 DEF, +1 HP, -1 SPD',                                         tier:2, classes:['Fighter','Tank']},
+  goggles:        {id:'goggles',        name:'Goggles',           icon:'🥽', slot:'armor', stats:{def:1, range:1},                                 desc:'+1 DEF, +1 RNG',                                                tier:0, classes:['Ranger']},
+  hawkeye:        {id:'hawkeye',        name:'Hawkeye Goggles',   icon:'🥽', slot:'armor', stats:{def:2, range:2},                                 desc:'+2 DEF, +2 RNG',                                                tier:1, classes:['Ranger']},
+  stormHunter:    {id:'stormHunter',    name:'Storm Hunter Goggles',icon:'🥽',slot:'armor',stats:{def:3, range:3},                                 desc:'+3 DEF, +3 RNG, +1 ATK from 4+ blocks (GM)',                    tier:2, classes:['Ranger']},
+  wizardHat:      {id:'wizardHat',      name:'Wizard Hat',        icon:'🎩', slot:'armor', stats:{def:1, manaRegen:1},                             desc:'+1 DEF, +1 regen',                                              tier:0, classes:['Wizard','Cleric']},
+  goldenHalo:     {id:'goldenHalo',     name:'Golden Halo Crown', icon:'👑', slot:'armor', stats:{def:3, manaRegen:2},                             desc:'+3 DEF, +2 regen, +1 heal/shield (GM)',                         tier:2, classes:['Cleric']},
+  apprenticeHat:  {id:'apprenticeHat',  name:'Apprentice Hat',    icon:'🎩', slot:'armor', stats:{def:1, maxMana:2},                               desc:'+1 DEF, +2 MP',                                                 tier:0, classes:['Wizard','Mage']},
+  arcaneHat:      {id:'arcaneHat',      name:'Arcane Hat',        icon:'🎩', slot:'armor', stats:{def:2, maxMana:3, manaRegen:1},                  desc:'+2 DEF, +3 MP, +1 regen',                                       tier:1, classes:['Wizard','Mage']},
+  celestialHat:   {id:'celestialHat',   name:'Celestial Library Hat',icon:'🎩',slot:'armor',stats:{def:3, maxMana:5, manaRegen:2, range:1},        desc:'+3 DEF, +5 MP, +2 regen, +1 spell RNG',                         tier:2, classes:['Wizard']},
+
+  // Boots
+  swiftBoots:     {id:'swiftBoots',     name:'Swift Boots',       icon:'👢', slot:'accessory', stats:{def:2, speed:2},                             desc:'+2 DEF, +2 SPD, split your movement (GM)',                      tier:0, classes:'all'},
+  shadowBoots:    {id:'shadowBoots',    name:'Shadow Boots',      icon:'👢', slot:'accessory', stats:{def:3, speed:2},                             desc:'+3 DEF, +2 SPD',                                                tier:1, classes:['Rogue','Ranger']},
+  phantomStep:    {id:'phantomStep',    name:'Phantom Step Boots',icon:'👢', slot:'accessory', stats:{def:4, speed:3},                             desc:'+4 DEF, +3 SPD, free movement through enemies (GM)',            tier:2, classes:['Rogue']},
+  ironBoots:      {id:'ironBoots',      name:'Iron Boots',        icon:'🥾', slot:'accessory', stats:{def:4, speed:-1},                            desc:'+4 DEF, -1 SPD',                                                tier:0, classes:['Fighter','Tank']},
+  warBoots:       {id:'warBoots',       name:'War Boots',         icon:'🥾', slot:'accessory', stats:{def:6},                                      desc:'+6 DEF',                                                        tier:1, classes:['Fighter','Tank']},
+  ironGiant:      {id:'ironGiant',      name:'Iron Giant Boots',  icon:'🥾', slot:'accessory', stats:{def:8, atk:1},                               desc:'+8 DEF, +1 ATK, cannot be pushed (GM)',                         tier:2, classes:['Tank']},
+};
+
+const STARTER_WEAPONS = {
+  'Fighter': 'ironSword',
+  'Rogue':   'rustyDagger',
+  'Ranger':  'shortBow',
+  'Cleric':  'woodMace',
+  'Wizard':  'apprenticeStaff',
+  'Mage':    'apprenticeStaff',
+  'Tank':    'warHammer',
+};
+
+function itemClassesMatch(item, className) {
+  if (item.classes === 'all') return true;
+  return Array.isArray(item.classes) && item.classes.includes(className);
+}
+// Return small class-logo badge HTML for an item
+function itemClassBadge(item) {
+  if (!item) return '';
+  if (item.classes === 'all') {
+    return `<span style="position:absolute;top:2px;right:2px;background:#2a3050;color:#aaa;font-size:0.55rem;padding:1px 4px;border-radius:6px;letter-spacing:0.5px" title="Usable by any class">ALL</span>`;
+  }
+  const classEmojis = {Fighter:'⚔️',Tank:'🛡️',Rogue:'🗡️',Ranger:'🏹',Cleric:'⛪',Wizard:'🧙',Mage:'📜'};
+  const icons = (item.classes||[]).map(c => classEmojis[c] || c[0]).join('');
+  const label = (item.classes||[]).join('/');
+  return `<span style="position:absolute;top:2px;right:2px;background:#1a1410;border:1px solid #5a3a1a;color:#dfaf3a;font-size:0.7rem;padding:1px 4px;border-radius:6px" title="Usable by: ${label}">${icons}</span>`;
+}
+
+function recalcHeroStats(h) {
+  if (!h.baseStats) return;
+  const b = h.baseStats;
+  // Reset to base
+  h.maxHp     = b.hp;
+  h.atk       = b.atk;
+  h.def       = b.def;
+  h.speed     = b.speed;
+  h.range     = b.range;
+  h.maxMana   = b.maxMana;
+  h.manaRegen = b.manaRegen;
+  // Apply trait (if has one)
+  if (h.traitName) {
+    const tr = TRAITS.find(t => t.name === h.traitName);
+    // Some traits set flags (lucky etc.) which we re-apply; stat modifiers also reapplied
+    if (tr) tr.apply(h); // will mutate h with bonuses
+  }
+  // Apply equipment
+  (h.equipment || []).forEach(itemId => {
+    const item = EQUIPMENT[itemId];
+    if (!item) return;
+    Object.entries(item.stats).forEach(([k,v]) => {
+      if (k === 'hp') h.maxHp += v;
+      else if (h[k] !== undefined) h[k] += v;
+    });
+  });
+  // Clamp current values
+  if (h.hp > h.maxHp) h.hp = h.maxHp;
+  if (h.mana > h.maxMana) h.mana = h.maxMana;
+}
+
+function equipItem(heroIdx, itemId) {
+  const h = CAMPAIGN.heroes[heroIdx];
+  if (!h) return false;
+  const item = EQUIPMENT[itemId];
+  if (!item) return false;
+  if (!itemClassesMatch(item, h.class)) { alert(`${h.class} cannot use ${item.name}.`); return false; }
+  if (!h.equipment) h.equipment = [];
+  // Unequip any existing item in same slot back to storage
+  const sameSlot = h.equipment.findIndex(id => EQUIPMENT[id]?.slot === item.slot);
+  if (sameSlot >= 0) {
+    const removed = h.equipment.splice(sameSlot, 1)[0];
+    CAMPAIGN.storage.push(removed);
+  }
+  // Remove from storage
+  const storageIdx = CAMPAIGN.storage.indexOf(itemId);
+  if (storageIdx >= 0) CAMPAIGN.storage.splice(storageIdx, 1);
+  h.equipment.push(itemId);
+  recalcHeroStats(h);
+  saveCampaign();
+  return true;
+}
+function unequipItem(heroIdx, itemId) {
+  const h = CAMPAIGN.heroes[heroIdx];
+  if (!h || !h.equipment) return;
+  const idx = h.equipment.indexOf(itemId);
+  if (idx < 0) return;
+  h.equipment.splice(idx, 1);
+  CAMPAIGN.storage.push(itemId);
+  recalcHeroStats(h);
+  saveCampaign();
+}
+
+// ----- Loot Roll -----
+function rollLoot(combatType) {
+  // tier weights based on combat type
+  let tierWeights;
+  if (combatType === 'easy')   tierWeights = [60, 35, 5];   // mostly tier 0-1
+  else if (combatType === 'mid') tierWeights = [25, 60, 15];
+  else if (combatType === 'elite') tierWeights = [10, 50, 40];
+  else tierWeights = [40, 50, 10];
+  // Pick a tier
+  const roll = Math.random() * 100;
+  let tier = 0;
+  if (roll > tierWeights[0]) tier = 1;
+  if (roll > tierWeights[0] + tierWeights[1]) tier = 2;
+  // Pick a random item of that tier (no starter weapons in loot pool)
+  const pool = Object.values(EQUIPMENT).filter(it => it.tier === tier && !Object.values(STARTER_WEAPONS).includes(it.id));
+  if (pool.length === 0) return null;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function showLootModal(item, goldGained) {
+  const html = `
+    <div id="lootModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:9999">
+      <div style="background:#0d1420;border:2px solid #dfaf3a;border-radius:8px;padding:24px;max-width:420px;width:90%;text-align:center">
+        <div style="color:#888;font-size:0.7rem;letter-spacing:2px;margin-bottom:6px">🎁 SPOILS OF VICTORY</div>
+        <div style="font-size:2.4rem;margin:10px 0">${item.icon}</div>
+        <h2 style="color:#dfaf3a;letter-spacing:1px;font-size:1.1rem">${item.name}</h2>
+        <div style="color:#888;font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;margin:4px 0">${item.slot} · Tier ${item.tier}</div>
+        <div style="color:#aaa;font-size:0.85rem;margin:10px 0;line-height:1.5">${item.desc}</div>
+        <div style="color:#7a8a9a;font-size:0.7rem;background:#0a0f1c;padding:6px;border-radius:4px;margin:8px 0">
+          Usable by: <strong style="color:#dfaf3a">${item.classes==='all'?'Any class':item.classes.map(c=>({Fighter:'⚔️',Tank:'🛡️',Rogue:'🗡️',Ranger:'🏹',Cleric:'⛪',Wizard:'🧙',Mage:'📜'}[c]||'')+' '+c).join(' · ')}</strong>
+        </div>
+        <div style="color:#dfaf3a;font-size:0.95rem;margin:14px 0">💰 +${goldGained} gold</div>
+        <div style="font-size:0.7rem;color:#888;margin-bottom:14px">Item sent to your party Storage. You can equip it from the Inventory screen.</div>
+        <button onclick="document.getElementById('lootModal').remove();(window._lootClose||function(){})()" class="big-btn">Continue &raquo;</button>
+      </div>
+    </div>`;
+  const wrap = document.createElement('div');
+  wrap.innerHTML = html;
+  document.body.appendChild(wrap.firstElementChild);
+}
+
+// ----- Inventory Modal -----
+function openInventory() {
+  renderInventoryModal();
+  document.getElementById('inventoryModal').style.display = 'flex';
+}
+function closeInventory() {
+  const m = document.getElementById('inventoryModal');
+  if (m) m.style.display = 'none';
+}
+function renderInventoryModal() {
+  let modal = document.getElementById('inventoryModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'inventoryModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);display:none;align-items:center;justify-content:center;z-index:9990;padding:20px;overflow-y:auto';
+    modal.onclick = (e) => { if (e.target === modal) closeInventory(); };
+    document.body.appendChild(modal);
+  }
+  const heroPanels = CAMPAIGN.heroes.map((h, hi) => {
+    const spr = spriteFor(h.class);
+    const slots = ['weapon','armor','accessory'];
+    const slotHtml = slots.map(slotType => {
+      const equipped = (h.equipment||[]).find(id => EQUIPMENT[id]?.slot === slotType);
+      const item = equipped ? EQUIPMENT[equipped] : null;
+      return `<div class="inv-slot" data-hero="${hi}" data-slot="${slotType}"
+        ondragover="invSlotDragOver(event,${hi},'${slotType}')"
+        ondragleave="invSlotDragLeave(event)"
+        ondrop="invSlotDrop(event,${hi},'${slotType}')"
+        style="background:#0a0f1c;border:1px dashed ${item?'#dfaf3a':'#2a3050'};border-radius:4px;padding:6px;font-size:0.7rem;position:relative;min-height:44px">
+        <div style="color:#888;font-size:0.55rem;letter-spacing:1px;text-transform:uppercase">${slotType}</div>
+        ${item ? `
+          <div draggable="true" ondragstart="invItemDragStart(event,'${item.id}','equipped',${hi})"
+            style="display:flex;align-items:center;gap:6px;margin-top:2px;cursor:grab;position:relative">
+            <span style="font-size:1.1rem">${item.icon}</span>
+            <div style="flex:1">
+              <div style="color:#dfaf3a;font-weight:bold">${item.name}</div>
+              <div style="color:#888;font-size:0.6rem">${item.desc}</div>
+            </div>
+            <button onclick="unequipItem(${hi},'${item.id}');renderInventoryModal()" style="background:#5a1a1a;border:1px solid #8b3030;color:#e05555;padding:2px 6px;cursor:pointer;border-radius:3px;font-size:0.6rem">×</button>
+          </div>
+        ` : '<div style="color:#444;font-style:italic;font-size:0.7rem;margin-top:6px;text-align:center">— drop item here —</div>'}
+      </div>`;
+    }).join('');
+    return `<div style="background:#1a1f2c;border:1px solid #2a3050;border-radius:6px;padding:10px;flex:1;min-width:240px${h.dead?';opacity:0.4':''}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:1.5rem">${spr.portrait}</span>
+        <div>
+          <div style="color:#c9a84c;font-weight:bold;font-size:0.95rem">${h.name}${h.dead?' †':''}</div>
+          <div style="color:#888;font-size:0.7rem">${h.class} · ATK ${h.atk} DEF ${h.def} SPD ${h.speed} RNG ${h.range}</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px">${slotHtml}</div>
+    </div>`;
+  }).join('');
+  const storage = (CAMPAIGN.storage || []);
+  const storageHtml = storage.length === 0 ? '<div style="color:#666;font-style:italic;font-size:0.8rem;text-align:center;padding:20px">Storage is empty. Win combats to find loot.</div>' :
+    storage.map((id, si) => {
+      const item = EQUIPMENT[id]; if (!item) return '';
+      const compat = CAMPAIGN.heroes.map((h,hi)=>({hi,h,ok:!h.dead && itemClassesMatch(item, h.class)})).filter(x=>x.ok);
+      return `<div draggable="true" ondragstart="invItemDragStart(event,'${item.id}','storage',${si})"
+        style="background:#0d1420;border:1px solid #2a3050;border-radius:4px;padding:8px;display:flex;align-items:center;gap:8px;cursor:grab;position:relative">
+        ${itemClassBadge(item)}
+        <span style="font-size:1.4rem">${item.icon}</span>
+        <div style="flex:1;min-width:0;padding-right:40px">
+          <div style="color:#dfaf3a;font-weight:bold;font-size:0.85rem">${item.name}</div>
+          <div style="color:#888;font-size:0.65rem;letter-spacing:1px;text-transform:uppercase">${item.slot} · T${item.tier}</div>
+          <div style="color:#aaa;font-size:0.7rem">${item.desc}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          ${compat.length ? compat.map(c=>`<button onclick="equipItem(${c.hi},'${item.id}');renderInventoryModal()" style="background:#2a4a2a;border:1px solid #4a8f4a;color:#9fdf9f;padding:3px 8px;cursor:pointer;border-radius:3px;font-size:0.65rem">→ ${c.h.name}</button>`).join('') : '<span style="color:#666;font-size:0.65rem;font-style:italic">no compatible</span>'}
+          <button onclick="sellItem(${si});renderInventoryModal()" style="background:#1a1410;border:1px solid #dfaf3a;color:#dfaf3a;padding:3px 8px;cursor:pointer;border-radius:3px;font-size:0.65rem" title="Sell for half base value">💰 Sell</button>
+        </div>
+      </div>`;
+    }).join('');
+  modal.innerHTML = `
+    <div style="background:#0a0f1c;border:2px solid #c9a84c;border-radius:8px;padding:20px;max-width:900px;width:100%;max-height:90vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #2a3050">
+        <h2 style="color:#c9a84c;letter-spacing:2px;font-size:1.2rem">📦 Inventory ${helpBtn('equipment')}</h2>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="background:#1a1410;color:#dfaf3a;padding:6px 12px;border-radius:14px;font-size:0.8rem">💰 ${gold} gold</span>
+          <button onclick="closeInventory()" style="background:#1a1f3c;border:1px solid #888;color:#aaa;padding:6px 14px;cursor:pointer;border-radius:4px;font-size:0.8rem">Close</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px">${heroPanels}</div>
+      <h3 style="color:#dfaf3a;font-size:0.85rem;letter-spacing:1px;margin-bottom:8px">🗃 STORAGE (${storage.length} items)</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px">${storageHtml}</div>
+    </div>
+  `;
+}
+// ----- Drag & Drop Equipment -----
+window._dragItem = null;
+function invItemDragStart(ev, itemId, source, indexOrHero) {
+  window._dragItem = { itemId, source, idx: indexOrHero };
+  ev.dataTransfer.effectAllowed = 'move';
+  // Some browsers need data set explicitly
+  ev.dataTransfer.setData('text/plain', itemId);
+}
+function invSlotDragOver(ev, heroIdx, slotType) {
+  if (!window._dragItem) return;
+  const item = EQUIPMENT[window._dragItem.itemId];
+  if (!item || item.slot !== slotType) return; // wrong slot type
+  const hero = CAMPAIGN.heroes[heroIdx];
+  if (!hero || hero.dead) return;
+  if (!itemClassesMatch(item, hero.class)) return;
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+  ev.currentTarget.style.borderColor = '#7fb87f';
+  ev.currentTarget.style.borderStyle = 'solid';
+}
+function invSlotDragLeave(ev) {
+  ev.currentTarget.style.borderColor = '';
+  ev.currentTarget.style.borderStyle = '';
+}
+function invSlotDrop(ev, heroIdx, slotType) {
+  ev.preventDefault();
+  ev.currentTarget.style.borderColor = '';
+  ev.currentTarget.style.borderStyle = '';
+  if (!window._dragItem) return;
+  const drag = window._dragItem;
+  const item = EQUIPMENT[drag.itemId];
+  if (!item || item.slot !== slotType) { window._dragItem = null; return; }
+  const hero = CAMPAIGN.heroes[heroIdx];
+  if (!hero || hero.dead || !itemClassesMatch(item, hero.class)) { window._dragItem = null; return; }
+  // If dragged from another hero's equipment, unequip there first
+  if (drag.source === 'equipped' && drag.idx !== heroIdx) {
+    unequipItem(drag.idx, drag.itemId);
+  }
+  equipItem(heroIdx, drag.itemId);
+  window._dragItem = null;
+  renderInventoryModal();
+}
+
+function sellItem(storageIdx) {
+  const id = CAMPAIGN.storage[storageIdx];
+  const item = EQUIPMENT[id];
+  if (!item) return;
+  const value = (item.tier + 1) * 8;
+  if (!confirm(`Sell ${item.name} for ${value} gold?`)) return;
+  CAMPAIGN.storage.splice(storageIdx, 1);
+  gold += value;
+  updateGold();
+  saveCampaign();
+}
+
+// =============================================================================
+// PIXEL SPRITE SYSTEM
+// =============================================================================
+const CLASS_SPRITES = {
+  // Allies
+  'Fighter':       {portrait:'🛡️', weapon:'⚔️', attackFx:'⚔️',  projectile:null, spellEmoji:null},
+  'Tank':          {portrait:'🛡️', weapon:'🔨', attackFx:'🔨',  projectile:null, spellEmoji:null},
+  'Rogue':         {portrait:'🥷', weapon:'🗡️', attackFx:'🗡️',  projectile:null, spellEmoji:null},
+  'Ranger':        {portrait:'🏹', weapon:'🏹', attackFx:null,   projectile:'➤', spellEmoji:null},
+  'Cleric':        {portrait:'⛪', weapon:'✨', attackFx:'✨',   projectile:null, spellEmoji:'💫'},
+  'Wizard':        {portrait:'🧙', weapon:'🔮', attackFx:null,   projectile:'✦', spellEmoji:'🔥'},
+  'Mage':          {portrait:'🧙‍♀️', weapon:'📜', attackFx:null, projectile:'✨', spellEmoji:'💥'},
+  // Enemies
+  'Goblin':        {portrait:'👹', weapon:'🗡️', attackFx:'🗡️'},
+  'Ranged Goblin': {portrait:'👹', weapon:'🏹', attackFx:null, projectile:'➤'},
+  'Spear Goblin':  {portrait:'👹', weapon:'🔱', attackFx:'🔱'},
+  'Mage Goblin':   {portrait:'👹', weapon:'🪄', attackFx:null, projectile:'✦', spellEmoji:'💥'},
+  'Orc':           {portrait:'👺', weapon:'🪓', attackFx:'🪓'},
+  'Skeleton':      {portrait:'💀', weapon:'🦴', attackFx:'🦴'},
+  'Zombie':        {portrait:'🧟', weapon:'🤲', attackFx:'💢'},
+  'Soul Eater':    {portrait:'👻', weapon:'🌀', attackFx:null, projectile:'🌀', spellEmoji:'💀'},
+  'Shield Bearer': {portrait:'💂', weapon:'🛡️', attackFx:'🛡️'},
+  'Ranged Soldier':{portrait:'💂', weapon:'🏹', attackFx:null, projectile:'➤'},
+  'Royal Guard':   {portrait:'💂‍♂️', weapon:'⚔️', attackFx:'⚔️'},
+  'Elite':         {portrait:'🥷', weapon:'⚔️', attackFx:'⚔️'},
+  'Hunter':        {portrait:'🤠', weapon:'🏹', attackFx:null, projectile:'➤'},
+  'Elf Warrior':   {portrait:'🧝', weapon:'⚔️', attackFx:'⚔️'},
+  'Elf Shaman':    {portrait:'🧝‍♀️', weapon:'🌿', attackFx:null, projectile:'🍃', spellEmoji:'🌿'},
+  'Aldric':        {portrait:'👑', weapon:'⚔️', attackFx:'⚔️',  projectile:null, spellEmoji:'⚡'},
+};
+function spriteFor(cls) { return CLASS_SPRITES[cls] || {portrait:'❔', weapon:'⚔️', attackFx:'⚔️'}; }
+
+// Trigger sprite animation: 'attacking' or 'casting'
+function spriteAnim(tokId, animClass) {
+  const cell = document.getElementById(`cell-${tokens.find(t=>t.id===tokId)?.row}-${tokens.find(t=>t.id===tokId)?.col}`);
+  if (!cell) return;
+  const el = cell.querySelector('.token');
+  if (!el) return;
+  el.classList.remove('attacking','casting');
+  void el.offsetWidth;
+  el.classList.add(animClass);
+  setTimeout(()=>el.classList.remove(animClass), 650);
+}
+
+// Spawn a flying weapon emoji from attacker to target
+function fxFlyingWeapon(attackerId, targetId, emoji, type) {
+  const att = tokens.find(t=>t.id===attackerId);
+  const tgt = tokens.find(t=>t.id===targetId);
+  if (!att || !tgt) return;
+  const aCell = document.getElementById(`cell-${att.row}-${att.col}`);
+  const tCell = document.getElementById(`cell-${tgt.row}-${tgt.col}`);
+  const grid = document.getElementById('grid');
+  if (!aCell || !tCell || !grid) return;
+  const gRect = grid.getBoundingClientRect();
+  const aRect = aCell.getBoundingClientRect();
+  const tRect = tCell.getBoundingClientRect();
+  const startX = aRect.left - gRect.left + 22;
+  const startY = aRect.top  - gRect.top  + 22;
+  const dx = (tRect.left - aRect.left);
+  const dy = (tRect.top - aRect.top);
+  const el = document.createElement('div');
+  el.className = type === 'projectile' ? 'fx-projectile' : 'fx-weapon';
+  el.textContent = emoji;
+  el.style.left = startX + 'px';
+  el.style.top  = startY + 'px';
+  el.style.setProperty('--tx', dx + 'px');
+  el.style.setProperty('--ty', dy + 'px');
+  document.querySelector('.grid-container').appendChild(el);
+  setTimeout(()=>el.remove(), 650);
+}
+
+// Spell blast at a cell
+function fxBlast(row, col, emoji) {
+  const cell = document.getElementById(`cell-${row}-${col}`);
+  const grid = document.getElementById('grid');
+  if (!cell || !grid) return;
+  const gRect = grid.getBoundingClientRect();
+  const cRect = cell.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = 'fx-blast';
+  el.textContent = emoji || '💥';
+  el.style.left = (cRect.left - gRect.left + 12) + 'px';
+  el.style.top  = (cRect.top  - gRect.top  + 12) + 'px';
+  document.querySelector('.grid-container').appendChild(el);
+  setTimeout(()=>el.remove(), 700);
+  // Particle burst
+  for (let i=0;i<6;i++) fxParticle(row, col, ['✦','✧','•','★','✺'][i%5]);
+}
+function fxParticle(row, col, emoji) {
+  const cell = document.getElementById(`cell-${row}-${col}`);
+  const grid = document.getElementById('grid');
+  if (!cell || !grid) return;
+  const gRect = grid.getBoundingClientRect();
+  const cRect = cell.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = 'fx-particle';
+  el.textContent = emoji || '✦';
+  el.style.color = ['#ffdf80','#ff8040','#ffffff','#80c0ff','#ff80ff'][Math.floor(Math.random()*5)];
+  el.style.left = (cRect.left - gRect.left + 24 + (Math.random()*10-5)) + 'px';
+  el.style.top  = (cRect.top  - gRect.top  + 24 + (Math.random()*10-5)) + 'px';
+  el.style.setProperty('--px', ((Math.random()-0.5)*60) + 'px');
+  el.style.setProperty('--py', ((Math.random()-0.5)*60 - 20) + 'px');
+  document.querySelector('.grid-container').appendChild(el);
+  setTimeout(()=>el.remove(), 750);
+}
+function fxCritFlash() {
+  const o = document.createElement('div');
+  o.className = 'crit-flash-overlay';
+  document.body.appendChild(o);
+  setTimeout(()=>o.remove(), 450);
+}
+
+// =============================================================================
+// RUN STATS TRACKING
+// =============================================================================
+function initRunStats() {
+  CAMPAIGN.runStats = {
+    startedAt: Date.now(),
+    combats: [],          // {nodeId, nodeName, rounds, durationMs, endedAt}
+    currentCombat: null,  // {nodeId, startedAt, startRound}
+    heroes: {},           // {heroName: {damageDealt, damageTaken, healing, kills, deaths}}
+    enemyKillsByClass: {},// {Goblin: 3, Skeleton: 2, ...}
+    timeline: [{t:0, souls:0, trust:50, gold: gold}]
+  };
+  // Pre-create hero entries
+  CAMPAIGN.heroes.forEach(h => {
+    CAMPAIGN.runStats.heroes[h.name] = {damageDealt:0, damageTaken:0, healing:0, kills:0, deaths:0, class:h.class};
+  });
+}
+function ensureHeroStats(name, cls) {
+  if (!CAMPAIGN.active || !CAMPAIGN.runStats) return null;
+  if (!CAMPAIGN.runStats.heroes[name]) {
+    CAMPAIGN.runStats.heroes[name] = {damageDealt:0, damageTaken:0, healing:0, kills:0, deaths:0, class:cls||'?'};
+  }
+  return CAMPAIGN.runStats.heroes[name];
+}
+function statsRecordDamage(attacker, target, dmg) {
+  if (!CAMPAIGN.active || !CAMPAIGN.runStats || !dmg) return;
+  if (attacker && attacker.side === 'ally') {
+    const s = ensureHeroStats(attacker.name, attacker.class); if (s) s.damageDealt += dmg;
+  }
+  if (target && target.side === 'ally') {
+    const s = ensureHeroStats(target.name, target.class); if (s) s.damageTaken += dmg;
+  }
+}
+function statsRecordHeal(healer, amount) {
+  if (!CAMPAIGN.active || !CAMPAIGN.runStats || !amount) return;
+  if (healer && healer.side === 'ally') {
+    const s = ensureHeroStats(healer.name, healer.class); if (s) s.healing += amount;
+  }
+}
+function statsRecordKill(killer, victim) {
+  if (!CAMPAIGN.active || !CAMPAIGN.runStats) return;
+  if (killer && killer.side === 'ally' && victim && victim.side === 'enemy') {
+    const s = ensureHeroStats(killer.name, killer.class); if (s) s.kills++;
+    const cls = victim.class || '?';
+    CAMPAIGN.runStats.enemyKillsByClass[cls] = (CAMPAIGN.runStats.enemyKillsByClass[cls] || 0) + 1;
+  }
+  if (victim && victim.side === 'ally') {
+    const s = ensureHeroStats(victim.name, victim.class); if (s) s.deaths++;
+  }
+}
+function statsStartCombat(node) {
+  if (!CAMPAIGN.active || !CAMPAIGN.runStats) return;
+  CAMPAIGN.runStats.currentCombat = { nodeId:node.id, nodeName:node.name, startedAt:Date.now(), startRound:1 };
+}
+function statsEndCombat(victory) {
+  if (!CAMPAIGN.active || !CAMPAIGN.runStats || !CAMPAIGN.runStats.currentCombat) return;
+  const cc = CAMPAIGN.runStats.currentCombat;
+  CAMPAIGN.runStats.combats.push({
+    nodeId: cc.nodeId, nodeName: cc.nodeName,
+    rounds: round, durationMs: Date.now() - cc.startedAt,
+    victory: !!victory, endedAt: Date.now()
+  });
+  CAMPAIGN.runStats.currentCombat = null;
+}
+function statsTimelineSnap() {
+  if (!CAMPAIGN.active || !CAMPAIGN.runStats) return;
+  const t = Date.now() - CAMPAIGN.runStats.startedAt;
+  const last = CAMPAIGN.runStats.timeline[CAMPAIGN.runStats.timeline.length-1];
+  if (last && (souls===last.souls && trust===last.trust && gold===last.gold)) return;
+  CAMPAIGN.runStats.timeline.push({t, souls, trust, gold});
+  if (CAMPAIGN.runStats.timeline.length > 200) CAMPAIGN.runStats.timeline.shift();
+}
+
+function formatDuration(ms) {
+  const s = Math.floor(ms/1000);
+  const m = Math.floor(s/60);
+  const sec = s % 60;
+  return `${m}m ${sec.toString().padStart(2,'0')}s`;
+}
+
+function renderRunStats() {
+  const body = document.getElementById('runStatsBody');
+  if (!body) return;
+  if (!CAMPAIGN.active || !CAMPAIGN.runStats) { body.innerHTML = '<div style="color:#666;font-style:italic">No active run.</div>'; return; }
+  const rs = CAMPAIGN.runStats;
+  const totalDur = Date.now() - rs.startedAt;
+  const completedCombats = rs.combats.length;
+  const avgRounds = completedCombats ? (rs.combats.reduce((s,c)=>s+c.rounds,0)/completedCombats).toFixed(1) : '—';
+  const avgDur = completedCombats ? formatDuration(rs.combats.reduce((s,c)=>s+c.durationMs,0)/completedCombats) : '—';
+
+  // Per-hero table
+  const heroRows = Object.entries(rs.heroes).map(([name, s]) => {
+    const isDead = CAMPAIGN.heroes.find(h => h.name === name)?.dead;
+    return `<tr style="${isDead?'opacity:0.5':''}">
+      <td style="padding:4px 6px;color:#c9a84c">${name}${isDead?' †':''}</td>
+      <td style="padding:4px 6px;color:#888;font-size:0.75rem">${s.class}</td>
+      <td style="padding:4px 6px;text-align:right;color:#e0a0a0">${s.damageDealt}</td>
+      <td style="padding:4px 6px;text-align:right;color:#a0a0e0">${s.damageTaken}</td>
+      <td style="padding:4px 6px;text-align:right;color:#a0e0a0">${s.healing}</td>
+      <td style="padding:4px 6px;text-align:right;color:#dfaf3a">${s.kills}</td>
+      <td style="padding:4px 6px;text-align:right;color:#e05555">${s.deaths}</td>
+    </tr>`;
+  }).join('');
+
+  // Combats list
+  const combatList = rs.combats.map(c =>
+    `<tr><td style="padding:3px 6px;color:#aaa">${c.nodeName}</td><td style="padding:3px 6px;text-align:right">${c.rounds} rounds</td><td style="padding:3px 6px;text-align:right;color:#888">${formatDuration(c.durationMs)}</td><td style="padding:3px 6px;text-align:right;color:${c.victory?'#7fb87f':'#e05555'}">${c.victory?'Win':'Loss'}</td></tr>`
+  ).join('') || '<tr><td colspan="4" style="padding:6px;color:#666;font-style:italic">No combats completed yet.</td></tr>';
+
+  // Enemy kills
+  const killsByClass = Object.entries(rs.enemyKillsByClass).sort((a,b)=>b[1]-a[1])
+    .map(([cls,n]) => `<span style="background:#2a0a0a;border:1px solid #5a1a1a;color:#ffaaaa;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-right:4px">${cls} ×${n}</span>`).join('') || '<span style="color:#666;font-style:italic">No kills yet.</span>';
+
+  // Timeline summary (start vs now)
+  const tStart = rs.timeline[0];
+  const dSouls = souls - (tStart?.souls||0);
+  const dTrust = trust - (tStart?.trust||50);
+  const dGold  = gold - (tStart?.gold||50);
+
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:14px">
+      <div style="background:#0a0f1c;padding:8px;border-radius:4px;border:1px solid #2a3050">
+        <div style="color:#888;font-size:0.65rem;letter-spacing:1px">RUN TIME</div>
+        <div style="color:#c9a84c;font-size:1.1rem;font-weight:bold">${formatDuration(totalDur)}</div>
+      </div>
+      <div style="background:#0a0f1c;padding:8px;border-radius:4px;border:1px solid #2a3050">
+        <div style="color:#888;font-size:0.65rem;letter-spacing:1px">COMBATS</div>
+        <div style="color:#c9a84c;font-size:1.1rem;font-weight:bold">${completedCombats}</div>
+      </div>
+      <div style="background:#0a0f1c;padding:8px;border-radius:4px;border:1px solid #2a3050">
+        <div style="color:#888;font-size:0.65rem;letter-spacing:1px">AVG ROUNDS</div>
+        <div style="color:#c9a84c;font-size:1.1rem;font-weight:bold">${avgRounds}</div>
+      </div>
+      <div style="background:#0a0f1c;padding:8px;border-radius:4px;border:1px solid #2a3050">
+        <div style="color:#888;font-size:0.65rem;letter-spacing:1px">AVG COMBAT</div>
+        <div style="color:#c9a84c;font-size:1.1rem;font-weight:bold">${avgDur}</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:12px">
+      <div style="color:#dfaf3a;font-size:0.75rem;letter-spacing:1px;margin-bottom:6px">PER HERO</div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.75rem;background:#0a0f1c;border-radius:4px">
+        <thead><tr style="background:#1a1f3c;color:#888;font-size:0.65rem;letter-spacing:1px">
+          <th style="padding:6px;text-align:left">Hero</th><th style="padding:6px;text-align:left">Class</th>
+          <th style="padding:6px;text-align:right">DMG Out</th><th style="padding:6px;text-align:right">DMG In</th>
+          <th style="padding:6px;text-align:right">Heal</th><th style="padding:6px;text-align:right">Kills</th><th style="padding:6px;text-align:right">Deaths</th>
+        </tr></thead>
+        <tbody>${heroRows}</tbody>
+      </table></div>
+    </div>
+
+    <div style="margin-bottom:12px">
+      <div style="color:#dfaf3a;font-size:0.75rem;letter-spacing:1px;margin-bottom:6px">COMBAT HISTORY</div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.75rem;background:#0a0f1c;border-radius:4px">
+        <tbody>${combatList}</tbody>
+      </table></div>
+    </div>
+
+    <div style="margin-bottom:12px">
+      <div style="color:#dfaf3a;font-size:0.75rem;letter-spacing:1px;margin-bottom:6px">ENEMIES DEFEATED</div>
+      <div>${killsByClass}</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px">
+      <div style="background:#0a0f1c;padding:8px;border-radius:4px;border:1px solid #4a1a8b">
+        <div style="color:#888;font-size:0.65rem;letter-spacing:1px">SOULS</div>
+        <div style="color:#ccaaff;font-size:1rem">${souls} <span style="color:#888;font-size:0.7rem">(+${dSouls})</span></div>
+      </div>
+      <div style="background:#0a0f1c;padding:8px;border-radius:4px;border:1px solid #c9a84c">
+        <div style="color:#888;font-size:0.65rem;letter-spacing:1px">TRUST</div>
+        <div style="color:#c9a84c;font-size:1rem">${trust} <span style="color:${dTrust>=0?'#7fb87f':'#e05555'};font-size:0.7rem">(${dTrust>=0?'+':''}${dTrust})</span></div>
+      </div>
+      <div style="background:#0a0f1c;padding:8px;border-radius:4px;border:1px solid #dfaf3a">
+        <div style="color:#888;font-size:0.65rem;letter-spacing:1px">GOLD</div>
+        <div style="color:#dfaf3a;font-size:1rem">${gold} <span style="color:${dGold>=0?'#7fb87f':'#e05555'};font-size:0.7rem">(${dGold>=0?'+':''}${dGold})</span></div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:10px">
+      <button onclick="exportRunStatsCSV()" style="background:#1a1f3c;border:1px solid #4a8fbf;color:#7fb8df;padding:5px 10px;cursor:pointer;border-radius:3px;font-size:0.7rem">📥 Export CSV</button>
+    </div>
+  `;
+}
+
+function exportRunStatsCSV() {
+  if (!CAMPAIGN.runStats) return;
+  const rs = CAMPAIGN.runStats;
+  let csv = 'SECTION,key,value\n';
+  csv += `META,started_at,${new Date(rs.startedAt).toISOString()}\n`;
+  csv += `META,duration_ms,${Date.now()-rs.startedAt}\n`;
+  csv += `META,souls,${souls}\n`;
+  csv += `META,trust,${trust}\n`;
+  csv += `META,gold,${gold}\n\n`;
+  csv += 'HEROES,name,class,damage_dealt,damage_taken,healing,kills,deaths\n';
+  Object.entries(rs.heroes).forEach(([name,s]) => {
+    csv += `HEROES,${name},${s.class},${s.damageDealt},${s.damageTaken},${s.healing},${s.kills},${s.deaths}\n`;
+  });
+  csv += '\nCOMBATS,node_name,rounds,duration_ms,victory\n';
+  rs.combats.forEach(c => { csv += `COMBATS,${c.nodeName},${c.rounds},${c.durationMs},${c.victory}\n`; });
+  csv += '\nKILLS_BY_CLASS,class,count\n';
+  Object.entries(rs.enemyKillsByClass).forEach(([cls,n]) => { csv += `KILLS_BY_CLASS,${cls},${n}\n`; });
+  csv += '\nTIMELINE,t_ms,souls,trust,gold\n';
+  rs.timeline.forEach(p => { csv += `TIMELINE,${p.t},${p.souls},${p.trust},${p.gold}\n`; });
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const stamp = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
+  const a = document.createElement('a');
+  a.href = url; a.download = `shattered-crown_stats_${stamp}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
 const VISIONS = {
   3: {
     source: 'Memory Source: The Sword',
@@ -4427,964 +5385,6 @@ function initCampaign() {
 }
 
 // =============================================================================
-// OOP DATA CLASSES — wrappers over existing data for clean API + future features
-// =============================================================================
-//
-// Design notes:
-// - All classes use Object.assign(this, data) in constructor so existing code
-//   reading `tok.atk` etc. continues working unchanged.
-// - Class methods encapsulate common queries/mutations so new features can
-//   compose them instead of repeating logic.
-// - Token / Hero / Enemy form an inheritance chain; equipment / skills are
-//   value objects with helper methods.
-// - Campaign / Combat / GameMap wrap the game state singletons.
-
-class GameEntity {
-  constructor(data = {}) { Object.assign(this, data); }
-}
-
-class Token extends GameEntity {
-  constructor(data) {
-    super(data);
-    if (this.cooldowns === undefined) this.cooldowns = {};
-    if (this.statuses === undefined) this.statuses = [];
-    if (this.skills === undefined)   this.skills = [null, null];
-    if (this.actions === undefined)  this.actions = true;
-    if (this.dead === undefined)     this.dead = false;
-    if (this.moved === undefined)    this.moved = false;
-  }
-  // ─── Vitals ───────────────────────────────────
-  get hpPct()    { return this.maxHp ? this.hp / this.maxHp : 0; }
-  get manaPct()  { return this.maxMana ? this.mana / this.maxMana : 0; }
-  get isAlive()  { return !this.dead && this.hp > 0; }
-  get isLowHP()  { return this.hpPct < 0.5; }
-  get isCritHP() { return this.hpPct < 0.25; }
-  // ─── Turn / Actions ───────────────────────────
-  canAct()   { return !this.dead && this.actions; }
-  hasMoved() { return !!this.moved; }
-  isMyTurn() { return typeof isItMyTurn === 'function' ? isItMyTurn(this.id) : true; }
-  endTurn()  { this.actions = false; this.moved = true; }
-  // ─── Damage / Healing ─────────────────────────
-  takeDamage(dmg) {
-    const before = this.hp;
-    this.hp = Math.max(0, this.hp - dmg);
-    return before - this.hp;
-  }
-  heal(amt) {
-    const before = this.hp;
-    this.hp = Math.min(this.maxHp, this.hp + amt);
-    return this.hp - before;
-  }
-  // ─── Mana ─────────────────────────────────────
-  canAfford(cost) { return this.mana >= (cost || 0); }
-  spendMana(cost) { this.mana = Math.max(0, this.mana - (cost || 0)); }
-  regenMana()     { this.mana = Math.min(this.maxMana, this.mana + (this.manaRegen || 0)); }
-  // ─── Movement / Targeting ─────────────────────
-  distTo(other)   { return Math.abs(this.row - other.row) + Math.abs(this.col - other.col); }
-  canReach(r, c)  { return (Math.abs(this.row - r) + Math.abs(this.col - c)) <= this.speed; }
-  inRangeOf(target) { return this.distTo(target) <= (this.range || 1); }
-  // ─── Status ───────────────────────────────────
-  hasStatus(s)    { return this.statuses.includes(s); }
-  addStatus(s)    { if (!this.hasStatus(s)) this.statuses.push(s); }
-  removeStatus(s) { this.statuses = this.statuses.filter(x => x !== s); }
-  // ─── Cooldowns ────────────────────────────────
-  isOnCooldown(key) { return (this.cooldowns[key] || 0) > 0; }
-  setCooldown(key, rounds) { if (rounds > 0) this.cooldowns[key] = rounds; }
-  tickCooldowns() {
-    Object.keys(this.cooldowns).forEach(k => { if (this.cooldowns[k] > 0) this.cooldowns[k]--; });
-  }
-}
-
-class Hero extends Token {
-  constructor(data) {
-    super({...data, side: 'ally'});
-    if (this.equipment === undefined) this.equipment = [];
-    if (this.potions === undefined)   this.potions = [];
-    if (this.level === undefined)     this.level = 1;
-    if (this.baseStats === undefined) this.baseStats = this._snapshotStats();
-  }
-  _snapshotStats() {
-    return {
-      hp: this.maxHp, atk: this.atk, def: this.def,
-      speed: this.speed, range: this.range || 1,
-      maxMana: this.maxMana, manaRegen: this.manaRegen
-    };
-  }
-  // ─── Equipment ────────────────────────────────
-  hasEquipped(slot) { return this.equipment.some(id => EQUIPMENT[id]?.slot === slot); }
-  getEquipped(slot) { return this.equipment.map(id => EQUIPMENT[id]).find(it => it?.slot === slot); }
-  recalcStats()     { if (typeof recalcHeroStats === 'function') recalcHeroStats(this); }
-  equipById(itemId) {
-    const idx = CAMPAIGN.heroes.indexOf(this);
-    return idx >= 0 ? equipItem(idx, itemId) : false;
-  }
-  unequipById(itemId) {
-    const idx = CAMPAIGN.heroes.indexOf(this);
-    if (idx >= 0) unequipItem(idx, itemId);
-  }
-  // ─── Potions ──────────────────────────────────
-  givePotion(type) {
-    const existing = this.potions.find(p => p.type === type);
-    if (existing) existing.charges++;
-    else this.potions.push({type, charges: 1});
-  }
-  // ─── Level Up ─────────────────────────────────
-  applyLevelUp() {
-    this.level = (this.level || 1) + 1;
-    const choices = [
-      {label:'+2 HP',  apply: () => { this.baseStats.hp += 2; }},
-      {label:'+1 ATK', apply: () => { this.baseStats.atk += 1; }},
-      {label:'+1 DEF', apply: () => { this.baseStats.def += 1; }},
-      {label:'+1 SPD', apply: () => { this.baseStats.speed += 1; }},
-      {label:'+1 MP',  apply: () => { this.baseStats.maxMana += 1; }},
-    ];
-    const pick = choices[Math.floor(Math.random() * choices.length)];
-    pick.apply();
-    this.recalcStats();
-    return pick.label;
-  }
-}
-
-class Enemy extends Token {
-  constructor(data) { super({...data, side: 'enemy'}); }
-  isBoss() { return this.class === 'Aldric'; }
-}
-
-class EquipmentItem extends GameEntity {
-  constructor(data) { super(data); }
-  canBeUsedBy(className) {
-    if (this.classes === 'all') return true;
-    return Array.isArray(this.classes) && this.classes.includes(className);
-  }
-  sellValue() { return (this.tier + 1) * 8; }
-  statSummary() {
-    return Object.entries(this.stats || {})
-      .map(([k,v]) => `${v >= 0 ? '+' : ''}${v} ${k.toUpperCase()}`)
-      .join(', ');
-  }
-}
-
-class GameSkill extends GameEntity {
-  constructor(data) { super(data); }
-  isPassive()    { return this.targetType === 'passive' || this.effectType === 'passive'; }
-  cooldownKey()  { return this.id ? 'pool_' + this.id : 'cls_' + this.name; }
-  canBeUsedBy(tok) {
-    if (!tok.canAct()) return false;
-    if (tok.mana < (this.manaCost || 0)) return false;
-    if (tok.isOnCooldown(this.cooldownKey())) return false;
-    return true;
-  }
-}
-
-class CampaignManager {
-  constructor() {
-    this.scene = 'title';
-    this.active = false;
-    this.heroes = [];
-    this.currentNode = 0;
-    this.completedNodes = [];
-    this.combatNode = null;
-    this.endingShown = false;
-    this.storage = [];
-    this.runStats = null;
-  }
-  // Convenience getters
-  get livingHeroes() { return this.heroes.filter(h => !h.dead); }
-  get deadHeroes()   { return this.heroes.filter(h => h.dead); }
-  get partySize()    { return this.heroes.length; }
-  get isAtFullParty(){ return this.livingHeroes.length === this.heroes.length; }
-  hasHero(name)      { return this.heroes.some(h => h.name === name); }
-  findHero(name)     { return this.heroes.find(h => h.name === name); }
-  // Storage
-  addToStorage(itemId) { if (!this.storage) this.storage = []; this.storage.push(itemId); }
-  removeFromStorage(itemId) {
-    const i = this.storage.indexOf(itemId);
-    if (i >= 0) this.storage.splice(i, 1);
-  }
-  // Save delegations
-  save()    { saveCampaign(); }
-  load()    { return loadCampaign(); }
-  hasSave() { return hasSave(); }
-  reset()   { abandonRun(); }
-}
-
-class GameMap extends GameEntity {
-  constructor(nodes) { super(); this.nodes = nodes; }
-  getNode(id) { return this.nodes.find(n => n.id === id); }
-  availableFrom(currentId, completedIds = []) {
-    const completed = new Set(completedIds);
-    const cur = this.getNode(currentId);
-    if (!cur) return [];
-    return cur.connects.filter(id => !completed.has(id));
-  }
-  isBossNode(id) { return this.getNode(id)?.type === 'boss'; }
-  isShopNode(id) { return this.getNode(id)?.type === 'shop'; }
-  isCombatNode(id){ return ['combat','boss'].includes(this.getNode(id)?.type); }
-}
-
-class CombatScene extends GameEntity {
-  constructor(node) { super(); this.node = node; this.startedAt = Date.now(); }
-  get isEnded()    { return this.aliveAllies.length === 0 || this.aliveEnemies.length === 0; }
-  get isVictory()  { return this.aliveEnemies.length === 0; }
-  get isDefeat()   { return this.aliveAllies.length === 0; }
-  get aliveAllies(){ return tokens.filter(t => t.side === 'ally' && !t.dead); }
-  get aliveEnemies(){ return tokens.filter(t => t.side === 'enemy' && !t.dead); }
-  get currentTokenId() { return turnOrder[turnIndex]?.id ?? null; }
-}
-
-// Factory: wrap a plain object as the right class based on side
-function makeToken(data) {
-  if (data.side === 'ally')  return new Hero(data);
-  if (data.side === 'enemy') return new Enemy(data);
-  return new Token(data);
-}
-
-// Helper to look up an EquipmentItem instance from id
-function equipmentItem(id) {
-  const data = EQUIPMENT[id];
-  return data ? new EquipmentItem(data) : null;
-}
-
-// =============================================================================
-// EQUIPMENT SYSTEM (weapons, armor, accessories)
-// =============================================================================
-const EQUIPMENT = {
-  // ── TIER 0: Starting weapons (one per class, fixed) ─────────────────────
-  ironSword:    {id:'ironSword',    name:'Iron Sword',    icon:'⚔️',  slot:'weapon',    stats:{atk:1},                          desc:'A simple soldier\'s blade. +1 ATK',                tier:0, classes:['Fighter']},
-  rustyDagger:  {id:'rustyDagger',  name:'Rusty Dagger',  icon:'🗡️',  slot:'weapon',    stats:{atk:0, speed:1},                 desc:'Light and quick. +1 SPD',                          tier:0, classes:['Rogue']},
-  shortBow:     {id:'shortBow',     name:'Short Bow',     icon:'🏹',  slot:'weapon',    stats:{atk:1, range:2},                 desc:'A hunter\'s tool. +1 ATK, +2 RNG (range 3)',       tier:0, classes:['Ranger']},
-  woodMace:     {id:'woodMace',     name:'Wooden Mace',   icon:'🔨',  slot:'weapon',    stats:{atk:0, manaRegen:1},             desc:'Blessed wood. +1 MP regen',                        tier:0, classes:['Cleric']},
-  apprenticeStaff:{id:'apprenticeStaff',name:'Apprentice Staff',icon:'🪄',slot:'weapon',stats:{atk:0, range:1, maxMana:2},      desc:'A novice\'s focus. +1 RNG, +2 max MP',             tier:0, classes:['Wizard','Mage']},
-  warHammer:    {id:'warHammer',    name:'War Hammer',    icon:'🔨',  slot:'weapon',    stats:{atk:2, speed:-1},                desc:'Heavy and brutal. +2 ATK, -1 SPD',                 tier:0, classes:['Tank']},
-
-  // ── TIER 1: Common loot ─────────────────────────────────────────────────
-  longSword:    {id:'longSword',    name:'Long Sword',    icon:'⚔️',  slot:'weapon',    stats:{atk:2},                          desc:'Standard military issue. +2 ATK',                  tier:1, classes:['Fighter','Rogue']},
-  shadowBlade:  {id:'shadowBlade',  name:'Shadow Blade',  icon:'🗡️',  slot:'weapon',    stats:{atk:2, speed:1},                 desc:'Whispers to its wielder. +2 ATK, +1 SPD',          tier:1, classes:['Rogue']},
-  longBow:      {id:'longBow',      name:'Long Bow',      icon:'🏹',  slot:'weapon',    stats:{atk:2, range:3},                 desc:'Reaches further. +2 ATK, +3 RNG (range 4)',        tier:1, classes:['Ranger']},
-  battleStaff:  {id:'battleStaff',  name:'Battle Staff',  icon:'🪄',  slot:'weapon',    stats:{atk:1, range:2, maxMana:3},      desc:'Carved with old runes. +1 ATK, +2 RNG, +3 MP',     tier:1, classes:['Wizard','Mage']},
-  warMace:      {id:'warMace',      name:'War Mace',      icon:'⚒️',  slot:'weapon',    stats:{atk:1, manaRegen:1, maxMana:2},  desc:'Channels divine fury. +1 ATK, +1 regen, +2 MP',    tier:1, classes:['Cleric']},
-  greatHammer:  {id:'greatHammer',  name:'Great Hammer',  icon:'🔨',  slot:'weapon',    stats:{atk:3, def:1, speed:-1},         desc:'Two-handed crusher. +3 ATK, +1 DEF, -1 SPD',       tier:1, classes:['Tank','Fighter']},
-
-  // ── TIER 2: Rare drops ──────────────────────────────────────────────────
-  flameSword:   {id:'flameSword',   name:'Flame Tongue',  icon:'🔥',  slot:'weapon',    stats:{atk:3, range:0},                 desc:'Burns with old magic. +3 ATK, applies Burning (GM)',tier:2, classes:['Fighter','Tank']},
-  voidDagger:   {id:'voidDagger',   name:'Void Fang',     icon:'🗡️',  slot:'weapon',    stats:{atk:3, speed:2},                 desc:'Drinks light. +3 ATK, +2 SPD',                     tier:2, classes:['Rogue']},
-  hunterRifle:  {id:'hunterRifle',  name:'Crossbow',      icon:'🎯',  slot:'weapon',    stats:{atk:3, range:4},                 desc:'Pre-war craftsmanship. +3 ATK, +4 RNG (range 5)',  tier:2, classes:['Ranger']},
-  archStaff:    {id:'archStaff',    name:'Archmage Staff',icon:'🔮',  slot:'weapon',    stats:{atk:2, range:3, maxMana:5, manaRegen:1}, desc:'+2 ATK, +3 RNG, +5 MP, +1 regen',         tier:2, classes:['Wizard','Mage']},
-  holyHammer:   {id:'holyHammer',   name:'Holy Hammer',   icon:'✨',  slot:'weapon',    stats:{atk:2, manaRegen:2, maxMana:3, def:1}, desc:'+2 ATK, +2 regen, +3 MP, +1 DEF',          tier:2, classes:['Cleric']},
-
-  // ── ARMOR (universal) ───────────────────────────────────────────────────
-  leatherArmor: {id:'leatherArmor', name:'Leather Armor', icon:'🦺',  slot:'armor',     stats:{def:2},                          desc:'+2 DEF',                                            tier:0, classes:'all'},
-  chainmail:    {id:'chainmail',    name:'Chainmail',     icon:'⛓️',  slot:'armor',     stats:{def:3, speed:-1},                desc:'+3 DEF, -1 SPD',                                    tier:1, classes:'all'},
-  fullPlate:    {id:'fullPlate',    name:'Full Plate',    icon:'🛡️',  slot:'armor',     stats:{def:5, speed:-2, hp:5},          desc:'+5 DEF, -2 SPD, +5 max HP',                         tier:2, classes:['Fighter','Tank']},
-  mysticRobes:  {id:'mysticRobes',  name:'Mystic Robes',  icon:'🥋',  slot:'armor',     stats:{def:1, maxMana:3, manaRegen:1},  desc:'+1 DEF, +3 MP, +1 regen',                           tier:1, classes:['Wizard','Mage','Cleric']},
-
-  // ── ACCESSORIES (universal) ─────────────────────────────────────────────
-  ringHaste:    {id:'ringHaste',    name:'Ring of Haste', icon:'💍',  slot:'accessory', stats:{speed:1},                        desc:'+1 SPD',                                            tier:1, classes:'all'},
-  vitalAmulet:  {id:'vitalAmulet',  name:'Vital Amulet',  icon:'📿',  slot:'accessory', stats:{hp:5},                           desc:'+5 max HP',                                         tier:1, classes:'all'},
-  warBanner:    {id:'warBanner',    name:'War Banner',    icon:'🚩',  slot:'accessory', stats:{atk:1, def:1},                   desc:'+1 ATK, +1 DEF',                                    tier:2, classes:'all'},
-  manaPendant:  {id:'manaPendant',  name:'Mana Pendant',  icon:'💠',  slot:'accessory', stats:{maxMana:2, manaRegen:1},         desc:'+2 max MP, +1 regen',                               tier:1, classes:'all'},
-
-  // ════════════════ DANIEL'S FULL EQUIPMENT (Skills&Equipment.docx) ════════════════
-  // Main Hand — Cleric/holy
-  wand:           {id:'wand',           name:'Wand',              icon:'🪄', slot:'weapon', stats:{maxMana:1, manaRegen:1},                        desc:'+1 MP, +1 MP regen',                                            tier:0, classes:['Cleric','Wizard']},
-  wandOfLife:     {id:'wandOfLife',     name:'Wand of Life',      icon:'🪄', slot:'weapon', stats:{maxMana:2, manaRegen:1},                        desc:'+2 MP, +1 regen, +25% heal/shield (GM)',                        tier:1, classes:['Cleric']},
-  eternalGrace:   {id:'eternalGrace',   name:'Eternal Grace Wand',icon:'🪄', slot:'weapon', stats:{maxMana:3, manaRegen:2},                        desc:'+3 MP, +2 regen, +50% heal/shield (GM)',                        tier:2, classes:['Cleric']},
-  // Main Hand — Fighter
-  shortSwordD:    {id:'shortSwordD',    name:'Short Sword',       icon:'⚔️', slot:'weapon', stats:{atk:1},                                         desc:'+1 ATK',                                                        tier:0, classes:['Fighter','Rogue']},
-  steelSword:     {id:'steelSword',     name:'Steel Sword',       icon:'⚔️', slot:'weapon', stats:{atk:2, def:1},                                  desc:'+2 ATK, +1 DEF',                                                tier:1, classes:['Fighter']},
-  ironOathblade:  {id:'ironOathblade',  name:'Iron Oathblade',    icon:'⚔️', slot:'weapon', stats:{atk:3, def:2},                                  desc:'+3 ATK, +2 DEF, +1 dmg vs armoured (GM)',                       tier:2, classes:['Fighter']},
-  // Main Hand — Ranger spears
-  huntingSpear:   {id:'huntingSpear',   name:'Hunting Spear',     icon:'🔱', slot:'weapon', stats:{atk:1, range:1},                                desc:'+1 ATK, +1 RNG',                                                tier:0, classes:['Ranger','Fighter']},
-  falconSpear:    {id:'falconSpear',    name:'Falcon Spear',      icon:'🔱', slot:'weapon', stats:{atk:2, range:1},                                desc:'+2 ATK, +1 RNG',                                                tier:1, classes:['Ranger','Fighter']},
-  skypiercer:     {id:'skypiercer',     name:'Skypiercer Spear',  icon:'🔱', slot:'weapon', stats:{atk:3, range:2},                                desc:'+3 ATK, +2 RNG, first atk/combat +1 ATK (GM)',                  tier:2, classes:['Ranger']},
-  // Main Hand — Cleric maces
-  prayerMace:     {id:'prayerMace',     name:'Prayer Mace',       icon:'🔨', slot:'weapon', stats:{atk:1, maxMana:1},                              desc:'+1 ATK, +1 MP',                                                 tier:0, classes:['Cleric']},
-  sacredMace:     {id:'sacredMace',     name:'Sacred Mace',       icon:'🔨', slot:'weapon', stats:{atk:2, manaRegen:1},                            desc:'+2 ATK, +1 MP regen',                                           tier:1, classes:['Cleric']},
-  dawnSaintMace:  {id:'dawnSaintMace',  name:'Dawn Saint Mace',   icon:'🔨', slot:'weapon', stats:{atk:3, maxMana:2},                              desc:'+3 ATK, +2 MP, heal 1 HP on kill (GM)',                         tier:2, classes:['Cleric']},
-  // Main Hand — Wizard wands
-  apprenticeWand: {id:'apprenticeWand', name:'Apprentice Wand',   icon:'🪄', slot:'weapon', stats:{maxMana:2},                                     desc:'+2 MP',                                                         tier:0, classes:['Wizard','Mage']},
-  arcaneWand:     {id:'arcaneWand',     name:'Arcane Wand',       icon:'🪄', slot:'weapon', stats:{maxMana:3, manaRegen:1},                        desc:'+3 MP, +1 regen',                                               tier:1, classes:['Wizard','Mage']},
-  voidStarWand:   {id:'voidStarWand',   name:'Void Star Wand',    icon:'🪄', slot:'weapon', stats:{maxMana:5, manaRegen:2, range:1},               desc:'+5 MP, +2 regen, +1 spell RNG',                                 tier:2, classes:['Wizard']},
-
-  // Off Hand — shields
-  shield:         {id:'shield',         name:'Shield',            icon:'🛡️', slot:'accessory', stats:{def:4},                                      desc:'+4 DEF',                                                        tier:0, classes:'all'},
-  guardianShield: {id:'guardianShield', name:'Guardian Shield',   icon:'🛡️', slot:'accessory', stats:{def:5, hp:1},                                desc:'+5 DEF, +1 HP',                                                 tier:1, classes:'all'},
-  lastStand:      {id:'lastStand',      name:'Last Stand Shield', icon:'🛡️', slot:'accessory', stats:{def:7, hp:2},                                desc:'+7 DEF, +2 HP, once/combat reduce dmg by 2 (GM)',               tier:2, classes:'all'},
-  // Off Hand — Rogue
-  daggerGuard:    {id:'daggerGuard',    name:'Dagger Guard',      icon:'🗡️', slot:'accessory', stats:{atk:1, def:1},                               desc:'+1 ATK, +1 DEF',                                                tier:0, classes:['Rogue']},
-  shadowBuckler:  {id:'shadowBuckler',  name:'Shadow Buckler',    icon:'🗡️', slot:'accessory', stats:{atk:2, def:2},                               desc:'+2 ATK, +2 DEF',                                                tier:1, classes:['Rogue']},
-  nightfang:      {id:'nightfang',      name:'Nightfang Buckler', icon:'🗡️', slot:'accessory', stats:{atk:3, def:3},                               desc:'+3 ATK, +3 DEF, +1 ATK after dodge/move (GM)',                  tier:2, classes:['Rogue']},
-  // Off Hand — Ranger
-  quiver:         {id:'quiver',         name:'Quiver',            icon:'🏹', slot:'accessory', stats:{range:1},                                    desc:'+1 RNG',                                                        tier:0, classes:['Ranger']},
-  reinforcedQuiver:{id:'reinforcedQuiver',name:'Reinforced Quiver',icon:'🏹',slot:'accessory', stats:{range:1, atk:1},                             desc:'+1 RNG, +1 ATK',                                                tier:1, classes:['Ranger']},
-  stormfeather:   {id:'stormfeather',   name:'Stormfeather Quiver',icon:'🏹',slot:'accessory', stats:{range:2, atk:2},                             desc:'+2 RNG, +2 ATK, first ranged atk -1 MP (GM)',                   tier:2, classes:['Ranger']},
-  // Off Hand — Cleric
-  cross:          {id:'cross',          name:'Cross',             icon:'✝️', slot:'accessory', stats:{},                                           desc:'+1 to heal/shield (GM)',                                        tier:0, classes:['Cleric']},
-  holyCross:      {id:'holyCross',      name:'Holy Cross',        icon:'✝️', slot:'accessory', stats:{manaRegen:1},                                desc:'+2 heal/shield, +1 regen',                                      tier:1, classes:['Cleric']},
-  martyrCross:    {id:'martyrCross',    name:'Martyr\'s Cross',   icon:'✝️', slot:'accessory', stats:{manaRegen:2},                                desc:'+3 heal/shield, +2 regen, +1 DEF when healing (GM)',            tier:2, classes:['Cleric']},
-  // Off Hand — Wizard
-  manaCrystal:    {id:'manaCrystal',    name:'Mana Crystal',      icon:'💠', slot:'accessory', stats:{maxMana:5, manaRegen:1},                     desc:'+5 MP, +1 regen',                                               tier:0, classes:['Wizard','Mage','Cleric']},
-  arcaneOrb:      {id:'arcaneOrb',      name:'Arcane Orb',        icon:'🔮', slot:'accessory', stats:{maxMana:6, manaRegen:2},                     desc:'+6 MP, +2 regen',                                               tier:1, classes:['Wizard','Mage']},
-  abyssOrb:       {id:'abyssOrb',       name:'Abyss Orb',         icon:'🔮', slot:'accessory', stats:{maxMana:8, manaRegen:3},                     desc:'+8 MP, +3 regen, once/combat spell -2 MP (GM)',                 tier:2, classes:['Wizard']},
-  tome:           {id:'tome',           name:'Tome',              icon:'📕', slot:'accessory', stats:{},                                           desc:'+2 MP on kill (GM)',                                            tier:0, classes:['Wizard','Mage']},
-  forbiddenTome:  {id:'forbiddenTome',  name:'Forbidden Tome',    icon:'📕', slot:'accessory', stats:{manaRegen:1},                                desc:'+3 MP on kill, +1 regen',                                       tier:1, classes:['Wizard']},
-  ruinTome:       {id:'ruinTome',       name:'Ruin Tome',         icon:'📕', slot:'accessory', stats:{manaRegen:2},                                desc:'+4 MP on kill, +2 regen, +1 spell dmg vs <50% HP (GM)',         tier:2, classes:['Wizard']},
-
-  // Double-Handed — bows
-  bow:            {id:'bow',            name:'Bow',               icon:'🏹', slot:'weapon', stats:{range:3},                                       desc:'+3 RNG',                                                        tier:0, classes:['Ranger']},
-  heavyBow:       {id:'heavyBow',       name:'Heavy Bow',         icon:'🏹', slot:'weapon', stats:{range:4, atk:1},                                desc:'+4 RNG, +1 ATK',                                                tier:1, classes:['Ranger']},
-  moonrendingBow: {id:'moonrendingBow', name:'Moonrending Bow',   icon:'🏹', slot:'weapon', stats:{range:5, atk:2},                                desc:'+5 RNG, +2 ATK, +1 dmg at max range (GM)',                      tier:2, classes:['Ranger']},
-  warHammerD:     {id:'warHammerD',     name:'War Hammer',        icon:'🔨', slot:'weapon', stats:{atk:3},                                         desc:'+3 ATK, knockback 1 on basic atk (GM)',                         tier:1, classes:['Fighter','Tank']},
-  greatAxe:       {id:'greatAxe',       name:'Great Axe',         icon:'🪓', slot:'weapon', stats:{atk:4},                                         desc:'+4 ATK',                                                        tier:1, classes:['Fighter','Tank']},
-  titanbreaker:   {id:'titanbreaker',   name:'Titanbreaker Axe',  icon:'🪓', slot:'weapon', stats:{atk:5},                                         desc:'+5 ATK, cleave 1 dmg to adjacent enemy (GM)',                   tier:2, classes:['Fighter']},
-  rapidFireBow:   {id:'rapidFireBow',   name:'Rapid Fire Bow',    icon:'🏹', slot:'weapon', stats:{atk:-1, range:3, manaRegen:1},                  desc:'-1 ATK, -1 MP cost, +1 regen, +3 RNG',                          tier:1, classes:['Ranger']},
-  stormBow:       {id:'stormBow',       name:'Storm Bow',         icon:'🏹', slot:'weapon', stats:{atk:1, range:4, speed:1},                       desc:'+1 ATK, +4 RNG, +1 SPD',                                        tier:1, classes:['Ranger']},
-  thunderhawk:    {id:'thunderhawk',    name:'Thunderhawk Bow',   icon:'🏹', slot:'weapon', stats:{atk:2, range:5, speed:1},                       desc:'+2 ATK, +5 RNG, +1 SPD, first atk after move +1 ATK (GM)',      tier:2, classes:['Ranger']},
-  staff:          {id:'staff',          name:'Staff',             icon:'🪄', slot:'weapon', stats:{maxMana:4, manaRegen:1},                        desc:'+4 MP, +1 regen',                                               tier:0, classes:['Cleric','Wizard']},
-  holyStaff:      {id:'holyStaff',      name:'Holy Staff',        icon:'🪄', slot:'weapon', stats:{maxMana:5, manaRegen:2},                        desc:'+5 MP, +2 regen, +1 heal/shield (GM)',                          tier:1, classes:['Cleric']},
-  seraphimStaff:  {id:'seraphimStaff',  name:'Seraphim Staff',    icon:'🪄', slot:'weapon', stats:{maxMana:7, manaRegen:2},                        desc:'+7 MP, +2 regen, +2 heal/shield, healing gives +1 DEF (GM)',    tier:2, classes:['Cleric']},
-  arcaneStaff:    {id:'arcaneStaff',    name:'Arcane Staff',      icon:'🪄', slot:'weapon', stats:{maxMana:6, manaRegen:1, range:1},               desc:'+6 MP, +1 regen, +1 RNG',                                       tier:1, classes:['Wizard','Mage']},
-  blackStarStaff: {id:'blackStarStaff', name:'Black Star Staff',  icon:'🪄', slot:'weapon', stats:{maxMana:8, manaRegen:3, range:2},               desc:'+8 MP, +3 regen, +2 RNG, +1 spell dmg (GM)',                    tier:2, classes:['Wizard']},
-
-  // Single-Handed
-  dagger:         {id:'dagger',         name:'Dagger',            icon:'🗡️', slot:'weapon', stats:{atk:1},                                         desc:'+1 ATK',                                                        tier:0, classes:['Rogue']},
-  steelDagger:    {id:'steelDagger',    name:'Steel Dagger',      icon:'🗡️', slot:'weapon', stats:{atk:2},                                         desc:'+2 ATK',                                                        tier:1, classes:['Rogue']},
-  venomedge:      {id:'venomedge',      name:'Venomedge Dagger',  icon:'🗡️', slot:'weapon', stats:{atk:3},                                         desc:'+3 ATK, +1 ATK after moving (GM)',                              tier:2, classes:['Rogue']},
-  swordD:         {id:'swordD',         name:'Sword',             icon:'⚔️', slot:'weapon', stats:{atk:2},                                         desc:'+2 ATK',                                                        tier:0, classes:['Fighter','Rogue']},
-  knightSword:    {id:'knightSword',    name:'Knight Sword',      icon:'⚔️', slot:'weapon', stats:{atk:3, def:1},                                  desc:'+3 ATK, +1 DEF',                                                tier:1, classes:['Fighter']},
-  dragonslayer:   {id:'dragonslayer',   name:'Dragonslayer Sword',icon:'⚔️', slot:'weapon', stats:{atk:4, def:2},                                  desc:'+4 ATK, +2 DEF, +1 vs large enemies (GM)',                      tier:2, classes:['Fighter']},
-  huntingKnife:   {id:'huntingKnife',   name:'Hunting Knife',     icon:'🗡️', slot:'weapon', stats:{atk:1, speed:1},                                desc:'+1 ATK, +1 SPD',                                                tier:0, classes:['Rogue','Ranger']},
-  falconKnife:    {id:'falconKnife',    name:'Falcon Knife',      icon:'🗡️', slot:'weapon', stats:{atk:2, speed:1},                                desc:'+2 ATK, +1 SPD',                                                tier:1, classes:['Rogue','Ranger']},
-  windcutter:     {id:'windcutter',     name:'Windcutter Knife',  icon:'🗡️', slot:'weapon', stats:{atk:3, speed:1, range:1},                       desc:'+3 ATK, +1 SPD, +1 RNG',                                        tier:2, classes:['Rogue','Ranger']},
-  sacredBlade:    {id:'sacredBlade',    name:'Sacred Blade',      icon:'⚔️', slot:'weapon', stats:{atk:1, maxMana:1},                              desc:'+1 ATK, +1 MP',                                                 tier:0, classes:['Cleric','Wizard']},
-  blessedBlade:   {id:'blessedBlade',   name:'Blessed Blade',     icon:'⚔️', slot:'weapon', stats:{atk:2, manaRegen:1},                            desc:'+2 ATK, +1 regen',                                              tier:1, classes:['Cleric']},
-  angelborn:      {id:'angelborn',      name:'Angelborn Blade',   icon:'⚔️', slot:'weapon', stats:{atk:3, maxMana:2},                              desc:'+3 ATK, +2 MP, heal 1 HP on kill (GM)',                         tier:2, classes:['Cleric']},
-  runeDagger:     {id:'runeDagger',     name:'Rune Dagger',       icon:'🗡️', slot:'weapon', stats:{atk:1, maxMana:2},                              desc:'+1 ATK, +2 MP',                                                 tier:0, classes:['Wizard','Mage','Rogue']},
-  mageBlade:      {id:'mageBlade',      name:'Mage Blade',        icon:'🗡️', slot:'weapon', stats:{atk:2, maxMana:3},                              desc:'+2 ATK, +3 MP',                                                 tier:1, classes:['Wizard','Mage']},
-  voidSpellblade: {id:'voidSpellblade', name:'Void Spellblade',   icon:'🗡️', slot:'weapon', stats:{atk:3, maxMana:5},                              desc:'+3 ATK, +5 MP, +1 spell dmg after basic atk (GM)',              tier:2, classes:['Wizard']},
-
-  // Helmet / Head
-  leatherCap:     {id:'leatherCap',     name:'Leather Cap',       icon:'🧢', slot:'armor', stats:{def:3},                                          desc:'+3 DEF',                                                        tier:0, classes:'all'},
-  shadowHood:     {id:'shadowHood',     name:'Shadow Hood',       icon:'🎩', slot:'armor', stats:{def:3, speed:1},                                 desc:'+3 DEF, +1 SPD',                                                tier:0, classes:['Rogue','Ranger']},
-  nightHood:      {id:'nightHood',      name:'Night Assassin Hood',icon:'🎩',slot:'armor', stats:{def:4, speed:2},                                 desc:'+4 DEF, +2 SPD, 1st move/turn -1 MP (GM)',                      tier:2, classes:['Rogue']},
-  ironHelmet:     {id:'ironHelmet',     name:'Iron Helmet',       icon:'⛑️', slot:'armor', stats:{def:6},                                          desc:'+6 DEF',                                                        tier:1, classes:['Fighter','Tank']},
-  steelHelmet:    {id:'steelHelmet',    name:'Steel Helmet',      icon:'⛑️', slot:'armor', stats:{def:7, speed:-1},                                desc:'+7 DEF, -1 SPD',                                                tier:1, classes:['Fighter','Tank']},
-  ironLegion:     {id:'ironLegion',     name:'Iron Legion Helmet',icon:'⛑️', slot:'armor', stats:{def:9, hp:1, speed:-1},                          desc:'+9 DEF, +1 HP, -1 SPD',                                         tier:2, classes:['Fighter','Tank']},
-  goggles:        {id:'goggles',        name:'Goggles',           icon:'🥽', slot:'armor', stats:{def:1, range:1},                                 desc:'+1 DEF, +1 RNG',                                                tier:0, classes:['Ranger']},
-  hawkeye:        {id:'hawkeye',        name:'Hawkeye Goggles',   icon:'🥽', slot:'armor', stats:{def:2, range:2},                                 desc:'+2 DEF, +2 RNG',                                                tier:1, classes:['Ranger']},
-  stormHunter:    {id:'stormHunter',    name:'Storm Hunter Goggles',icon:'🥽',slot:'armor',stats:{def:3, range:3},                                 desc:'+3 DEF, +3 RNG, +1 ATK from 4+ blocks (GM)',                    tier:2, classes:['Ranger']},
-  wizardHat:      {id:'wizardHat',      name:'Wizard Hat',        icon:'🎩', slot:'armor', stats:{def:1, manaRegen:1},                             desc:'+1 DEF, +1 regen',                                              tier:0, classes:['Wizard','Cleric']},
-  goldenHalo:     {id:'goldenHalo',     name:'Golden Halo Crown', icon:'👑', slot:'armor', stats:{def:3, manaRegen:2},                             desc:'+3 DEF, +2 regen, +1 heal/shield (GM)',                         tier:2, classes:['Cleric']},
-  apprenticeHat:  {id:'apprenticeHat',  name:'Apprentice Hat',    icon:'🎩', slot:'armor', stats:{def:1, maxMana:2},                               desc:'+1 DEF, +2 MP',                                                 tier:0, classes:['Wizard','Mage']},
-  arcaneHat:      {id:'arcaneHat',      name:'Arcane Hat',        icon:'🎩', slot:'armor', stats:{def:2, maxMana:3, manaRegen:1},                  desc:'+2 DEF, +3 MP, +1 regen',                                       tier:1, classes:['Wizard','Mage']},
-  celestialHat:   {id:'celestialHat',   name:'Celestial Library Hat',icon:'🎩',slot:'armor',stats:{def:3, maxMana:5, manaRegen:2, range:1},        desc:'+3 DEF, +5 MP, +2 regen, +1 spell RNG',                         tier:2, classes:['Wizard']},
-
-  // Boots
-  swiftBoots:     {id:'swiftBoots',     name:'Swift Boots',       icon:'👢', slot:'accessory', stats:{def:2, speed:2},                             desc:'+2 DEF, +2 SPD, split your movement (GM)',                      tier:0, classes:'all'},
-  shadowBoots:    {id:'shadowBoots',    name:'Shadow Boots',      icon:'👢', slot:'accessory', stats:{def:3, speed:2},                             desc:'+3 DEF, +2 SPD',                                                tier:1, classes:['Rogue','Ranger']},
-  phantomStep:    {id:'phantomStep',    name:'Phantom Step Boots',icon:'👢', slot:'accessory', stats:{def:4, speed:3},                             desc:'+4 DEF, +3 SPD, free movement through enemies (GM)',            tier:2, classes:['Rogue']},
-  ironBoots:      {id:'ironBoots',      name:'Iron Boots',        icon:'🥾', slot:'accessory', stats:{def:4, speed:-1},                            desc:'+4 DEF, -1 SPD',                                                tier:0, classes:['Fighter','Tank']},
-  warBoots:       {id:'warBoots',       name:'War Boots',         icon:'🥾', slot:'accessory', stats:{def:6},                                      desc:'+6 DEF',                                                        tier:1, classes:['Fighter','Tank']},
-  ironGiant:      {id:'ironGiant',      name:'Iron Giant Boots',  icon:'🥾', slot:'accessory', stats:{def:8, atk:1},                               desc:'+8 DEF, +1 ATK, cannot be pushed (GM)',                         tier:2, classes:['Tank']},
-};
-
-const STARTER_WEAPONS = {
-  'Fighter': 'ironSword',
-  'Rogue':   'rustyDagger',
-  'Ranger':  'shortBow',
-  'Cleric':  'woodMace',
-  'Wizard':  'apprenticeStaff',
-  'Mage':    'apprenticeStaff',
-  'Tank':    'warHammer',
-};
-
-function itemClassesMatch(item, className) {
-  if (item.classes === 'all') return true;
-  return Array.isArray(item.classes) && item.classes.includes(className);
-}
-// Return small class-logo badge HTML for an item
-function itemClassBadge(item) {
-  if (!item) return '';
-  if (item.classes === 'all') {
-    return `<span style="position:absolute;top:2px;right:2px;background:#2a3050;color:#aaa;font-size:0.55rem;padding:1px 4px;border-radius:6px;letter-spacing:0.5px" title="Usable by any class">ALL</span>`;
-  }
-  const classEmojis = {Fighter:'⚔️',Tank:'🛡️',Rogue:'🗡️',Ranger:'🏹',Cleric:'⛪',Wizard:'🧙',Mage:'📜'};
-  const icons = (item.classes||[]).map(c => classEmojis[c] || c[0]).join('');
-  const label = (item.classes||[]).join('/');
-  return `<span style="position:absolute;top:2px;right:2px;background:#1a1410;border:1px solid #5a3a1a;color:#dfaf3a;font-size:0.7rem;padding:1px 4px;border-radius:6px" title="Usable by: ${label}">${icons}</span>`;
-}
-
-function recalcHeroStats(h) {
-  if (!h.baseStats) return;
-  const b = h.baseStats;
-  // Reset to base
-  h.maxHp     = b.hp;
-  h.atk       = b.atk;
-  h.def       = b.def;
-  h.speed     = b.speed;
-  h.range     = b.range;
-  h.maxMana   = b.maxMana;
-  h.manaRegen = b.manaRegen;
-  // Apply trait (if has one)
-  if (h.traitName) {
-    const tr = TRAITS.find(t => t.name === h.traitName);
-    // Some traits set flags (lucky etc.) which we re-apply; stat modifiers also reapplied
-    if (tr) tr.apply(h); // will mutate h with bonuses
-  }
-  // Apply equipment
-  (h.equipment || []).forEach(itemId => {
-    const item = EQUIPMENT[itemId];
-    if (!item) return;
-    Object.entries(item.stats).forEach(([k,v]) => {
-      if (k === 'hp') h.maxHp += v;
-      else if (h[k] !== undefined) h[k] += v;
-    });
-  });
-  // Clamp current values
-  if (h.hp > h.maxHp) h.hp = h.maxHp;
-  if (h.mana > h.maxMana) h.mana = h.maxMana;
-}
-
-function equipItem(heroIdx, itemId) {
-  const h = CAMPAIGN.heroes[heroIdx];
-  if (!h) return false;
-  const item = EQUIPMENT[itemId];
-  if (!item) return false;
-  if (!itemClassesMatch(item, h.class)) { alert(`${h.class} cannot use ${item.name}.`); return false; }
-  if (!h.equipment) h.equipment = [];
-  // Unequip any existing item in same slot back to storage
-  const sameSlot = h.equipment.findIndex(id => EQUIPMENT[id]?.slot === item.slot);
-  if (sameSlot >= 0) {
-    const removed = h.equipment.splice(sameSlot, 1)[0];
-    CAMPAIGN.storage.push(removed);
-  }
-  // Remove from storage
-  const storageIdx = CAMPAIGN.storage.indexOf(itemId);
-  if (storageIdx >= 0) CAMPAIGN.storage.splice(storageIdx, 1);
-  h.equipment.push(itemId);
-  recalcHeroStats(h);
-  saveCampaign();
-  return true;
-}
-function unequipItem(heroIdx, itemId) {
-  const h = CAMPAIGN.heroes[heroIdx];
-  if (!h || !h.equipment) return;
-  const idx = h.equipment.indexOf(itemId);
-  if (idx < 0) return;
-  h.equipment.splice(idx, 1);
-  CAMPAIGN.storage.push(itemId);
-  recalcHeroStats(h);
-  saveCampaign();
-}
-
-// ----- Loot Roll -----
-function rollLoot(combatType) {
-  // tier weights based on combat type
-  let tierWeights;
-  if (combatType === 'easy')   tierWeights = [60, 35, 5];   // mostly tier 0-1
-  else if (combatType === 'mid') tierWeights = [25, 60, 15];
-  else if (combatType === 'elite') tierWeights = [10, 50, 40];
-  else tierWeights = [40, 50, 10];
-  // Pick a tier
-  const roll = Math.random() * 100;
-  let tier = 0;
-  if (roll > tierWeights[0]) tier = 1;
-  if (roll > tierWeights[0] + tierWeights[1]) tier = 2;
-  // Pick a random item of that tier (no starter weapons in loot pool)
-  const pool = Object.values(EQUIPMENT).filter(it => it.tier === tier && !Object.values(STARTER_WEAPONS).includes(it.id));
-  if (pool.length === 0) return null;
-  return pool[Math.floor(Math.random() * pool.length)];
-}
-
-function showLootModal(item, goldGained) {
-  const html = `
-    <div id="lootModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:9999">
-      <div style="background:#0d1420;border:2px solid #dfaf3a;border-radius:8px;padding:24px;max-width:420px;width:90%;text-align:center">
-        <div style="color:#888;font-size:0.7rem;letter-spacing:2px;margin-bottom:6px">🎁 SPOILS OF VICTORY</div>
-        <div style="font-size:2.4rem;margin:10px 0">${item.icon}</div>
-        <h2 style="color:#dfaf3a;letter-spacing:1px;font-size:1.1rem">${item.name}</h2>
-        <div style="color:#888;font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;margin:4px 0">${item.slot} · Tier ${item.tier}</div>
-        <div style="color:#aaa;font-size:0.85rem;margin:10px 0;line-height:1.5">${item.desc}</div>
-        <div style="color:#7a8a9a;font-size:0.7rem;background:#0a0f1c;padding:6px;border-radius:4px;margin:8px 0">
-          Usable by: <strong style="color:#dfaf3a">${item.classes==='all'?'Any class':item.classes.map(c=>({Fighter:'⚔️',Tank:'🛡️',Rogue:'🗡️',Ranger:'🏹',Cleric:'⛪',Wizard:'🧙',Mage:'📜'}[c]||'')+' '+c).join(' · ')}</strong>
-        </div>
-        <div style="color:#dfaf3a;font-size:0.95rem;margin:14px 0">💰 +${goldGained} gold</div>
-        <div style="font-size:0.7rem;color:#888;margin-bottom:14px">Item sent to your party Storage. You can equip it from the Inventory screen.</div>
-        <button onclick="document.getElementById('lootModal').remove();(window._lootClose||function(){})()" class="big-btn">Continue &raquo;</button>
-      </div>
-    </div>`;
-  const wrap = document.createElement('div');
-  wrap.innerHTML = html;
-  document.body.appendChild(wrap.firstElementChild);
-}
-
-// ----- Inventory Modal -----
-function openInventory() {
-  renderInventoryModal();
-  document.getElementById('inventoryModal').style.display = 'flex';
-}
-function closeInventory() {
-  const m = document.getElementById('inventoryModal');
-  if (m) m.style.display = 'none';
-}
-function renderInventoryModal() {
-  let modal = document.getElementById('inventoryModal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'inventoryModal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);display:none;align-items:center;justify-content:center;z-index:9990;padding:20px;overflow-y:auto';
-    modal.onclick = (e) => { if (e.target === modal) closeInventory(); };
-    document.body.appendChild(modal);
-  }
-  const heroPanels = CAMPAIGN.heroes.map((h, hi) => {
-    const spr = spriteFor(h.class);
-    const slots = ['weapon','armor','accessory'];
-    const slotHtml = slots.map(slotType => {
-      const equipped = (h.equipment||[]).find(id => EQUIPMENT[id]?.slot === slotType);
-      const item = equipped ? EQUIPMENT[equipped] : null;
-      return `<div class="inv-slot" data-hero="${hi}" data-slot="${slotType}"
-        ondragover="invSlotDragOver(event,${hi},'${slotType}')"
-        ondragleave="invSlotDragLeave(event)"
-        ondrop="invSlotDrop(event,${hi},'${slotType}')"
-        style="background:#0a0f1c;border:1px dashed ${item?'#dfaf3a':'#2a3050'};border-radius:4px;padding:6px;font-size:0.7rem;position:relative;min-height:44px">
-        <div style="color:#888;font-size:0.55rem;letter-spacing:1px;text-transform:uppercase">${slotType}</div>
-        ${item ? `
-          <div draggable="true" ondragstart="invItemDragStart(event,'${item.id}','equipped',${hi})"
-            style="display:flex;align-items:center;gap:6px;margin-top:2px;cursor:grab;position:relative">
-            <span style="font-size:1.1rem">${item.icon}</span>
-            <div style="flex:1">
-              <div style="color:#dfaf3a;font-weight:bold">${item.name}</div>
-              <div style="color:#888;font-size:0.6rem">${item.desc}</div>
-            </div>
-            <button onclick="unequipItem(${hi},'${item.id}');renderInventoryModal()" style="background:#5a1a1a;border:1px solid #8b3030;color:#e05555;padding:2px 6px;cursor:pointer;border-radius:3px;font-size:0.6rem">×</button>
-          </div>
-        ` : '<div style="color:#444;font-style:italic;font-size:0.7rem;margin-top:6px;text-align:center">— drop item here —</div>'}
-      </div>`;
-    }).join('');
-    return `<div style="background:#1a1f2c;border:1px solid #2a3050;border-radius:6px;padding:10px;flex:1;min-width:240px${h.dead?';opacity:0.4':''}">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <span style="font-size:1.5rem">${spr.portrait}</span>
-        <div>
-          <div style="color:#c9a84c;font-weight:bold;font-size:0.95rem">${h.name}${h.dead?' †':''}</div>
-          <div style="color:#888;font-size:0.7rem">${h.class} · ATK ${h.atk} DEF ${h.def} SPD ${h.speed} RNG ${h.range}</div>
-        </div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:4px">${slotHtml}</div>
-    </div>`;
-  }).join('');
-  const storage = (CAMPAIGN.storage || []);
-  const storageHtml = storage.length === 0 ? '<div style="color:#666;font-style:italic;font-size:0.8rem;text-align:center;padding:20px">Storage is empty. Win combats to find loot.</div>' :
-    storage.map((id, si) => {
-      const item = EQUIPMENT[id]; if (!item) return '';
-      const compat = CAMPAIGN.heroes.map((h,hi)=>({hi,h,ok:!h.dead && itemClassesMatch(item, h.class)})).filter(x=>x.ok);
-      return `<div draggable="true" ondragstart="invItemDragStart(event,'${item.id}','storage',${si})"
-        style="background:#0d1420;border:1px solid #2a3050;border-radius:4px;padding:8px;display:flex;align-items:center;gap:8px;cursor:grab;position:relative">
-        ${itemClassBadge(item)}
-        <span style="font-size:1.4rem">${item.icon}</span>
-        <div style="flex:1;min-width:0;padding-right:40px">
-          <div style="color:#dfaf3a;font-weight:bold;font-size:0.85rem">${item.name}</div>
-          <div style="color:#888;font-size:0.65rem;letter-spacing:1px;text-transform:uppercase">${item.slot} · T${item.tier}</div>
-          <div style="color:#aaa;font-size:0.7rem">${item.desc}</div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:3px">
-          ${compat.length ? compat.map(c=>`<button onclick="equipItem(${c.hi},'${item.id}');renderInventoryModal()" style="background:#2a4a2a;border:1px solid #4a8f4a;color:#9fdf9f;padding:3px 8px;cursor:pointer;border-radius:3px;font-size:0.65rem">→ ${c.h.name}</button>`).join('') : '<span style="color:#666;font-size:0.65rem;font-style:italic">no compatible</span>'}
-          <button onclick="sellItem(${si});renderInventoryModal()" style="background:#1a1410;border:1px solid #dfaf3a;color:#dfaf3a;padding:3px 8px;cursor:pointer;border-radius:3px;font-size:0.65rem" title="Sell for half base value">💰 Sell</button>
-        </div>
-      </div>`;
-    }).join('');
-  modal.innerHTML = `
-    <div style="background:#0a0f1c;border:2px solid #c9a84c;border-radius:8px;padding:20px;max-width:900px;width:100%;max-height:90vh;overflow-y:auto">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #2a3050">
-        <h2 style="color:#c9a84c;letter-spacing:2px;font-size:1.2rem">📦 Inventory ${helpBtn('equipment')}</h2>
-        <div style="display:flex;align-items:center;gap:10px">
-          <span style="background:#1a1410;color:#dfaf3a;padding:6px 12px;border-radius:14px;font-size:0.8rem">💰 ${gold} gold</span>
-          <button onclick="closeInventory()" style="background:#1a1f3c;border:1px solid #888;color:#aaa;padding:6px 14px;cursor:pointer;border-radius:4px;font-size:0.8rem">Close</button>
-        </div>
-      </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px">${heroPanels}</div>
-      <h3 style="color:#dfaf3a;font-size:0.85rem;letter-spacing:1px;margin-bottom:8px">🗃 STORAGE (${storage.length} items)</h3>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px">${storageHtml}</div>
-    </div>
-  `;
-}
-// ----- Drag & Drop Equipment -----
-window._dragItem = null;
-function invItemDragStart(ev, itemId, source, indexOrHero) {
-  window._dragItem = { itemId, source, idx: indexOrHero };
-  ev.dataTransfer.effectAllowed = 'move';
-  // Some browsers need data set explicitly
-  ev.dataTransfer.setData('text/plain', itemId);
-}
-function invSlotDragOver(ev, heroIdx, slotType) {
-  if (!window._dragItem) return;
-  const item = EQUIPMENT[window._dragItem.itemId];
-  if (!item || item.slot !== slotType) return; // wrong slot type
-  const hero = CAMPAIGN.heroes[heroIdx];
-  if (!hero || hero.dead) return;
-  if (!itemClassesMatch(item, hero.class)) return;
-  ev.preventDefault();
-  ev.dataTransfer.dropEffect = 'move';
-  ev.currentTarget.style.borderColor = '#7fb87f';
-  ev.currentTarget.style.borderStyle = 'solid';
-}
-function invSlotDragLeave(ev) {
-  ev.currentTarget.style.borderColor = '';
-  ev.currentTarget.style.borderStyle = '';
-}
-function invSlotDrop(ev, heroIdx, slotType) {
-  ev.preventDefault();
-  ev.currentTarget.style.borderColor = '';
-  ev.currentTarget.style.borderStyle = '';
-  if (!window._dragItem) return;
-  const drag = window._dragItem;
-  const item = EQUIPMENT[drag.itemId];
-  if (!item || item.slot !== slotType) { window._dragItem = null; return; }
-  const hero = CAMPAIGN.heroes[heroIdx];
-  if (!hero || hero.dead || !itemClassesMatch(item, hero.class)) { window._dragItem = null; return; }
-  // If dragged from another hero's equipment, unequip there first
-  if (drag.source === 'equipped' && drag.idx !== heroIdx) {
-    unequipItem(drag.idx, drag.itemId);
-  }
-  equipItem(heroIdx, drag.itemId);
-  window._dragItem = null;
-  renderInventoryModal();
-}
-
-function sellItem(storageIdx) {
-  const id = CAMPAIGN.storage[storageIdx];
-  const item = EQUIPMENT[id];
-  if (!item) return;
-  const value = (item.tier + 1) * 8;
-  if (!confirm(`Sell ${item.name} for ${value} gold?`)) return;
-  CAMPAIGN.storage.splice(storageIdx, 1);
-  gold += value;
-  updateGold();
-  saveCampaign();
-}
-
-// =============================================================================
-// PIXEL SPRITE SYSTEM
-// =============================================================================
-const CLASS_SPRITES = {
-  // Allies
-  'Fighter':       {portrait:'🛡️', weapon:'⚔️', attackFx:'⚔️',  projectile:null, spellEmoji:null},
-  'Tank':          {portrait:'🛡️', weapon:'🔨', attackFx:'🔨',  projectile:null, spellEmoji:null},
-  'Rogue':         {portrait:'🥷', weapon:'🗡️', attackFx:'🗡️',  projectile:null, spellEmoji:null},
-  'Ranger':        {portrait:'🏹', weapon:'🏹', attackFx:null,   projectile:'➤', spellEmoji:null},
-  'Cleric':        {portrait:'⛪', weapon:'✨', attackFx:'✨',   projectile:null, spellEmoji:'💫'},
-  'Wizard':        {portrait:'🧙', weapon:'🔮', attackFx:null,   projectile:'✦', spellEmoji:'🔥'},
-  'Mage':          {portrait:'🧙‍♀️', weapon:'📜', attackFx:null, projectile:'✨', spellEmoji:'💥'},
-  // Enemies
-  'Goblin':        {portrait:'👹', weapon:'🗡️', attackFx:'🗡️'},
-  'Ranged Goblin': {portrait:'👹', weapon:'🏹', attackFx:null, projectile:'➤'},
-  'Spear Goblin':  {portrait:'👹', weapon:'🔱', attackFx:'🔱'},
-  'Mage Goblin':   {portrait:'👹', weapon:'🪄', attackFx:null, projectile:'✦', spellEmoji:'💥'},
-  'Orc':           {portrait:'👺', weapon:'🪓', attackFx:'🪓'},
-  'Skeleton':      {portrait:'💀', weapon:'🦴', attackFx:'🦴'},
-  'Zombie':        {portrait:'🧟', weapon:'🤲', attackFx:'💢'},
-  'Soul Eater':    {portrait:'👻', weapon:'🌀', attackFx:null, projectile:'🌀', spellEmoji:'💀'},
-  'Shield Bearer': {portrait:'💂', weapon:'🛡️', attackFx:'🛡️'},
-  'Ranged Soldier':{portrait:'💂', weapon:'🏹', attackFx:null, projectile:'➤'},
-  'Royal Guard':   {portrait:'💂‍♂️', weapon:'⚔️', attackFx:'⚔️'},
-  'Elite':         {portrait:'🥷', weapon:'⚔️', attackFx:'⚔️'},
-  'Hunter':        {portrait:'🤠', weapon:'🏹', attackFx:null, projectile:'➤'},
-  'Elf Warrior':   {portrait:'🧝', weapon:'⚔️', attackFx:'⚔️'},
-  'Elf Shaman':    {portrait:'🧝‍♀️', weapon:'🌿', attackFx:null, projectile:'🍃', spellEmoji:'🌿'},
-  'Aldric':        {portrait:'👑', weapon:'⚔️', attackFx:'⚔️',  projectile:null, spellEmoji:'⚡'},
-};
-function spriteFor(cls) { return CLASS_SPRITES[cls] || {portrait:'❔', weapon:'⚔️', attackFx:'⚔️'}; }
-
-// Trigger sprite animation: 'attacking' or 'casting'
-function spriteAnim(tokId, animClass) {
-  const cell = document.getElementById(`cell-${tokens.find(t=>t.id===tokId)?.row}-${tokens.find(t=>t.id===tokId)?.col}`);
-  if (!cell) return;
-  const el = cell.querySelector('.token');
-  if (!el) return;
-  el.classList.remove('attacking','casting');
-  void el.offsetWidth;
-  el.classList.add(animClass);
-  setTimeout(()=>el.classList.remove(animClass), 650);
-}
-
-// Spawn a flying weapon emoji from attacker to target
-function fxFlyingWeapon(attackerId, targetId, emoji, type) {
-  const att = tokens.find(t=>t.id===attackerId);
-  const tgt = tokens.find(t=>t.id===targetId);
-  if (!att || !tgt) return;
-  const aCell = document.getElementById(`cell-${att.row}-${att.col}`);
-  const tCell = document.getElementById(`cell-${tgt.row}-${tgt.col}`);
-  const grid = document.getElementById('grid');
-  if (!aCell || !tCell || !grid) return;
-  const gRect = grid.getBoundingClientRect();
-  const aRect = aCell.getBoundingClientRect();
-  const tRect = tCell.getBoundingClientRect();
-  const startX = aRect.left - gRect.left + 22;
-  const startY = aRect.top  - gRect.top  + 22;
-  const dx = (tRect.left - aRect.left);
-  const dy = (tRect.top - aRect.top);
-  const el = document.createElement('div');
-  el.className = type === 'projectile' ? 'fx-projectile' : 'fx-weapon';
-  el.textContent = emoji;
-  el.style.left = startX + 'px';
-  el.style.top  = startY + 'px';
-  el.style.setProperty('--tx', dx + 'px');
-  el.style.setProperty('--ty', dy + 'px');
-  document.querySelector('.grid-container').appendChild(el);
-  setTimeout(()=>el.remove(), 650);
-}
-
-// Spell blast at a cell
-function fxBlast(row, col, emoji) {
-  const cell = document.getElementById(`cell-${row}-${col}`);
-  const grid = document.getElementById('grid');
-  if (!cell || !grid) return;
-  const gRect = grid.getBoundingClientRect();
-  const cRect = cell.getBoundingClientRect();
-  const el = document.createElement('div');
-  el.className = 'fx-blast';
-  el.textContent = emoji || '💥';
-  el.style.left = (cRect.left - gRect.left + 12) + 'px';
-  el.style.top  = (cRect.top  - gRect.top  + 12) + 'px';
-  document.querySelector('.grid-container').appendChild(el);
-  setTimeout(()=>el.remove(), 700);
-  // Particle burst
-  for (let i=0;i<6;i++) fxParticle(row, col, ['✦','✧','•','★','✺'][i%5]);
-}
-function fxParticle(row, col, emoji) {
-  const cell = document.getElementById(`cell-${row}-${col}`);
-  const grid = document.getElementById('grid');
-  if (!cell || !grid) return;
-  const gRect = grid.getBoundingClientRect();
-  const cRect = cell.getBoundingClientRect();
-  const el = document.createElement('div');
-  el.className = 'fx-particle';
-  el.textContent = emoji || '✦';
-  el.style.color = ['#ffdf80','#ff8040','#ffffff','#80c0ff','#ff80ff'][Math.floor(Math.random()*5)];
-  el.style.left = (cRect.left - gRect.left + 24 + (Math.random()*10-5)) + 'px';
-  el.style.top  = (cRect.top  - gRect.top  + 24 + (Math.random()*10-5)) + 'px';
-  el.style.setProperty('--px', ((Math.random()-0.5)*60) + 'px');
-  el.style.setProperty('--py', ((Math.random()-0.5)*60 - 20) + 'px');
-  document.querySelector('.grid-container').appendChild(el);
-  setTimeout(()=>el.remove(), 750);
-}
-function fxCritFlash() {
-  const o = document.createElement('div');
-  o.className = 'crit-flash-overlay';
-  document.body.appendChild(o);
-  setTimeout(()=>o.remove(), 450);
-}
-
-// =============================================================================
-// RUN STATS TRACKING
-// =============================================================================
-function initRunStats() {
-  CAMPAIGN.runStats = {
-    startedAt: Date.now(),
-    combats: [],          // {nodeId, nodeName, rounds, durationMs, endedAt}
-    currentCombat: null,  // {nodeId, startedAt, startRound}
-    heroes: {},           // {heroName: {damageDealt, damageTaken, healing, kills, deaths}}
-    enemyKillsByClass: {},// {Goblin: 3, Skeleton: 2, ...}
-    timeline: [{t:0, souls:0, trust:50, gold: gold}]
-  };
-  // Pre-create hero entries
-  CAMPAIGN.heroes.forEach(h => {
-    CAMPAIGN.runStats.heroes[h.name] = {damageDealt:0, damageTaken:0, healing:0, kills:0, deaths:0, class:h.class};
-  });
-}
-function ensureHeroStats(name, cls) {
-  if (!CAMPAIGN.active || !CAMPAIGN.runStats) return null;
-  if (!CAMPAIGN.runStats.heroes[name]) {
-    CAMPAIGN.runStats.heroes[name] = {damageDealt:0, damageTaken:0, healing:0, kills:0, deaths:0, class:cls||'?'};
-  }
-  return CAMPAIGN.runStats.heroes[name];
-}
-function statsRecordDamage(attacker, target, dmg) {
-  if (!CAMPAIGN.active || !CAMPAIGN.runStats || !dmg) return;
-  if (attacker && attacker.side === 'ally') {
-    const s = ensureHeroStats(attacker.name, attacker.class); if (s) s.damageDealt += dmg;
-  }
-  if (target && target.side === 'ally') {
-    const s = ensureHeroStats(target.name, target.class); if (s) s.damageTaken += dmg;
-  }
-}
-function statsRecordHeal(healer, amount) {
-  if (!CAMPAIGN.active || !CAMPAIGN.runStats || !amount) return;
-  if (healer && healer.side === 'ally') {
-    const s = ensureHeroStats(healer.name, healer.class); if (s) s.healing += amount;
-  }
-}
-function statsRecordKill(killer, victim) {
-  if (!CAMPAIGN.active || !CAMPAIGN.runStats) return;
-  if (killer && killer.side === 'ally' && victim && victim.side === 'enemy') {
-    const s = ensureHeroStats(killer.name, killer.class); if (s) s.kills++;
-    const cls = victim.class || '?';
-    CAMPAIGN.runStats.enemyKillsByClass[cls] = (CAMPAIGN.runStats.enemyKillsByClass[cls] || 0) + 1;
-  }
-  if (victim && victim.side === 'ally') {
-    const s = ensureHeroStats(victim.name, victim.class); if (s) s.deaths++;
-  }
-}
-function statsStartCombat(node) {
-  if (!CAMPAIGN.active || !CAMPAIGN.runStats) return;
-  CAMPAIGN.runStats.currentCombat = { nodeId:node.id, nodeName:node.name, startedAt:Date.now(), startRound:1 };
-}
-function statsEndCombat(victory) {
-  if (!CAMPAIGN.active || !CAMPAIGN.runStats || !CAMPAIGN.runStats.currentCombat) return;
-  const cc = CAMPAIGN.runStats.currentCombat;
-  CAMPAIGN.runStats.combats.push({
-    nodeId: cc.nodeId, nodeName: cc.nodeName,
-    rounds: round, durationMs: Date.now() - cc.startedAt,
-    victory: !!victory, endedAt: Date.now()
-  });
-  CAMPAIGN.runStats.currentCombat = null;
-}
-function statsTimelineSnap() {
-  if (!CAMPAIGN.active || !CAMPAIGN.runStats) return;
-  const t = Date.now() - CAMPAIGN.runStats.startedAt;
-  const last = CAMPAIGN.runStats.timeline[CAMPAIGN.runStats.timeline.length-1];
-  if (last && (souls===last.souls && trust===last.trust && gold===last.gold)) return;
-  CAMPAIGN.runStats.timeline.push({t, souls, trust, gold});
-  if (CAMPAIGN.runStats.timeline.length > 200) CAMPAIGN.runStats.timeline.shift();
-}
-
-function formatDuration(ms) {
-  const s = Math.floor(ms/1000);
-  const m = Math.floor(s/60);
-  const sec = s % 60;
-  return `${m}m ${sec.toString().padStart(2,'0')}s`;
-}
-
-function renderRunStats() {
-  const body = document.getElementById('runStatsBody');
-  if (!body) return;
-  if (!CAMPAIGN.active || !CAMPAIGN.runStats) { body.innerHTML = '<div style="color:#666;font-style:italic">No active run.</div>'; return; }
-  const rs = CAMPAIGN.runStats;
-  const totalDur = Date.now() - rs.startedAt;
-  const completedCombats = rs.combats.length;
-  const avgRounds = completedCombats ? (rs.combats.reduce((s,c)=>s+c.rounds,0)/completedCombats).toFixed(1) : '—';
-  const avgDur = completedCombats ? formatDuration(rs.combats.reduce((s,c)=>s+c.durationMs,0)/completedCombats) : '—';
-
-  // Per-hero table
-  const heroRows = Object.entries(rs.heroes).map(([name, s]) => {
-    const isDead = CAMPAIGN.heroes.find(h => h.name === name)?.dead;
-    return `<tr style="${isDead?'opacity:0.5':''}">
-      <td style="padding:4px 6px;color:#c9a84c">${name}${isDead?' †':''}</td>
-      <td style="padding:4px 6px;color:#888;font-size:0.75rem">${s.class}</td>
-      <td style="padding:4px 6px;text-align:right;color:#e0a0a0">${s.damageDealt}</td>
-      <td style="padding:4px 6px;text-align:right;color:#a0a0e0">${s.damageTaken}</td>
-      <td style="padding:4px 6px;text-align:right;color:#a0e0a0">${s.healing}</td>
-      <td style="padding:4px 6px;text-align:right;color:#dfaf3a">${s.kills}</td>
-      <td style="padding:4px 6px;text-align:right;color:#e05555">${s.deaths}</td>
-    </tr>`;
-  }).join('');
-
-  // Combats list
-  const combatList = rs.combats.map(c =>
-    `<tr><td style="padding:3px 6px;color:#aaa">${c.nodeName}</td><td style="padding:3px 6px;text-align:right">${c.rounds} rounds</td><td style="padding:3px 6px;text-align:right;color:#888">${formatDuration(c.durationMs)}</td><td style="padding:3px 6px;text-align:right;color:${c.victory?'#7fb87f':'#e05555'}">${c.victory?'Win':'Loss'}</td></tr>`
-  ).join('') || '<tr><td colspan="4" style="padding:6px;color:#666;font-style:italic">No combats completed yet.</td></tr>';
-
-  // Enemy kills
-  const killsByClass = Object.entries(rs.enemyKillsByClass).sort((a,b)=>b[1]-a[1])
-    .map(([cls,n]) => `<span style="background:#2a0a0a;border:1px solid #5a1a1a;color:#ffaaaa;padding:2px 8px;border-radius:10px;font-size:0.7rem;margin-right:4px">${cls} ×${n}</span>`).join('') || '<span style="color:#666;font-style:italic">No kills yet.</span>';
-
-  // Timeline summary (start vs now)
-  const tStart = rs.timeline[0];
-  const dSouls = souls - (tStart?.souls||0);
-  const dTrust = trust - (tStart?.trust||50);
-  const dGold  = gold - (tStart?.gold||50);
-
-  body.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:14px">
-      <div style="background:#0a0f1c;padding:8px;border-radius:4px;border:1px solid #2a3050">
-        <div style="color:#888;font-size:0.65rem;letter-spacing:1px">RUN TIME</div>
-        <div style="color:#c9a84c;font-size:1.1rem;font-weight:bold">${formatDuration(totalDur)}</div>
-      </div>
-      <div style="background:#0a0f1c;padding:8px;border-radius:4px;border:1px solid #2a3050">
-        <div style="color:#888;font-size:0.65rem;letter-spacing:1px">COMBATS</div>
-        <div style="color:#c9a84c;font-size:1.1rem;font-weight:bold">${completedCombats}</div>
-      </div>
-      <div style="background:#0a0f1c;padding:8px;border-radius:4px;border:1px solid #2a3050">
-        <div style="color:#888;font-size:0.65rem;letter-spacing:1px">AVG ROUNDS</div>
-        <div style="color:#c9a84c;font-size:1.1rem;font-weight:bold">${avgRounds}</div>
-      </div>
-      <div style="background:#0a0f1c;padding:8px;border-radius:4px;border:1px solid #2a3050">
-        <div style="color:#888;font-size:0.65rem;letter-spacing:1px">AVG COMBAT</div>
-        <div style="color:#c9a84c;font-size:1.1rem;font-weight:bold">${avgDur}</div>
-      </div>
-    </div>
-
-    <div style="margin-bottom:12px">
-      <div style="color:#dfaf3a;font-size:0.75rem;letter-spacing:1px;margin-bottom:6px">PER HERO</div>
-      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.75rem;background:#0a0f1c;border-radius:4px">
-        <thead><tr style="background:#1a1f3c;color:#888;font-size:0.65rem;letter-spacing:1px">
-          <th style="padding:6px;text-align:left">Hero</th><th style="padding:6px;text-align:left">Class</th>
-          <th style="padding:6px;text-align:right">DMG Out</th><th style="padding:6px;text-align:right">DMG In</th>
-          <th style="padding:6px;text-align:right">Heal</th><th style="padding:6px;text-align:right">Kills</th><th style="padding:6px;text-align:right">Deaths</th>
-        </tr></thead>
-        <tbody>${heroRows}</tbody>
-      </table></div>
-    </div>
-
-    <div style="margin-bottom:12px">
-      <div style="color:#dfaf3a;font-size:0.75rem;letter-spacing:1px;margin-bottom:6px">COMBAT HISTORY</div>
-      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.75rem;background:#0a0f1c;border-radius:4px">
-        <tbody>${combatList}</tbody>
-      </table></div>
-    </div>
-
-    <div style="margin-bottom:12px">
-      <div style="color:#dfaf3a;font-size:0.75rem;letter-spacing:1px;margin-bottom:6px">ENEMIES DEFEATED</div>
-      <div>${killsByClass}</div>
-    </div>
-
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px">
-      <div style="background:#0a0f1c;padding:8px;border-radius:4px;border:1px solid #4a1a8b">
-        <div style="color:#888;font-size:0.65rem;letter-spacing:1px">SOULS</div>
-        <div style="color:#ccaaff;font-size:1rem">${souls} <span style="color:#888;font-size:0.7rem">(+${dSouls})</span></div>
-      </div>
-      <div style="background:#0a0f1c;padding:8px;border-radius:4px;border:1px solid #c9a84c">
-        <div style="color:#888;font-size:0.65rem;letter-spacing:1px">TRUST</div>
-        <div style="color:#c9a84c;font-size:1rem">${trust} <span style="color:${dTrust>=0?'#7fb87f':'#e05555'};font-size:0.7rem">(${dTrust>=0?'+':''}${dTrust})</span></div>
-      </div>
-      <div style="background:#0a0f1c;padding:8px;border-radius:4px;border:1px solid #dfaf3a">
-        <div style="color:#888;font-size:0.65rem;letter-spacing:1px">GOLD</div>
-        <div style="color:#dfaf3a;font-size:1rem">${gold} <span style="color:${dGold>=0?'#7fb87f':'#e05555'};font-size:0.7rem">(${dGold>=0?'+':''}${dGold})</span></div>
-      </div>
-    </div>
-
-    <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:10px">
-      <button onclick="exportRunStatsCSV()" style="background:#1a1f3c;border:1px solid #4a8fbf;color:#7fb8df;padding:5px 10px;cursor:pointer;border-radius:3px;font-size:0.7rem">📥 Export CSV</button>
-    </div>
-  `;
-}
-
-function exportRunStatsCSV() {
-  if (!CAMPAIGN.runStats) return;
-  const rs = CAMPAIGN.runStats;
-  let csv = 'SECTION,key,value\n';
-  csv += `META,started_at,${new Date(rs.startedAt).toISOString()}\n`;
-  csv += `META,duration_ms,${Date.now()-rs.startedAt}\n`;
-  csv += `META,souls,${souls}\n`;
-  csv += `META,trust,${trust}\n`;
-  csv += `META,gold,${gold}\n\n`;
-  csv += 'HEROES,name,class,damage_dealt,damage_taken,healing,kills,deaths\n';
-  Object.entries(rs.heroes).forEach(([name,s]) => {
-    csv += `HEROES,${name},${s.class},${s.damageDealt},${s.damageTaken},${s.healing},${s.kills},${s.deaths}\n`;
-  });
-  csv += '\nCOMBATS,node_name,rounds,duration_ms,victory\n';
-  rs.combats.forEach(c => { csv += `COMBATS,${c.nodeName},${c.rounds},${c.durationMs},${c.victory}\n`; });
-  csv += '\nKILLS_BY_CLASS,class,count\n';
-  Object.entries(rs.enemyKillsByClass).forEach(([cls,n]) => { csv += `KILLS_BY_CLASS,${cls},${n}\n`; });
-  csv += '\nTIMELINE,t_ms,souls,trust,gold\n';
-  rs.timeline.forEach(p => { csv += `TIMELINE,${p.t},${p.souls},${p.trust},${p.gold}\n`; });
-  const blob = new Blob([csv], {type:'text/csv'});
-  const url = URL.createObjectURL(blob);
-  const stamp = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
-  const a = document.createElement('a');
-  a.href = url; a.download = `shattered-crown_stats_${stamp}.csv`;
-  document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
-}
 
 // Live timer tick for the Run Time stat
 setInterval(() => {

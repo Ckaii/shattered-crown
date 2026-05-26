@@ -1531,7 +1531,7 @@ function renderInventoryModal() {
         </div>
         <div style="display:flex;flex-direction:column;gap:3px">
           ${compat.length ? compat.map(c=>`<button onclick="equipItem(${c.hi},'${item.id}');renderInventoryModal()" style="background:#2a4a2a;border:1px solid #4a8f4a;color:#9fdf9f;padding:3px 8px;cursor:pointer;border-radius:3px;font-size:0.65rem">→ ${c.h.name}</button>`).join('') : '<span style="color:#666;font-size:0.65rem;font-style:italic">no compatible</span>'}
-          <button onclick="sellItem(${si});renderInventoryModal()" style="background:#1a1410;border:1px solid #dfaf3a;color:#dfaf3a;padding:3px 8px;cursor:pointer;border-radius:3px;font-size:0.65rem" title="Sell for half base value">💰 Sell</button>
+          <button onclick="sellStorageItem(${si});renderInventoryModal()" style="background:#1a1410;border:1px solid #dfaf3a;color:#dfaf3a;padding:3px 8px;cursor:pointer;border-radius:3px;font-size:0.65rem" title="Sell for half base value">💰 Sell</button>
         </div>
       </div>`;
     }).join('');
@@ -1593,7 +1593,7 @@ function invSlotDrop(ev, heroIdx, slotType) {
   renderInventoryModal();
 }
 
-function sellItem(storageIdx) {
+function sellStorageItem(storageIdx) {
   const id = CAMPAIGN.storage[storageIdx];
   const item = EQUIPMENT[id];
   if (!item) return;
@@ -2025,25 +2025,25 @@ And now he knows you know.`,
 // maxMana / manaRegen: mana economy (replaces bonus action + reaction)
 // classSkill: manaCost + cooldown (rounds)
 const ALLY_CLASSES = [
-  {name:'Fighter', hp:20, speed:3, atk:5, def:14, range:1, color:'#0e2240', bcolor:'#4a8fbf',
+  {name:'Fighter', hp:20, speed:3, atk:5, def:0, range:1, color:'#0e2240', bcolor:'#4a8fbf',
    str:4, vit:3, int:1, dex:2, maxMana:4, manaRegen:1,
    classSkill:{name:'Shield Bash', manaCost:0, cooldown:3, targetType:'enemy-adj', effectType:'push', effectValue:1, desc:'Push adjacent enemy 1 square. 0 mana, 3-round cooldown.'}},
-  {name:'Tank',    hp:26, speed:2, atk:4, def:16, range:1, color:'#0e1a30', bcolor:'#3a6abf',
+  {name:'Tank',    hp:26, speed:2, atk:4, def:0, range:1, color:'#0e1a30', bcolor:'#3a6abf',
    str:3, vit:5, int:1, dex:1, maxMana:5, manaRegen:1,
    classSkill:{name:'Taunt', manaCost:1, cooldown:3, targetType:'enemy-adj', effectType:'status-add', effectValue:0, desc:'Adjacent enemies must target you next turn. 1 mana, 3-round cooldown. Passive: can become 2×2 (Thick) blocking chokepoints.'}},
-  {name:'Rogue',   hp:14, speed:4, atk:7, def:12, range:1, color:'#0e2040', bcolor:'#6a6abf',
+  {name:'Rogue',   hp:14, speed:4, atk:7, def:0, range:1, color:'#0e2040', bcolor:'#6a6abf',
    str:2, vit:2, int:1, dex:4, maxMana:3, manaRegen:1,
    classSkill:{name:'Sneak Attack', manaCost:0, cooldown:0, targetType:'passive', effectType:'damage-flat', effectValue:6, desc:'Passive: always crits if hidden or attacking from behind. +1d6 vs Flanked targets.'}},
-  {name:'Ranger',  hp:16, speed:3, atk:5, def:13, range:1, color:'#0e2028', bcolor:'#4a9f8f',
+  {name:'Ranger',  hp:16, speed:3, atk:5, def:0, range:1, color:'#0e2028', bcolor:'#4a9f8f',
    str:2, vit:2, int:2, dex:3, maxMana:6, manaRegen:2,
    classSkill:{name:'Heavy Shot', manaCost:2, cooldown:3, targetType:'enemy-range', effectType:'damage', effectValue:2, desc:'Single powerful ranged shot +2 ATK, applies Pinned on hit. 2 mana, 3-round cooldown.'}},
-  {name:'Mage',    hp:10, speed:2, atk:4, def:11, range:1, color:'#0a0a28', bcolor:'#5050cf',
+  {name:'Mage',    hp:10, speed:2, atk:4, def:0, range:1, color:'#0a0a28', bcolor:'#5050cf',
    str:1, vit:1, int:5, dex:2, maxMana:12, manaRegen:3,
    classSkill:{name:'Fireball', manaCost:3, cooldown:3, targetType:'enemy-range', effectType:'damage', effectValue:3, desc:'Deal 1d6+3 fire damage in range, applies Burning. 3 mana, 3-round cooldown. Passive: if kill refunds 50% mana (round down).'}},
-  {name:'Cleric',  hp:16, speed:3, atk:3, def:13, range:1, color:'#201020', bcolor:'#9f4abf',
+  {name:'Cleric',  hp:16, speed:3, atk:3, def:0, range:1, color:'#201020', bcolor:'#9f4abf',
    str:1, vit:2, int:4, dex:1, maxMana:8, manaRegen:3,
    classSkill:{name:'Healing Touch', manaCost:2, cooldown:0, range:1, targetType:'ally-adj', effectType:'heal', effectValue:1, desc:'Heal 1 HP to adjacent ally. 2 mana, no cooldown.'}},
-  {name:'Wizard',  hp:10, speed:2, atk:3, def:11, range:1, color:'#0a0818', bcolor:'#7050cf',
+  {name:'Wizard',  hp:10, speed:2, atk:3, def:0, range:1, color:'#0a0818', bcolor:'#7050cf',
    str:1, vit:1, int:5, dex:1, maxMana:10, manaRegen:3,
    classSkill:{name:'Mana Burst', manaCost:3, cooldown:1, range:4, targetType:'enemy-range', effectType:'damage-flat', effectValue:0, desc:'Deal damage equal to half your current MP (round down, max 5). 3 mana, 1cd.'}},
 ];
@@ -2574,6 +2574,16 @@ function cellClick(r, c) {
     return;
   }
   if (mode === 'attack') {
+    // Check if clicking on a corpse — attacking a corpse clears it
+    const corpse = tokens.find(t=>t.row===r&&t.col===c&&t.dead);
+    if (corpse && !tokens.find(t=>t.row===r&&t.col===c&&!t.dead)) {
+      if (confirm(`Clear ${corpse.name}'s body from the battlefield?`)) {
+        tokens.splice(tokens.indexOf(corpse), 1);
+        log(`${corpse.name}'s body was cleared.`, 'sys');
+        cancelTargetMode(); setMode('select', document.getElementById('selectModeBtn'));
+        renderAll(); return;
+      }
+    }
     const target = tokens.find(t=>t.row===r&&t.col===c&&!t.dead);
     const attacker = tokens.find(t=>t.id===attackingId);
     if (target && attacker && target.side !== attacker.side) {
@@ -2583,6 +2593,12 @@ function cellClick(r, c) {
       const dist = Math.abs(attacker.row - target.row) + Math.abs(attacker.col - target.col);
       if (dist > (attacker.range || 1)) {
         log(`${target.name} is out of range (${dist} > RNG ${attacker.range}).`, 'miss');
+        cancelTargetMode(); setMode('select', document.getElementById('selectModeBtn')); return;
+      }
+      // Enforce: line-of-sight — no unit between attacker and target on a straight path
+      const blocker = getBlockingTokenOnLine(attacker.row, attacker.col, target.row, target.col);
+      if (blocker) {
+        log(`${attacker.name} can't attack ${target.name} — blocked by ${blocker.name}!`, 'miss');
         cancelTargetMode(); setMode('select', document.getElementById('selectModeBtn')); return;
       }
       resolveAttack(attacker, target);
@@ -2626,6 +2642,9 @@ function cellClick(r, c) {
       if (sel.moved) { log(`${sel.name} has already moved this turn.`, 'miss'); return; }
       const dist = Math.abs(sel.row-r)+Math.abs(sel.col-c);
       if (terrain[r][c]==='wall') { log(`${sel.name} can't enter wall.`,'miss'); return; }
+      // Dead bodies block movement
+      const corpseBlock = tokens.find(t=>t.row===r&&t.col===c&&t.dead);
+      if (corpseBlock) { log(`${sel.name} can't move there — ${corpseBlock.name}'s body blocks the path. Use Attack mode and click the body to clear it.`,'miss'); return; }
       if (dist <= sel.speed) {
         log(`${sel.name} moves ${coord(sel.row,sel.col)} -> ${coord(r,c)} (${dist}/${sel.speed})`,'sys');
         sel.row = r; sel.col = c;
@@ -2643,6 +2662,29 @@ function cellClick(r, c) {
 }
 
 function coord(r,c) { return String.fromCharCode(65+c)+(r+1); }
+
+// =============================================================================
+// LINE OF SIGHT CHECK (Bresenham-style)
+// Returns the blocking token (or null) between (r1,c1) and (r2,c2) exclusive.
+// Only checks straight lines (same row, col, or diagonal).
+// =============================================================================
+function getBlockingTokenOnLine(r1, c1, r2, c2) {
+  const dr = r2 - r1, dc = c2 - c1;
+  const steps = Math.max(Math.abs(dr), Math.abs(dc));
+  if (steps <= 1) return null; // adjacent — no intermediate cells
+  const sr = dr === 0 ? 0 : dr / Math.abs(dr);
+  const sc = dc === 0 ? 0 : dc / Math.abs(dc);
+  for (let i = 1; i < steps; i++) {
+    const mr = r1 + sr * i, mc = c1 + sc * i;
+    if (!Number.isInteger(mr) || !Number.isInteger(mc)) continue; // skip non-grid points on diagonals
+    // Walls always block
+    if (terrain[mr] && terrain[mr][mc] === 'wall') return { name: 'Wall', row: mr, col: mc };
+    // Any alive token blocks
+    const blocker = tokens.find(t => t.row === mr && t.col === mc && !t.dead);
+    if (blocker) return blocker;
+  }
+  return null;
+}
 
 // =============================================================================
 // TERRAIN EFFECTS ON MOVE
@@ -3122,7 +3164,8 @@ function renderGrid() {
         const turnMark = isCurrentTurn ? '<span title="Current Turn" style="position:absolute;top:-6px;left:-4px;font-size:0.8rem;line-height:1">⏵</span>' : '';
         content += `<div class="token ${tok.side==='ally'?'ally':'enemy-tok'}${sel?' selected-tok':''}" id="tok-${tok.id}"
           style="border-color:${mode==='attack'&&tok.side!==tokens.find(t=>t.id===attackingId)?.side?'#c04040':sel?'#c9a84c':isCurrentTurn?'#c9a84c':tok.bcolor};background:${tok.color}${tok.moved&&!tok.actions?';filter:grayscale(0.5)':''}"
-          onclick="event.stopPropagation();selectToken(${tok.id})">
+          onclick="event.stopPropagation();selectToken(${tok.id})"
+          ondblclick="event.stopPropagation();openGMTokenModal(${tok.id})">
           ${flk}${turnMark}${movedMark}${actedMark}
           ${sprite.weapon?`<span class="weapon-icon">${sprite.weapon}</span>`:''}
           <span class="sprite-portrait">${sprite.portrait}</span>
@@ -3141,6 +3184,118 @@ function renderGrid() {
       cell.onclick = ()=>cellClick(r,c);
     }
   }
+}
+
+// =============================================================================
+// GM TOKEN MODAL — double-click any token to inspect/edit
+// =============================================================================
+function openGMTokenModal(id) {
+  const tok = tokens.find(t=>t.id===id);
+  if (!tok) return;
+  const existing = document.getElementById('gmTokenModal');
+  if (existing) existing.remove();
+  const spr = spriteFor(tok.class);
+  const equipList = (tok.equipment||[]).map(eid=>{
+    const it = EQUIPMENT[eid]; return it ? `<span style="background:#1a1410;border:1px solid #5a3a1a;border-radius:3px;padding:2px 5px;font-size:0.65rem">${it.icon} ${it.name}</span>` : '';
+  }).join('');
+  const skillList = (tok.skills||[]).filter(Boolean).map(s=>
+    `<span style="background:#0a1428;border:1px solid #2a4a7a;border-radius:3px;padding:2px 5px;font-size:0.65rem">${s.name} (${s.manaCost}MP, ${s.cooldown}cd)</span>`
+  ).join('');
+  const classSkillHtml = tok.classSkill ? `<span style="background:#1a0a28;border:1px solid #5a2a7a;border-radius:3px;padding:2px 5px;font-size:0.65rem">⭐ ${tok.classSkill.name}</span>` : '';
+  const statusHtml = (tok.statuses||[]).length ? tok.statuses.join(', ') : '<em style="color:#555">none</em>';
+  const div = document.createElement('div');
+  div.id = 'gmTokenModal';
+  div.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px';
+  div.innerHTML = `
+    <div style="background:#0a0f1c;border:2px solid #c9a84c;border-radius:8px;padding:20px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #2a3050">
+        <span style="font-size:2rem">${spr.portrait}</span>
+        <div>
+          <div id="gmtok-name-display" style="color:#c9a84c;font-size:1.1rem;font-weight:bold">${tok.name}</div>
+          <div style="color:#888;font-size:0.75rem">${tok.class} · ${tok.side==='ally'?'🔵 Ally':'🔴 Enemy'}${tok.dead?' · ☠ Dead':''}</div>
+        </div>
+        <button onclick="document.getElementById('gmTokenModal').remove()" style="margin-left:auto;background:none;border:1px solid #444;color:#888;padding:4px 10px;cursor:pointer;border-radius:4px">✕</button>
+      </div>
+      <!-- Stat editors -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+        ${[['hp','HP','maxHp'],['atk','ATK',null],['def','DEF',null],['speed','SPD',null],['range','RNG',null],['mana','MP','maxMana']].map(([k,label,maxKey])=>`
+          <div style="text-align:center">
+            <div style="color:#888;font-size:0.6rem;letter-spacing:1px">${label}${maxKey?` / MAX`:''}</div>
+            <div style="display:flex;align-items:center;gap:3px;justify-content:center">
+              <button onclick="gmTokAdj(${id},'${k}',-1)" style="background:#2a0a0a;border:1px solid #6a2a2a;color:#e05555;padding:0 5px;cursor:pointer;border-radius:3px;font-size:0.8rem">−</button>
+              <span id="gmv-${id}-${k}" style="color:#c9a84c;font-weight:bold;font-size:0.9rem;min-width:28px;text-align:center">${tok[k]??0}</span>
+              <button onclick="gmTokAdj(${id},'${k}',1)" style="background:#0a2a0a;border:1px solid #2a6a2a;color:#7fb87f;padding:0 5px;cursor:pointer;border-radius:3px;font-size:0.8rem">+</button>
+            </div>
+            ${maxKey?`<div style="color:#555;font-size:0.6rem">max: <span id="gmv-${id}-${maxKey}">${tok[maxKey]??0}</span></div>`:''}
+          </div>`).join('')}
+      </div>
+      <!-- Status -->
+      <div style="margin-bottom:10px;font-size:0.75rem">
+        <span style="color:#dfaf3a;letter-spacing:1px">STATUS EFFECTS:</span> ${statusHtml}
+        <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap">
+          ${['flanked','pinned','rattled','burning','stunned'].map(s=>`<button onclick="gmTokToggleStatus(${id},'${s}')" style="background:#1a1a2a;border:1px solid #3a3a5a;color:#aaa;padding:2px 6px;cursor:pointer;border-radius:3px;font-size:0.6rem">${s}</button>`).join('')}
+          <button onclick="gmTokClearStatuses(${id})" style="background:#3a1a1a;border:1px solid #6a3a3a;color:#e05555;padding:2px 6px;cursor:pointer;border-radius:3px;font-size:0.6rem">Clear All</button>
+        </div>
+      </div>
+      <!-- Equipment -->
+      <div style="margin-bottom:10px;font-size:0.75rem">
+        <div style="color:#dfaf3a;letter-spacing:1px;margin-bottom:4px">⚔ EQUIPMENT:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">${equipList||'<em style="color:#555">none</em>'}</div>
+      </div>
+      <!-- Skills -->
+      <div style="margin-bottom:14px;font-size:0.75rem">
+        <div style="color:#dfaf3a;letter-spacing:1px;margin-bottom:4px">✨ SKILLS:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">${classSkillHtml}${skillList||''}</div>
+      </div>
+      <!-- Quick actions -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;padding-top:10px;border-top:1px solid #2a3050">
+        <button onclick="gmTokAction(${id},'fullheal')" style="background:#0a2a0a;border:1px solid #4a8f4a;color:#9fdf9f;padding:4px 10px;cursor:pointer;border-radius:4px;font-size:0.7rem">💚 Full Heal</button>
+        <button onclick="gmTokAction(${id},'fullmana')" style="background:#0a0a2a;border:1px solid #4a4a9f;color:#9f9fff;padding:4px 10px;cursor:pointer;border-radius:4px;font-size:0.7rem">💙 Full MP</button>
+        <button onclick="gmTokAction(${id},'revive')" style="background:#1a0a2a;border:1px solid #6a2a9f;color:#cf9fff;padding:4px 10px;cursor:pointer;border-radius:4px;font-size:0.7rem">✨ Revive</button>
+        <button onclick="gmTokAction(${id},'kill')" style="background:#2a0a0a;border:1px solid #8b2020;color:#e05555;padding:4px 10px;cursor:pointer;border-radius:4px;font-size:0.7rem">☠ Kill</button>
+        <button onclick="gmTokAction(${id},'remove')" style="background:#1a0000;border:1px solid #6a0000;color:#ff6666;padding:4px 10px;cursor:pointer;border-radius:4px;font-size:0.7rem">🗑 Remove</button>
+      </div>
+    </div>`;
+  document.body.appendChild(div);
+}
+function gmTokAdj(id, key, delta) {
+  const tok = tokens.find(t=>t.id===id);
+  if (!tok) return;
+  tok[key] = Math.max(0, (tok[key]??0) + delta);
+  // Sync maxHp/maxMana if adjusting current
+  if (key==='hp' && tok.hp > tok.maxHp) tok.maxHp = tok.hp;
+  if (key==='mana' && tok.mana > tok.maxMana) tok.maxMana = tok.mana;
+  const el = document.getElementById(`gmv-${id}-${key}`);
+  if (el) el.textContent = tok[key];
+  const maxEl = document.getElementById(`gmv-${id}-maxHp`) || document.getElementById(`gmv-${id}-maxMana`);
+  if (key==='hp') { const m = document.getElementById(`gmv-${id}-maxHp`); if(m) m.textContent=tok.maxHp; }
+  if (key==='mana') { const m = document.getElementById(`gmv-${id}-maxMana`); if(m) m.textContent=tok.maxMana; }
+  renderAll();
+}
+function gmTokToggleStatus(id, status) {
+  const tok = tokens.find(t=>t.id===id);
+  if (!tok) return;
+  tok.statuses = tok.statuses||[];
+  if (tok.statuses.includes(status)) tok.statuses = tok.statuses.filter(s=>s!==status);
+  else tok.statuses.push(status);
+  openGMTokenModal(id);
+  renderAll();
+}
+function gmTokClearStatuses(id) {
+  const tok = tokens.find(t=>t.id===id);
+  if (!tok) return;
+  tok.statuses = [];
+  openGMTokenModal(id); renderAll();
+}
+function gmTokAction(id, action) {
+  const tok = tokens.find(t=>t.id===id);
+  if (!tok) return;
+  if (action==='fullheal') { tok.hp = tok.maxHp; log(`${tok.name} fully healed by GM.`,'heal'); }
+  else if (action==='fullmana') { tok.mana = tok.maxMana; log(`${tok.name} MP restored by GM.`,'skill'); }
+  else if (action==='revive') { tok.dead=false; tok.hp=Math.ceil(tok.maxHp/2); log(`${tok.name} revived by GM.`,'heal'); }
+  else if (action==='kill') { tok.dead=true; tok.hp=0; log(`${tok.name} killed by GM.`,'miss'); checkDeath(tok); }
+  else if (action==='remove') { if(confirm(`Remove ${tok.name} from battlefield?`)) { tokens.splice(tokens.indexOf(tok),1); document.getElementById('gmTokenModal').remove(); renderAll(); return; } }
+  openGMTokenModal(id); renderAll();
 }
 
 function selectToken(id) {
@@ -3170,7 +3325,8 @@ function showMoveRange(tok) {
     const dist = Math.abs(tok.row-r)+Math.abs(tok.col-c);
     const cell = document.getElementById(`cell-${r}-${c}`);
     const occ = tokens.find(t=>t.row===r&&t.col===c&&!t.dead&&!t._home&&t.id!==tok.id);
-    if (canMove && dist>0 && dist<=tok.speed && !occ) cell.classList.add('in-range');
+    const hasCorpse = tokens.find(t=>t.row===r&&t.col===c&&t.dead);
+    if (canMove && dist>0 && dist<=tok.speed && !occ && !hasCorpse) cell.classList.add('in-range');
     if (tok.range>1 && dist>0 && dist<=tok.range && occ && occ.side!==tok.side) cell.classList.add('target-range');
   }
 }

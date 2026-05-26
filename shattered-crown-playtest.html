@@ -2067,56 +2067,80 @@ const FACTION_COLORS = {red:'#8b2020', black:'#2a2a3a', blue:'#205080', white:'#
 const FACTION_LABELS = {red:'🔴 Red', black:'⚫ Black', blue:'🔵 Blue', white:'⚪ White', green:'🟢 Green'};
 
 const ENEMY_CLASSES = [
-  // ── RED faction (Goblins / Aggression) ───────────────────────────────────────
-  {name:'Goblin',         faction:'red', hp:8,  speed:3, atk:3, def:10, range:1, color:'#2a0a0a', bcolor:'#8b2020',
-   str:2, vit:1, int:1, dex:3, maxMana:2, manaRegen:1,
-   classSkill:{name:'Pack Tactics', manaCost:0, cooldown:0, targetType:'passive', effectType:'flavor', effectValue:0, desc:'Passive: Advantage when another Goblin is adjacent to same target.'}},
-  {name:'Ranged Goblin',  faction:'red', hp:8,  speed:3, atk:3, def:10, range:4, color:'#2a0a0a', bcolor:'#a03020',
-   str:1, vit:1, int:1, dex:4, maxMana:2, manaRegen:1,
-   classSkill:{name:'Arrow Volley', manaCost:0, cooldown:2, targetType:'enemy-range', effectType:'damage', effectValue:-1, desc:'Shoot two arrows at -1 ATK each. 0 mana, 2-round cooldown.'}},
-  {name:'Spear Goblin',   faction:'red', hp:10, speed:3, atk:4, def:11, range:2, color:'#2a0a0a', bcolor:'#b03030',
-   str:3, vit:2, int:1, dex:2, maxMana:2, manaRegen:1,
-   classSkill:{name:'Spear Lunge', manaCost:0, cooldown:2, targetType:'enemy-range', effectType:'damage', effectValue:1, desc:'Reach attack +1 ATK, applies Pinned. 0 mana, 2-round cooldown.'}},
-  {name:'Mage Goblin',    faction:'red', hp:8,  speed:2, atk:3, def:10, range:4, color:'#2a0a0a', bcolor:'#8b3a60',
-   str:1, vit:1, int:4, dex:2, maxMana:6, manaRegen:2,
-   classSkill:{name:'Hex Bolt', manaCost:2, cooldown:2, targetType:'enemy-range', effectType:'damage', effectValue:2, desc:'Magic bolt +2 damage, applies Rattled. 2 mana, 2-round cooldown.'}},
-  {name:'Orc',            faction:'red', hp:18, speed:3, atk:6, def:13, range:1, color:'#2a0a0a', bcolor:'#bf3030',
-   str:5, vit:3, int:1, dex:2, maxMana:3, manaRegen:1,
-   classSkill:{name:'Reckless Blow', manaCost:0, cooldown:2, targetType:'enemy-adj', effectType:'damage', effectValue:4, desc:'Massive swing +4 ATK, but Orc has Disadvantage on DEF until next turn. 0 mana, 2cd.'}},
-  // ── BLACK faction (Undead / Sacrifice) ────────────────────────────────────────
-  {name:'Skeleton',       faction:'black', hp:10, speed:3, atk:3, def:12, range:1, color:'#0a0a14', bcolor:'#4a4a6a',
-   str:2, vit:2, int:1, dex:3, maxMana:2, manaRegen:1,
-   classSkill:{name:'Bone Throw', manaCost:0, cooldown:2, targetType:'enemy-range', effectType:'damage', effectValue:1, desc:'Hurls a bone for ranged attack at range 3. 0 mana, 2cd.'}},
-  {name:'Zombie',         faction:'black', hp:16, speed:2, atk:4, def:11, range:1, color:'#0a0a14', bcolor:'#3a4a3a',
-   str:4, vit:3, int:0, dex:1, maxMana:0, manaRegen:0,
-   classSkill:{name:'Reanimate', manaCost:0, cooldown:0, targetType:'passive', effectType:'flavor', effectValue:0, desc:'Passive: at 0 HP stands back up with 3 HP once per combat (unless dealt fire/holy damage).'}},
-  {name:'Soul Eater',     faction:'black', hp:12, speed:4, atk:5, def:12, range:1, color:'#0a0a14', bcolor:'#6a2a8a',
-   str:2, vit:2, int:3, dex:4, maxMana:4, manaRegen:2,
-   classSkill:{name:'Drain Soul', manaCost:2, cooldown:3, targetType:'enemy-adj', effectType:'damage', effectValue:3, desc:'Drains life — deal 3 damage and heal equal amount. Counts as a soul absorbed if target dies. 2 mana, 3cd.'}},
-  // ── WHITE faction (Royal Order / Aldric's forces) ──────────────────────────
-  {name:'Shield Bearer',  faction:'white', hp:16, speed:2, atk:3, def:15, range:1, color:'#181830', bcolor:'#7a7aaa',
-   str:3, vit:4, int:1, dex:1, maxMana:3, manaRegen:1,
-   classSkill:{name:'Shield Wall', manaCost:1, cooldown:3, targetType:'self', effectType:'buff-def', effectValue:3, desc:'+3 DEF for 1 round, all adjacent allies gain +1 DEF. 1 mana, 3cd.'}},
-  {name:'Ranged Soldier', faction:'white', hp:12, speed:3, atk:4, def:12, range:4, color:'#181830', bcolor:'#9090bf',
-   str:2, vit:2, int:1, dex:3, maxMana:3, manaRegen:1,
-   classSkill:{name:'Suppressing Fire', manaCost:0, cooldown:2, targetType:'enemy-range', effectType:'status-add', effectValue:0, desc:'Apply Pinned to target on hit (cannot move next turn). 0 mana, 2cd.'}},
-  {name:'Royal Guard',    faction:'white', hp:22, speed:3, atk:5, def:15, range:1, color:'#181830', bcolor:'#aaaadf',
-   str:4, vit:4, int:2, dex:2, maxMana:5, manaRegen:2,
-   classSkill:{name:'Loyal Strike', manaCost:2, cooldown:3, targetType:'enemy-adj', effectType:'damage', effectValue:3, desc:'Strike +3 ATK — if this kills the target, the Guard gains +1 DEF permanently. 2 mana, 3cd.'}},
-  // ── Existing elite/hunter (White faction) ─────────────────────────────────
-  {name:'Elite',          faction:'white', hp:18, speed:3, atk:5, def:14, range:1, color:'#2a0a0a', bcolor:'#bf3030',
-   str:4, vit:3, int:1, dex:2, maxMana:4, manaRegen:1,
-   classSkill:{name:'Taunt', manaCost:1, cooldown:3, targetType:'enemy-adj', effectType:'status-add', effectValue:0, desc:'Target must attack this unit next turn. 1 mana, 3-round cooldown.'}},
-  {name:'Hunter',         faction:'white', hp:20, speed:4, atk:6, def:15, range:3, color:'#200010', bcolor:'#bf2060',
-   str:2, vit:2, int:2, dex:4, maxMana:5, manaRegen:2,
-   classSkill:{name:'Pinning Shot', manaCost:0, cooldown:0, targetType:'passive', effectType:'status-add', effectValue:0, desc:'Passive: on hit, target cannot move next turn.'}},
-  // ── GREEN faction (Giants / Forest) ──────────────────────────────────────
-  {name:'Elf Warrior',    faction:'green', hp:14, speed:4, atk:5, def:13, range:1, color:'#0a1a0a', bcolor:'#3a7a3a',
-   str:3, vit:2, int:2, dex:4, maxMana:4, manaRegen:2,
-   classSkill:{name:'Elven Blade Dance', manaCost:2, cooldown:3, targetType:'enemy-adj', effectType:'damage', effectValue:2, desc:'Strike all adjacent enemies at +2 ATK. 2 mana, 3cd.'}},
-  {name:'Elf Shaman',     faction:'green', hp:10, speed:3, atk:3, def:11, range:4, color:'#0a1a0a', bcolor:'#4a9a4a',
-   str:1, vit:2, int:5, dex:2, maxMana:8, manaRegen:3,
-   classSkill:{name:'Nature’s Wrath', manaCost:3, cooldown:3, targetType:'enemy-range', effectType:'damage', effectValue:3, desc:'Lightning strike +3, applies Rattled. 3 mana, 3cd.'}},
+  // ── RED faction (Goblins / Orcs) ─────────────────────────────────────────────
+  {name:’Goblin’,         faction:’red’,   hp:5,  speed:5, atk:2, def:5,  range:1, color:’#2a0a0a’, bcolor:’#8b2020’, maxMana:2, manaRegen:1,
+   classSkill:{name:’Pack Attack’, manaCost:0, cooldown:0, targetType:’passive’, effectType:’flavor’, desc:’Passive — Goblins (and Orcs) deal X-1 extra damage where X = number of goblins who attacked the same target this round.’}},
+  {name:’Ranged Goblin’,  faction:’red’,   hp:4,  speed:4, atk:1, def:3,  range:4, color:’#2a0a0a’, bcolor:’#a03020’, maxMana:2, manaRegen:1,
+   classSkill:{name:’Double Stab’, manaCost:0, cooldown:2, targetType:’enemy-range’, effectType:’damage’, effectValue:0, desc:’Can stab both 2 blocks twice in one action. 0 mana, 2cd.’}},
+  {name:’Spear Goblin’,   faction:’red’,   hp:10, speed:4, atk:1, def:8,  range:2, color:’#2a0a0a’, bcolor:’#b03030’, maxMana:2, manaRegen:1,
+   classSkill:{name:’Spear Lunge’, manaCost:0, cooldown:2, targetType:’enemy-range’, effectType:’damage’, effectValue:1, desc:’Reach attack, knocks target back 1 square. 0 mana, 2cd.’}},
+  {name:’Orc’,            faction:’red’,   hp:14, speed:4, atk:5, def:14, range:1, color:’#2a0a0a’, bcolor:’#bf3030’, maxMana:3, manaRegen:1,
+   classSkill:{name:’Knockback Strike’, manaCost:0, cooldown:0, targetType:’passive’, effectType:’flavor’, desc:’Passive — Orc attacks knock back target 1 square. Also benefits from Pack Attack with Goblins.’}},
+  {name:’Mage Goblin’,    faction:’red’,   hp:3,  speed:3, atk:2, def:4,  range:8, color:’#2a0a0a’, bcolor:’#8b3a60’, maxMana:6, manaRegen:2,
+   classSkill:{name:’Hex Bolt’, manaCost:2, cooldown:2, targetType:’enemy-range’, effectType:’damage’, effectValue:2, desc:’Infinite range magic bolt +2 damage, applies Rattled. 2 mana, 2cd.’}},
+  {name:’Goblin King’,    faction:’red’,   hp:15, speed:5, atk:0, def:10, range:1, color:’#2a0a0a’, bcolor:’#df2020’, maxMana:4, manaRegen:2,
+   classSkill:{name:’Rally Goblins’, manaCost:0, cooldown:0, targetType:’passive’, effectType:’flavor’, desc:’Passive — Commands a goblin each turn, making all goblins attack again if possible. Does not attack directly.’}},
+  // ── BLACK faction (Undead) ───────────────────────────────────────────────────
+  {name:’Living Flesh’,   faction:’black’, hp:5,  speed:5, atk:2, def:1,  range:1, color:’#0a0a14’, bcolor:’#4a3a2a’, maxMana:0, manaRegen:0,
+   classSkill:{name:’Corpse Feast’, manaCost:0, cooldown:0, targetType:’passive’, effectType:’flavor’, desc:’Passive — Can eat adjacent corpses to regain HP equal to corpse ATK each round of eating.’}},
+  {name:’Skeleton’,       faction:’black’, hp:8,  speed:4, atk:3, def:15, range:4, color:’#0a0a14’, bcolor:’#4a4a6a’, maxMana:2, manaRegen:1,
+   classSkill:{name:’Bone Throw’, manaCost:0, cooldown:2, targetType:’enemy-range’, effectType:’damage’, effectValue:1, desc:’Ranged bone attack at range 4. 0 mana, 2cd.’}},
+  {name:’Flesh Golem’,    faction:’black’, hp:20, speed:2, atk:8, def:7,  range:1, color:’#0a0a14’, bcolor:’#5a3a2a’, maxMana:0, manaRegen:0,
+   classSkill:{name:’Slam’, manaCost:0, cooldown:2, targetType:’enemy-adj’, effectType:’damage’, effectValue:4, desc:’Massive slam, +4 ATK, applies Pinned. 0 mana, 2cd.’}},
+  {name:’Zombie’,         faction:’black’, hp:5,  speed:4, atk:3, def:8,  range:1, color:’#0a0a14’, bcolor:’#3a4a3a’, maxMana:0, manaRegen:0,
+   classSkill:{name:’Corpse Feast’, manaCost:0, cooldown:0, targetType:’passive’, effectType:’flavor’, desc:’Passive — Can eat adjacent corpses for HP. Every zombie death grants Soul Stealer +1 ATK, +1 DEF, +HP.’}},
+  {name:’Necromancer’,    faction:’black’, hp:5,  speed:4, atk:2, def:6,  range:5, color:’#0a0a14’, bcolor:’#7a2a9a’, maxMana:8, manaRegen:3,
+   classSkill:{name:’Reanimate’, manaCost:3, cooldown:2, targetType:’passive’, effectType:’flavor’, desc:’Revives all dead undead each round. 3 living flesh on board → turn them into a Flesh Golem. Each corpse spawns a Ghost. Every zombie death grants Soul Stealer +1ATK+1DEF+HP.’}},
+  {name:’Ghost’,          faction:’black’, hp:10, speed:4, atk:4, def:4,  range:1, color:’#0a0a14’, bcolor:’#9a9adf’, maxMana:3, manaRegen:2,
+   classSkill:{name:’Phase’, manaCost:0, cooldown:0, targetType:’passive’, effectType:’flavor’, desc:’Passive — Can pass through walls and tokens. Spawns from corpses when Necromancer is present.’}},
+  {name:’Soul Stealer’,   faction:’black’, hp:15, speed:1, atk:1, def:15, range:1, color:’#0a0a14’, bcolor:’#6a2a8a’, maxMana:4, manaRegen:2,
+   classSkill:{name:’Soul Drain’, manaCost:0, cooldown:0, targetType:’passive’, effectType:’flavor’, desc:’Passive — Gains +1 ATK, +1 DEF, and +HP on every death that occurs on the battlefield.’}},
+  // ── WHITE faction (Royal Order / Aldric’s forces) ─────────────────────────────
+  {name:’Shield Bearer’,  faction:’white’, hp:20, speed:2, atk:2, def:20, range:1, color:’#181830’, bcolor:’#7a7aaa’, maxMana:3, manaRegen:1,
+   classSkill:{name:’Shield Wall’, manaCost:0, cooldown:0, targetType:’passive’, effectType:’flavor’, desc:’Passive — Projectiles and movement through squares adjacent to Shield Bearer are blocked. Blocks line of attack.’}},
+  {name:’Knight’,         faction:’white’, hp:15, speed:3, atk:5, def:15, range:1, color:’#181830’, bcolor:’#aaaadf’, maxMana:4, manaRegen:2,
+   classSkill:{name:’Charge’, manaCost:2, cooldown:3, targetType:’enemy-adj’, effectType:’damage’, effectValue:3, desc:’Charge +3 ATK, knocks target back 2 squares. 2 mana, 3cd.’}},
+  {name:’Mage’,           faction:’white’, hp:8,  speed:3, atk:3, def:7,  range:6, color:’#181830’, bcolor:’#8a6adf’, maxMana:10, manaRegen:3,
+   classSkill:{name:’Cross Blast’, manaCost:3, cooldown:2, targetType:’enemy-range’, effectType:’damage’, effectValue:2, desc:’Attack hits ⊕ cross pattern (all 4 cardinal squares around target). 3 mana, 2cd.’}},
+  {name:’Healer’,         faction:’white’, hp:9,  speed:4, atk:4, def:8,  range:3, color:’#181830’, bcolor:’#9adfaa’, maxMana:8, manaRegen:3,
+   classSkill:{name:’Mend’, manaCost:2, cooldown:1, targetType:’ally-range’, effectType:’heal’, effectValue:0, desc:’Heal adjacent ally for healer\’s ATK. 2 mana, 1cd.’}},
+  {name:’Tinkerer’,       faction:’white’, hp:9,  speed:2, atk:2, def:9,  range:3, color:’#181830’, bcolor:’#dfaa5a’, maxMana:6, manaRegen:2,
+   classSkill:{name:’Deploy Turret’, manaCost:3, cooldown:4, targetType:’passive’, effectType:’flavor’, desc:’Place a Turret token on any adjacent empty square. If none left (all 3 deployed), use action to reposition one.’}},
+  {name:’Turret’,         faction:’white’, hp:5,  speed:0, atk:5, def:15, range:8, color:’#181830’, bcolor:’#8a8a8a’, maxMana:0, manaRegen:0,
+   classSkill:{name:’Line Fire’, manaCost:0, cooldown:0, targetType:’passive’, effectType:’flavor’, desc:’Passive — Can only shoot N/S/E/W straight lines but hits EVERY token in that line. Cannot move.’}},
+  {name:’Aldric’,         faction:’white’, hp:30, speed:0, atk:10,def:25, range:4, color:’#0a0a20’, bcolor:’#dfaa20’, maxMana:10, manaRegen:3,
+   classSkill:{name:’Gravitational Pull’, manaCost:0, cooldown:0, targetType:’passive’, effectType:’flavor’, desc:’BOSS — Cannot be walked away from. Each turn pulls all players 1 square closer and does a spin attack (knocks back 2 sq). If someone is between Aldric and a player, that player takes 5 damage instead.’}},
+  // ── BLUE faction (Aquatic) ────────────────────────────────────────────────────
+  {name:’Slime’,          faction:’blue’,  hp:8,  speed:2, atk:2, def:7,  range:0, color:’#0a1a2a’, bcolor:’#2a8a5a’, maxMana:4, manaRegen:2,
+   classSkill:{name:’Slime Jump’, manaCost:2, cooldown:1, targetType:’passive’, effectType:’flavor’, desc:’Jumps to M/N/S/E/W creating water on landing. If on a player, that player absorbs half damage from hits to Slime. Player in water can\’t move. When Slime jumps, player jumps too (takes damage if no DEF).’}},
+  {name:’Icefish’,        faction:’blue’,  hp:10, speed:4, atk:3, def:8,  range:4, color:’#0a1a2a’, bcolor:’#5aaacf’, maxMana:4, manaRegen:2,
+   classSkill:{name:’Freeze’, manaCost:2, cooldown:2, targetType:’passive’, effectType:’flavor’, desc:’If a player is in water, Icefish freezes them — skips their next turn.’}},
+  {name:’Siren’,          faction:’blue’,  hp:14, speed:2, atk:4, def:11, range:1, color:’#0a1a2a’, bcolor:’#7a5acf’, maxMana:6, manaRegen:2,
+   classSkill:{name:’Lure’, manaCost:3, cooldown:2, targetType:’enemy-range’, effectType:’flavor’, desc:’Target enemy must walk towards the Siren on their next turn. 3 mana, 2cd.’}},
+  {name:’Electric Eel’,   faction:’blue’,  hp:7,  speed:4, atk:2, def:7,  range:8, color:’#0a1a2a’, bcolor:’#dfdf3a’, maxMana:6, manaRegen:2,
+   classSkill:{name:’Electric Surge’, manaCost:3, cooldown:2, targetType:’passive’, effectType:’flavor’, desc:’Electricity hits ALL enemies in the same body of water simultaneously. Infinite range within water.’}},
+  {name:’Swordfish’,      faction:’blue’,  hp:12, speed:5, atk:5, def:9,  range:6, color:’#0a1a2a’, bcolor:’#5acfdf’, maxMana:4, manaRegen:2,
+   classSkill:{name:’Aqua Charge’, manaCost:2, cooldown:2, targetType:’passive’, effectType:’flavor’, desc:’Charges N/S/E/W in a straight line, creating a trail of water behind it.’}},
+  {name:’Hydra’,          faction:’blue’,  hp:20, speed:4, atk:1, def:15, range:8, color:’#0a1a2a’, bcolor:’#2a6a9a’, maxMana:8, manaRegen:3,
+   classSkill:{name:’Cycle’, manaCost:0, cooldown:0, targetType:’passive’, effectType:’flavor’, desc:’Cycles each round: Size-3 Ice (freeze 3-sq radius) → Size-3 Electric (zap 3-sq radius) → Water Flood (add water in NSEW, all enemies in water take damage).’}},
+  // ── GREEN faction (Forest / Plants) ──────────────────────────────────────────
+  {name:’Elf’,            faction:’green’, hp:12, speed:4, atk:4, def:12, range:5, color:’#0a1a0a’, bcolor:’#3a7a3a’, maxMana:6, manaRegen:2,
+   classSkill:{name:’Cultivate’, manaCost:1, cooldown:0, targetType:’passive’, effectType:’flavor’, desc:’Each turn can either attack or cultivate (make an adjacent plant grow 1 turn faster). Attack or cultivate — not both.’}},
+  {name:’Seed’,           faction:’green’, hp:5,  speed:0, atk:0, def:0,  range:0, color:’#0a1a0a’, bcolor:’#2a5a1a’, maxMana:0, manaRegen:0,
+   classSkill:{name:’Grow’, manaCost:0, cooldown:0, targetType:’passive’, effectType:’flavor’, desc:’Passive — Grows into Seedling after 2 turns. Cannot attack or move.’}},
+  {name:’Seedling’,       faction:’green’, hp:10, speed:0, atk:0, def:5,  range:0, color:’#0a1a0a’, bcolor:’#3a7a2a’, maxMana:0, manaRegen:0,
+   classSkill:{name:’Grow’, manaCost:0, cooldown:0, targetType:’passive’, effectType:’flavor’, desc:’Passive — Grows into Sapling after 4 turns. Cannot attack or move.’}},
+  {name:’Sapling’,        faction:’green’, hp:15, speed:0, atk:5, def:10, range:1, color:’#0a1a0a’, bcolor:’#5aaf3a’, maxMana:0, manaRegen:0,
+   classSkill:{name:’Grow’, manaCost:0, cooldown:0, targetType:’passive’, effectType:’flavor’, desc:’Passive — Grows into Tree after 10 turns. Cannot move.’}},
+  {name:’Tree’,           faction:’green’, hp:20, speed:3, atk:10,def:15, range:1, color:’#0a1a0a’, bcolor:’#4a8a2a’, maxMana:0, manaRegen:0,
+   classSkill:{name:’Grow’, manaCost:0, cooldown:0, targetType:’passive’, effectType:’flavor’, desc:’Passive — Grows into Final Tree after 20 turns.’}},
+  {name:’Final Tree’,     faction:’green’, hp:25, speed:5, atk:15,def:20, range:1, color:’#0a1a0a’, bcolor:’#7adf2a’, maxMana:0, manaRegen:0,
+   classSkill:{name:’Ancient Wrath’, manaCost:0, cooldown:3, targetType:’enemy-adj’, effectType:’damage’, effectValue:5, desc:’Fully grown. Strikes all adjacent enemies for ATK+5. 0 mana, 3cd.’}},
+  // ── Existing elite/hunter (kept for compatibility) ───────────────────────────
+  {name:’Elite’,          faction:’white’, hp:18, speed:3, atk:5, def:14, range:1, color:’#2a0a0a’, bcolor:’#bf3030’, maxMana:4, manaRegen:1,
+   classSkill:{name:’Taunt’, manaCost:1, cooldown:3, targetType:’enemy-adj’, effectType:’status-add’, effectValue:0, desc:’Target must attack this unit next turn. 1 mana, 3-round cooldown.’}},
+  {name:’Hunter’,         faction:’white’, hp:20, speed:4, atk:6, def:15, range:3, color:’#200010’, bcolor:’#bf2060’, maxMana:5, manaRegen:2,
+   classSkill:{name:’Pinning Shot’, manaCost:0, cooldown:0, targetType:’passive’, effectType:’status-add’, effectValue:0, desc:’Passive: on hit, target cannot move next turn.’}},
 ];
 
 // =============================================================================
@@ -2408,11 +2432,15 @@ function enterSkillTargetMode(skillId, tokenId) {
   const skill = skillPool.find(s=>s.id===skillId);
   const tok = tokens.find(t=>t.id===tokenId);
   if (!skill || !tok) return;
-  if (skill.targetType === 'passive' || skill.effectType === 'passive') { applySkillEffect(skill, tok, null); return; }
+  if (!enforceTurn(tok)) return;
+  if (skill.targetType === 'passive' || skill.effectType === 'passive') { log(`${skill.name} is a passive.`,'skill'); return; }
+  if (tok.mana < (skill.manaCost||0)) { log(`${tok.name} needs ${skill.manaCost} MP (has ${tok.mana}).`,'miss'); return; }
+  const cdKey = 'pool_' + skillId;
+  if ((tok.cooldowns[cdKey]||0) > 0) { log(`${skill.name} on cooldown (${tok.cooldowns[cdKey]} rounds).`,'miss'); return; }
   if (skill.targetType === 'self') { applySkillEffect(skill, tok, tok); return; }
   skillTargetMode = {skillId, tokenId};
   mode = 'skill';
-  document.getElementById('modeLabel').textContent = `[${skill.name}] Click a target -- ESC to cancel`;
+  document.getElementById('modeLabel').textContent = `[${skill.name}] Click a target — ESC to cancel`;
   showSkillRange(tok, skill.range);
   renderCards();
 }
@@ -2427,7 +2455,6 @@ function enterClassSkillMode(tokenId) {
   const cdKey = 'cls_' + sk.name;
   if (sk.targetType === 'passive') { log(`${tok.name}: ${sk.name} is a passive.`,'skill'); return; }
   if (tok.cooldowns[cdKey] > 0) { log(`${tok.name}: ${sk.name} on cooldown (${tok.cooldowns[cdKey]} rounds left).`,'miss'); return; }
-  if (!tok.actions) { log(`${tok.name} has no Action left.`,'miss'); return; }
   if (tok.mana < (sk.manaCost||0)) { log(`${tok.name} needs ${sk.manaCost} MP (has ${tok.mana}).`,'miss'); return; }
   if (sk.targetType === 'self') {
     applyClassSkillEffect(sk, tok, tok);
@@ -2470,33 +2497,23 @@ function animToken(id, cls) {
 // SKILL TARGETING — for class-learned skills (no global-pool id)
 // =============================================================================
 function enterLearnedSkillMode(skillIdx, tokId) {
+  cancelTargetMode();
   const tok = tokens.find(t=>t.id===tokId); if (!tok) return;
   if (!enforceTurn(tok)) return;
   const sk = tok.skills[skillIdx]; if (!sk) return;
   if (sk.targetType==='passive') { log(`${sk.name} is a passive.`, 'skill'); return; }
-  if (!tok.actions) { log(`${tok.name} has no Action left.`, 'miss'); return; }
   if (tok.mana < (sk.manaCost||0)) { log(`${tok.name} needs ${sk.manaCost} MP (has ${tok.mana}).`, 'miss'); return; }
   const cdKey = 'cls_' + sk.name;
   if ((tok.cooldowns[cdKey]||0) > 0) { log(`${sk.name} on cooldown (${tok.cooldowns[cdKey]} rounds).`, 'miss'); return; }
+  if (sk.targetType==='self') { applyClassSkillEffect(sk, tok, tok); return; }
   skillTargetMode = {classSkill: sk, tokenId: tokId};
   mode = 'skill';
-  document.getElementById('modeLabel').textContent = `[SKILL] ${sk.name} — click target on grid · ESC to cancel`;
+  document.getElementById('modeLabel').textContent = `[SKILL] ${sk.name} — click target · ESC to cancel`;
   showSkillRange(tok, sk.range||1, sk.name==='Revive Light');
+  renderCards();
 }
 
-function enterSkillTargetMode(skillId, tokId) {
-  const tok = tokens.find(t=>t.id===tokId); if (!tok) return;
-  const skill = skillPool.find(s=>s.id===skillId); if (!skill) return;
-  if (skill.targetType==='passive') { log(`${skill.name} is a passive.`, 'skill'); return; }
-  if (!tok.actions) { log(`${tok.name} has no Action left.`, 'miss'); return; }
-  if (tok.mana < (skill.manaCost||0)) { log(`${tok.name} needs ${skill.manaCost} MP.`, 'miss'); return; }
-  const cdKey = 'pool_' + skillId;
-  if ((tok.cooldowns[cdKey]||0) > 0) { log(`${skill.name} on cooldown.`, 'miss'); return; }
-  skillTargetMode = {skillId: skill.id, tokenId: tokId};
-  mode = 'skill';
-  document.getElementById('modeLabel').textContent = `[SKILL] ${skill.name} — click target on grid · ESC to cancel`;
-  showSkillRange(tok, skill.range||1);
-}
+// enterSkillTargetMode is defined above (single definition)
 
 // Special: Mana Burst damage = floor(currentMP/2), max 5
 function _manaBurstDmg(user) { return Math.min(5, Math.floor(user.mana/2)); }
@@ -2723,15 +2740,14 @@ function triggerTerrainEffect(tok, r, c) {
     checkDeath(tok);
   } else if (t === 'crack') {
     const roll = Math.floor(Math.random()*20)+1;
-    if (roll <= 5) {
-      const dmg = Math.floor(Math.random()*6)+Math.floor(Math.random()*6)+2;
+    if (roll >= 16) {
+      const dmg = Math.floor(Math.random()*4)+1;
       tok.hp = Math.max(0, tok.hp - dmg);
-      if (!tok.statuses.includes('pinned')) tok.statuses.push('pinned');
       spawnFloat(r, c, `-${dmg}!`, 'fdmg-crit');
-      log(`${tok.name} falls through cracked floor! Roll ${roll} <= 5. Takes ${dmg} damage. PINNED.`, 'death');
+      log(`${tok.name} steps on cracked floor! Roll ${roll} (16-20). Takes ${dmg} damage.`, 'hit');
       checkDeath(tok);
     } else {
-      log(`${tok.name} crosses cracked floor safely. (roll ${roll})`, 'sys');
+      log(`${tok.name} crosses cracked floor safely. (roll ${roll}, need 16+)`, 'sys');
     }
   }
 }
@@ -3047,9 +3063,7 @@ function applySkillEffect(skill, user, target) {
   const cd = skill.cooldown || 0;
   const cdKey = 'pool_' + skill.id;
   if ((user.cooldowns[cdKey]||0) > 0) { log(`${user.name}: ${skill.name} on cooldown (${user.cooldowns[cdKey]} rounds left).`,'miss'); return; }
-  if (!user.actions) { log(`${user.name} has no Action left.`,'miss'); return; }
   if (user.mana < cost) { log(`${user.name} needs ${cost} MP (has ${user.mana}).`,'miss'); return; }
-  user.actions = false;
   user.mana = Math.max(0, user.mana - cost);
   if (cd > 0) user.cooldowns[cdKey] = cd;
   if (!_executeEffect_override(skill, user, target)) _executeEffect(skill, user, target);
@@ -3062,9 +3076,7 @@ function applyClassSkillEffect(sk, user, target) {
   const cost = sk.manaCost || 0;
   const cd = sk.cooldown || 0;
   const cdKey = 'cls_' + sk.name;
-  if (!user.actions) { log(`${user.name} has no Action left.`,'miss'); return; }
   if (user.mana < cost) { log(`${user.name} needs ${cost} MP (has ${user.mana}).`,'miss'); return; }
-  user.actions = false;
   user.mana = Math.max(0, user.mana - cost);
   if (cd > 0) user.cooldowns[cdKey] = cd;
   if (!_executeEffect_override(sk, user, target)) _executeEffect(sk, user, target);
@@ -3133,6 +3145,8 @@ function _executeEffect(sk, user, target) {
       if (!target) break;
       if (target.stoic) { log(`${target.name} is Stoic -- ignores status.`,'sys'); break; }
       const s = sk.effectStatus || 'rattled';
+      const ccEffects = ['stunned','pinned','rattled','distrust'];
+      if (ccEffects.includes(s) && (target.def||0) > 0) { log(`${target.name} resists CC — DEF ${target.def} > 0!`,'miss'); break; }
       if (!target.statuses.includes(s)) target.statuses.push(s);
       log(`${target.name} gains [${s}].`, 'skill');
       break;
@@ -3755,6 +3769,9 @@ function toggleAction(id, type) {
 function toggleStatus(id, status) {
   const tok = tokens.find(t=>t.id===id); if(!tok) return;
   if (tok.stoic&&['bleeding','burning','rattled','distrust','pinned'].includes(status)) { log(`${tok.name} is Stoic -- ignores status.`,'sys'); return; }
+  const ccEffects = ['stunned','pinned','rattled','distrust'];
+  const adding = !tok.statuses.includes(status);
+  if (adding && ccEffects.includes(status) && (tok.def||0) > 0) { log(`${tok.name} resists CC — DEF ${tok.def} > 0!`,'miss'); return; }
   const idx = tok.statuses.indexOf(status);
   if(idx>=0) tok.statuses.splice(idx,1); else tok.statuses.push(status);
   renderCards();
@@ -4047,10 +4064,11 @@ function nextRound(){
     // Bleed / burn tick
     if(t.statuses.includes('bleeding')){t.hp=Math.max(0,t.hp-1);spawnFloat(t.row,t.col,'-1(bleed)','fdmg-hit');log(`${t.name} bleeds. -1 HP.`,'hit');checkDeath(t);}
     if(t.statuses.includes('burning')){const d=Math.floor(Math.random()*4)+1;t.hp=Math.max(0,t.hp-d);spawnFloat(t.row,t.col,`-${d}(burn)`,'fdmg-hit');log(`${t.name} burns. -${d} HP.`,'hit');checkDeath(t);}
-    // Mana regen
+    // Mana regen — 20% max MP per round, round up
     const prev=t.mana;
-    t.mana=Math.min(t.maxMana,t.mana+(t.manaRegen||1));
-    if(t.mana>prev) log(`${t.name} regenerates ${t.mana-prev} MP (${t.mana}/${t.maxMana}).`,'sys');
+    const regen=Math.ceil(t.maxMana*0.2);
+    t.mana=Math.min(t.maxMana,t.mana+regen);
+    if(t.mana>prev) log(`${t.name} restores ${t.mana-prev} MP (${t.mana}/${t.maxMana}).`,'sys');
     // Cooldown tick
     Object.keys(t.cooldowns).forEach(k=>{if(t.cooldowns[k]>0){t.cooldowns[k]--;if(t.cooldowns[k]===0)log(`${t.name}: ${k.replace('cls_','').replace('pool_','')} is ready.`,'skill');}});
     // Clear pinned
@@ -5785,7 +5803,7 @@ const TERRAIN_INFO = {
   'normal':      {emoji:'', name:'Normal Floor', short:'No effect.', desc:'Standard ground. No special effects.', example:'Most of the grid.'},
   'high-ground': {emoji:'⛰️', name:'High Ground', short:'+Advantage on ranged attacks', desc:'Ranged attacks from this tile gain Advantage (roll 2d20, take higher). No effect on melee.', example:'A Ranger on a hill shoots a Goblin below — roll 2d20, take the higher result.'},
   'fire':        {emoji:'🔥', name:'Fire Barrel', short:'1d4 damage on entry', desc:'When a token enters this tile, it takes 1d4 fire damage immediately. Triggers each time entered.', example:'Varn walks into the barrel — roll 1d4. On a 3, he takes 3 fire damage.'},
-  'crack':       {emoji:'🕳️', name:'Cracked Floor', short:'Roll d20: ≤5 = falls', desc:'Roll d20 when crossing. On 1-5, the token falls through, takes 2d6+2 damage, and becomes Pinned. On 6+, crosses safely.', example:'Rogue tries to cross. Roll 4 — falls through! Take 2d6+2 damage, become Pinned.'},
+  'crack':       {emoji:'✱', name:'Cracked Floor', short:'Roll d20: 16-20 = 1d4 damage', desc:'Roll d20 when entering. On 16-20, the floor gives way — token takes 1d4 damage. On 1-15, crosses safely.', example:'Goblin crosses cracked floor. Roll 18 (≥16) — takes 3 damage!'},
   'ledge':       {emoji:'⬇️', name:'Ledge / Drop', short:'Push targets here = 1d6 fall damage', desc:'Tokens pushed onto a Ledge fall to lower level. Takes 1d6 fall damage and is repositioned at the bottom by the GM.', example:'Fighter uses Shield Bash — pushes Goblin onto a Ledge. Roll 1d6 = 4 fall damage.'},
   'wall':        {emoji:'🟫', name:'Wall', short:'Impassable', desc:'Cannot be entered or moved through. Blocks line-of-sight for ranged attacks.', example:'A pillar in the throne room — ranged shots cannot pass through it.'}
 };

@@ -485,8 +485,9 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
           <span class="stat-chip">&#9829; Trust <strong id="mapTrust" style="color:#c9a84c">50</strong></span>
           <span class="stat-chip">&#128176; Gold <strong id="mapGold" style="color:#dfaf3a">50</strong></span>
         </div>
-        <span style="display:flex;gap:6px">
+        <span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
           <button class="big-btn" onclick="openInventory()" style="font-size:0.7rem;padding:6px 12px;border-color:#dfaf3a;color:#dfaf3a" title="Manage party equipment">📦 Inventory</button>
+          <button class="big-btn" onclick="debugSkipNode()" style="font-size:0.7rem;padding:6px 12px;border-color:#7fb87f;color:#7fb87f" title="[DEBUG] Skip current node (test mode)">⏭ Skip Node</button>
           <button class="big-btn" onclick="saveCampaign();alert('Saved to browser.')" style="font-size:0.7rem;padding:6px 12px" title="Save to browser localStorage">&#128190; Save</button>
           <button class="big-btn" onclick="exportSave()" style="font-size:0.7rem;padding:6px 12px" title="Download save file to share">&#128229; Export</button>
           <button class="big-btn" onclick="document.getElementById('importSaveFileMap').click()" style="font-size:0.7rem;padding:6px 12px" title="Load save file">&#128228; Import</button>
@@ -544,7 +545,8 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
 <div id="screen-combat" class="game-screen">
 <div class="combat-banner" id="combatBanner" style="display:none">
   <span class="cb-title" id="combatNodeName">&#9876; Combat</span>
-  <span class="cb-end-btn-wrap">
+  <span style="display:flex;gap:8px">
+    <button class="cb-end-btn" style="background:#1a4a1a;border-color:#7fb87f;color:#7fb87f" onclick="debugWinCombat()" title="Test mode: instantly kill all enemies">🏆 Auto-Win</button>
     <button class="cb-end-btn" onclick="forceEndCombat()">Forfeit &amp; Return</button>
   </span>
 </div>
@@ -3201,6 +3203,91 @@ const ENCOUNTERS = {
   aldric:    [{cls:'Aldric', r:4, c:8}, {cls:'Royal Guard', r:3, c:7}, {cls:'Royal Guard', r:5, c:7}, {cls:'Shield Bearer', r:4, c:9}]
 };
 
+// =============================================================================
+// LEVEL DESIGNS — per-node layout (terrain + hero spawn). Defaults; designer-editable.
+// =============================================================================
+// Each level: {terrain: 10x10 (or sparse {r,c,t}), heroSpawns: [[r,c],...]}
+// If sparse, only listed cells are non-normal terrain.
+const LEVEL_DESIGNS = {
+  // Node 1 — Goblin Skirmish: simple intro, scattered cover
+  1: {
+    name: 'Goblin Skirmish',
+    terrainSparse: [
+      {r:3, c:3, t:'high-ground'},
+      {r:6, c:4, t:'high-ground'},
+      {r:5, c:5, t:'fire'},
+    ],
+    heroSpawns: [[1,1], [3,1], [5,1], [7,1]]
+  },
+  // Node 2a — Bandit Ambush: tight corridor with walls and cracks
+  2: {
+    name: 'Bandit Ambush',
+    terrainSparse: [
+      {r:0, c:5, t:'wall'}, {r:1, c:5, t:'wall'}, {r:2, c:5, t:'wall'},
+      {r:8, c:5, t:'wall'}, {r:9, c:5, t:'wall'},
+      {r:4, c:5, t:'crack'}, {r:5, c:5, t:'crack'},
+      {r:6, c:3, t:'high-ground'},
+    ],
+    heroSpawns: [[2,1], [4,1], [6,1], [8,1]]
+  },
+  // Node 2b — Skeleton Patrol: open arena with fire barrels
+  3: {
+    name: 'Skeleton Patrol',
+    terrainSparse: [
+      {r:2, c:4, t:'fire'}, {r:7, c:4, t:'fire'},
+      {r:4, c:6, t:'fire'},
+      {r:0, c:9, t:'ledge'}, {r:9, c:9, t:'ledge'},
+    ],
+    heroSpawns: [[2,1], [4,1], [6,1], [8,1]]
+  },
+  // Node 5 — Necromancer Elite: high ground for boss, walls protecting it
+  5: {
+    name: 'Necromancer Elite',
+    terrainSparse: [
+      {r:4, c:8, t:'high-ground'},
+      {r:3, c:7, t:'wall'}, {r:5, c:7, t:'wall'},
+      {r:2, c:5, t:'crack'}, {r:7, c:5, t:'crack'},
+      {r:0, c:4, t:'wall'}, {r:9, c:4, t:'wall'},
+    ],
+    heroSpawns: [[2,1], [4,1], [6,1], [8,1]]
+  },
+  // Node 7 — Aldric Boss: throne room with central dais + flanking pillars
+  7: {
+    name: 'Aldric — Throne Room',
+    terrainSparse: [
+      {r:4, c:8, t:'high-ground'},        // throne dais
+      {r:3, c:8, t:'high-ground'}, {r:5, c:8, t:'high-ground'},
+      {r:2, c:6, t:'wall'}, {r:7, c:6, t:'wall'},  // pillars
+      {r:4, c:4, t:'fire'},                // ceremonial brazier
+      {r:0, c:0, t:'wall'}, {r:9, c:0, t:'wall'},  // entrance pillars
+    ],
+    heroSpawns: [[3,1], [4,1], [5,1], [6,1]]
+  }
+};
+
+// Apply a level design's terrain to the global `terrain` grid
+function applyLevelTerrain(nodeId) {
+  // Reset to all normal
+  terrain = Array(GRID_SIZE).fill(0).map(()=>Array(GRID_SIZE).fill('normal'));
+  const design = LEVEL_DESIGNS[nodeId];
+  if (!design) return;
+  if (design.terrain) {
+    // Full grid mode
+    for (let r=0; r<GRID_SIZE; r++) for (let c=0; c<GRID_SIZE; c++) {
+      terrain[r][c] = design.terrain[r]?.[c] || 'normal';
+    }
+  } else if (design.terrainSparse) {
+    design.terrainSparse.forEach(t => {
+      if (t.r >= 0 && t.r < GRID_SIZE && t.c >= 0 && t.c < GRID_SIZE) {
+        terrain[t.r][t.c] = t.t;
+      }
+    });
+  }
+}
+function heroSpawnsFor(nodeId) {
+  return LEVEL_DESIGNS[nodeId]?.heroSpawns || [[1,1],[3,1],[5,1],[7,1]];
+}
+
 const SHOP_INVENTORIES = {
   4: { // Wandering Trader (mid)
     flavor: 'A hooded figure crouches by a small fire. "I don\'t recognise that sword," they say, eyes lingering on Varn\'s blade. "But I know what it does. The whispers — I can hear them too. From here." They tap their temple. "I\'ll sell you what I have. Don\'t come back."',
@@ -3876,18 +3963,18 @@ function startCombatNode(node) {
   tokens = []; turnOrder = []; turnIndex = 0; round = 1;
   document.getElementById('roundNum').textContent = '1';
   selectedId = null;
-  // Place heroes on the left side
+  // Apply terrain from level design (or clear)
+  applyLevelTerrain(node.id);
+  // Place heroes at level-specific spawn points
+  const spawns = heroSpawnsFor(node.id);
   CAMPAIGN.heroes.forEach((h, i) => {
     if (h.dead) return;
-    const positions = [[1,1],[3,1],[5,1],[7,1]];
-    const [r, c] = positions[i];
+    const [r, c] = spawns[i] || [1, 1+i];
     placeHeroFromCampaign(h, r, c);
   });
   // Place enemies from encounter
   const enc = ENCOUNTERS[node.encounter] || [];
   enc.forEach(e => placeEnemyFromEncounter(e.cls, e.r, e.c));
-  // Clear terrain
-  terrain = Array(GRID_SIZE).fill(0).map(()=>Array(GRID_SIZE).fill('normal'));
   rebuildTurnOrder();
   rollInitiative();
   detectFlanking();
@@ -4011,6 +4098,33 @@ function endCombat(victory) {
     setTimeout(() => showEnding(false), 800);
   }
 }
+// DEBUG: instantly kill all enemies to win current combat
+function debugWinCombat() {
+  if (!CAMPAIGN.active || !CAMPAIGN.combatNode) { alert('Not in a campaign combat.'); return; }
+  if (!confirm('[DEBUG] Auto-win this combat? All enemies will be killed instantly.')) return;
+  tokens.filter(t => t.side === 'enemy' && !t.dead).forEach(e => {
+    e.hp = 0;
+    e.dead = true;
+    log(`[DEBUG] ${e.name} auto-killed.`, 'sys');
+    statsRecordKill(CAMPAIGN.heroes[0] && tokens.find(t => t._campaignRef === CAMPAIGN.heroes[0]), e);
+    changeSouls(1);
+  });
+  renderAll();
+  setTimeout(() => checkCombatEnd(), 200);
+}
+// DEBUG: complete current campaign node instantly (skips combat or shop)
+function debugSkipNode() {
+  if (!CAMPAIGN.active) { alert('Not in active campaign.'); return; }
+  const node = MAP_NODES.find(n => n.id === CAMPAIGN.currentNode);
+  if (!node) return;
+  if (!confirm(`[DEBUG] Skip node "${node.name}" and mark complete?`)) return;
+  if (!CAMPAIGN.completedNodes.includes(node.id)) CAMPAIGN.completedNodes.push(node.id);
+  gold += 25;
+  updateGold();
+  log(`[DEBUG] Skipped node ${node.name}.`, 'sys');
+  renderMap();
+}
+
 function forceEndCombat() {
   if (!confirm('Forfeit this combat? All living heroes will retreat (no rewards).')) return;
   // Mark as completed without rewards, return to map
@@ -4043,7 +4157,7 @@ function renderShopItems(node) {
   const inv = SHOP_INVENTORIES[node.id];
   document.getElementById('shopItems').innerHTML = inv.items.map(it => {
     const tooExpensive = gold < it.cost;
-    return `<div class="shop-item${it._sold?' sold':''}">
+    return `<div class="shop-item${it._sold?' sold':''}" style="position:relative">
       <div class="si-name">${it.name}</div>
       <div class="si-desc">${it.desc}</div>
       <button class="si-buy" ${tooExpensive||it._sold?'disabled':''} onclick="beginPurchase('${it.id}')">${it._sold?'Sold':`Buy — ${it.cost}g`}</button>
@@ -4534,6 +4648,17 @@ function itemClassesMatch(item, className) {
   if (item.classes === 'all') return true;
   return Array.isArray(item.classes) && item.classes.includes(className);
 }
+// Return small class-logo badge HTML for an item
+function itemClassBadge(item) {
+  if (!item) return '';
+  if (item.classes === 'all') {
+    return `<span style="position:absolute;top:2px;right:2px;background:#2a3050;color:#aaa;font-size:0.55rem;padding:1px 4px;border-radius:6px;letter-spacing:0.5px" title="Usable by any class">ALL</span>`;
+  }
+  const classEmojis = {Fighter:'⚔️',Tank:'🛡️',Rogue:'🗡️',Ranger:'🏹',Cleric:'⛪',Wizard:'🧙',Mage:'📜'};
+  const icons = (item.classes||[]).map(c => classEmojis[c] || c[0]).join('');
+  const label = (item.classes||[]).join('/');
+  return `<span style="position:absolute;top:2px;right:2px;background:#1a1410;border:1px solid #5a3a1a;color:#dfaf3a;font-size:0.7rem;padding:1px 4px;border-radius:6px" title="Usable by: ${label}">${icons}</span>`;
+}
 
 function recalcHeroStats(h) {
   if (!h.baseStats) return;
@@ -4626,7 +4751,9 @@ function showLootModal(item, goldGained) {
         <h2 style="color:#dfaf3a;letter-spacing:1px;font-size:1.1rem">${item.name}</h2>
         <div style="color:#888;font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;margin:4px 0">${item.slot} · Tier ${item.tier}</div>
         <div style="color:#aaa;font-size:0.85rem;margin:10px 0;line-height:1.5">${item.desc}</div>
-        <div style="color:#7a8a9a;font-size:0.7rem;background:#0a0f1c;padding:6px;border-radius:4px;margin:8px 0">Classes: ${item.classes==='all'?'Any':item.classes.join(', ')}</div>
+        <div style="color:#7a8a9a;font-size:0.7rem;background:#0a0f1c;padding:6px;border-radius:4px;margin:8px 0">
+          Usable by: <strong style="color:#dfaf3a">${item.classes==='all'?'Any class':item.classes.map(c=>({Fighter:'⚔️',Tank:'🛡️',Rogue:'🗡️',Ranger:'🏹',Cleric:'⛪',Wizard:'🧙',Mage:'📜'}[c]||'')+' '+c).join(' · ')}</strong>
+        </div>
         <div style="color:#dfaf3a;font-size:0.95rem;margin:14px 0">💰 +${goldGained} gold</div>
         <div style="font-size:0.7rem;color:#888;margin-bottom:14px">Item sent to your party Storage. You can equip it from the Inventory screen.</div>
         <button onclick="document.getElementById('lootModal').remove();(window._lootClose||function(){})()" class="big-btn">Continue &raquo;</button>
@@ -4661,10 +4788,15 @@ function renderInventoryModal() {
     const slotHtml = slots.map(slotType => {
       const equipped = (h.equipment||[]).find(id => EQUIPMENT[id]?.slot === slotType);
       const item = equipped ? EQUIPMENT[equipped] : null;
-      return `<div style="background:#0a0f1c;border:1px dashed ${item?'#dfaf3a':'#2a3050'};border-radius:4px;padding:6px;font-size:0.7rem">
+      return `<div class="inv-slot" data-hero="${hi}" data-slot="${slotType}"
+        ondragover="invSlotDragOver(event,${hi},'${slotType}')"
+        ondragleave="invSlotDragLeave(event)"
+        ondrop="invSlotDrop(event,${hi},'${slotType}')"
+        style="background:#0a0f1c;border:1px dashed ${item?'#dfaf3a':'#2a3050'};border-radius:4px;padding:6px;font-size:0.7rem;position:relative;min-height:44px">
         <div style="color:#888;font-size:0.55rem;letter-spacing:1px;text-transform:uppercase">${slotType}</div>
         ${item ? `
-          <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+          <div draggable="true" ondragstart="invItemDragStart(event,'${item.id}','equipped',${hi})"
+            style="display:flex;align-items:center;gap:6px;margin-top:2px;cursor:grab;position:relative">
             <span style="font-size:1.1rem">${item.icon}</span>
             <div style="flex:1">
               <div style="color:#dfaf3a;font-weight:bold">${item.name}</div>
@@ -4672,7 +4804,7 @@ function renderInventoryModal() {
             </div>
             <button onclick="unequipItem(${hi},'${item.id}');renderInventoryModal()" style="background:#5a1a1a;border:1px solid #8b3030;color:#e05555;padding:2px 6px;cursor:pointer;border-radius:3px;font-size:0.6rem">×</button>
           </div>
-        ` : '<div style="color:#444;font-style:italic;font-size:0.7rem;margin-top:2px">— empty —</div>'}
+        ` : '<div style="color:#444;font-style:italic;font-size:0.7rem;margin-top:6px;text-align:center">— drop item here —</div>'}
       </div>`;
     }).join('');
     return `<div style="background:#1a1f2c;border:1px solid #2a3050;border-radius:6px;padding:10px;flex:1;min-width:240px${h.dead?';opacity:0.4':''}">
@@ -4691,9 +4823,11 @@ function renderInventoryModal() {
     storage.map((id, si) => {
       const item = EQUIPMENT[id]; if (!item) return '';
       const compat = CAMPAIGN.heroes.map((h,hi)=>({hi,h,ok:!h.dead && itemClassesMatch(item, h.class)})).filter(x=>x.ok);
-      return `<div style="background:#0d1420;border:1px solid #2a3050;border-radius:4px;padding:8px;display:flex;align-items:center;gap:8px">
+      return `<div draggable="true" ondragstart="invItemDragStart(event,'${item.id}','storage',${si})"
+        style="background:#0d1420;border:1px solid #2a3050;border-radius:4px;padding:8px;display:flex;align-items:center;gap:8px;cursor:grab;position:relative">
+        ${itemClassBadge(item)}
         <span style="font-size:1.4rem">${item.icon}</span>
-        <div style="flex:1;min-width:0">
+        <div style="flex:1;min-width:0;padding-right:40px">
           <div style="color:#dfaf3a;font-weight:bold;font-size:0.85rem">${item.name}</div>
           <div style="color:#888;font-size:0.65rem;letter-spacing:1px;text-transform:uppercase">${item.slot} · T${item.tier}</div>
           <div style="color:#aaa;font-size:0.7rem">${item.desc}</div>
@@ -4719,6 +4853,49 @@ function renderInventoryModal() {
     </div>
   `;
 }
+// ----- Drag & Drop Equipment -----
+window._dragItem = null;
+function invItemDragStart(ev, itemId, source, indexOrHero) {
+  window._dragItem = { itemId, source, idx: indexOrHero };
+  ev.dataTransfer.effectAllowed = 'move';
+  // Some browsers need data set explicitly
+  ev.dataTransfer.setData('text/plain', itemId);
+}
+function invSlotDragOver(ev, heroIdx, slotType) {
+  if (!window._dragItem) return;
+  const item = EQUIPMENT[window._dragItem.itemId];
+  if (!item || item.slot !== slotType) return; // wrong slot type
+  const hero = CAMPAIGN.heroes[heroIdx];
+  if (!hero || hero.dead) return;
+  if (!itemClassesMatch(item, hero.class)) return;
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+  ev.currentTarget.style.borderColor = '#7fb87f';
+  ev.currentTarget.style.borderStyle = 'solid';
+}
+function invSlotDragLeave(ev) {
+  ev.currentTarget.style.borderColor = '';
+  ev.currentTarget.style.borderStyle = '';
+}
+function invSlotDrop(ev, heroIdx, slotType) {
+  ev.preventDefault();
+  ev.currentTarget.style.borderColor = '';
+  ev.currentTarget.style.borderStyle = '';
+  if (!window._dragItem) return;
+  const drag = window._dragItem;
+  const item = EQUIPMENT[drag.itemId];
+  if (!item || item.slot !== slotType) { window._dragItem = null; return; }
+  const hero = CAMPAIGN.heroes[heroIdx];
+  if (!hero || hero.dead || !itemClassesMatch(item, hero.class)) { window._dragItem = null; return; }
+  // If dragged from another hero's equipment, unequip there first
+  if (drag.source === 'equipped' && drag.idx !== heroIdx) {
+    unequipItem(drag.idx, drag.itemId);
+  }
+  equipItem(heroIdx, drag.itemId);
+  window._dragItem = null;
+  renderInventoryModal();
+}
+
 function sellItem(storageIdx) {
   const id = CAMPAIGN.storage[storageIdx];
   const item = EQUIPMENT[id];

@@ -518,7 +518,8 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
       <div style="text-align:right;margin-bottom:10px"><span class="stat-chip">&#128176; <strong id="shopGold" style="color:#dfaf3a">50</strong> gold</span></div>
       <div class="shop-items" id="shopItems"></div>
       <div id="shopTargetPrompt"></div>
-      <div style="text-align:center">
+      <div style="display:flex;gap:10px;justify-content:center">
+        <button class="big-btn" onclick="openInventory()" style="border-color:#dfaf3a;color:#dfaf3a">📦 Open Inventory</button>
         <button class="big-btn" onclick="leaveShop()">Leave &raquo;</button>
       </div>
     </div>
@@ -1327,9 +1328,10 @@ function enterAttackMode(id) {
   cancelTargetMode();
   const tok = tokens.find(t=>t.id===id);
   if (!tok || tok.dead || !tok.actions) { log('No action available to attack.','miss'); return; }
+  if (!enforceTurn(tok)) return;
   attackMode = true; attackingId = id;
   mode = 'attack';
-  document.getElementById('modeLabel').textContent = `[ATTACK] ${tok.name}: click an enemy to resolve attack -- ESC to cancel`;
+  document.getElementById('modeLabel').textContent = `[ATTACK] ${tok.name}: click an enemy within RNG ${tok.range} -- ESC to cancel`;
   showAttackRange(tok);
   renderCards();
 }
@@ -1351,6 +1353,7 @@ function enterSkillTargetMode(skillId, tokenId) {
 function enterClassSkillMode(tokenId) {
   const tok = tokens.find(t=>t.id===tokenId);
   if (!tok) return;
+  if (!enforceTurn(tok)) return;
   const template = (tok.side==='ally' ? ALLY_CLASSES : ENEMY_CLASSES).find(c=>c.name===tok.class);
   if (!template) return;
   const sk = template.classSkill;
@@ -1401,6 +1404,7 @@ function animToken(id, cls) {
 // =============================================================================
 function enterLearnedSkillMode(skillIdx, tokId) {
   const tok = tokens.find(t=>t.id===tokId); if (!tok) return;
+  if (!enforceTurn(tok)) return;
   const sk = tok.skills[skillIdx]; if (!sk) return;
   if (sk.targetType==='passive') { log(`${sk.name} is a passive.`, 'skill'); return; }
   if (!tok.actions) { log(`${tok.name} has no Action left.`, 'miss'); return; }
@@ -1529,6 +1533,14 @@ function cellClick(r, c) {
     const target = tokens.find(t=>t.row===r&&t.col===c&&!t.dead);
     const attacker = tokens.find(t=>t.id===attackingId);
     if (target && attacker && target.side !== attacker.side) {
+      // Enforce: attacker must be the current-turn token
+      if (!enforceTurn(attacker)) { cancelTargetMode(); setMode('select', document.getElementById('selectModeBtn')); return; }
+      // Enforce: target must be within range
+      const dist = Math.abs(attacker.row - target.row) + Math.abs(attacker.col - target.col);
+      if (dist > (attacker.range || 1)) {
+        log(`${target.name} is out of range (${dist} > RNG ${attacker.range}).`, 'miss');
+        cancelTargetMode(); setMode('select', document.getElementById('selectModeBtn')); return;
+      }
       resolveAttack(attacker, target);
       cancelTargetMode();
       setMode('select', document.getElementById('selectModeBtn'));
@@ -1559,18 +1571,24 @@ function cellClick(r, c) {
   const tok = tokens.find(t=>t.row===r&&t.col===c&&!t.dead);
   if (tok) {
     selectedId = tok.id; renderAll(); showMoveRange(tok);
-    document.getElementById('modeLabel').textContent = `Selected: ${tok.name} (${tok.class}) · ATK+${tok.atk} DEF${tok.def} SPD${tok.speed} RNG${tok.range}`;
+    const moveInfo = tok.moved ? ' · [moved already]' : ` · can move ${tok.speed}`;
+    document.getElementById('modeLabel').textContent = `Selected: ${tok.name} (${tok.class}) · ATK+${tok.atk} DEF${tok.def} SPD${tok.speed} RNG${tok.range}${moveInfo}`;
   } else if (selectedId !== null) {
     const sel = tokens.find(t=>t.id===selectedId);
     if (sel && !sel.dead) {
+      // Enforce turn order
+      if (!enforceTurn(sel)) return;
+      // Enforce: only one move action per turn
+      if (sel.moved) { log(`${sel.name} has already moved this turn.`, 'miss'); return; }
       const dist = Math.abs(sel.row-r)+Math.abs(sel.col-c);
       if (terrain[r][c]==='wall') { log(`${sel.name} can't enter wall.`,'miss'); return; }
       if (dist <= sel.speed) {
-        log(`${sel.name} moves ${coord(sel.row,sel.col)} -> ${coord(r,c)}`,'sys');
+        log(`${sel.name} moves ${coord(sel.row,sel.col)} -> ${coord(r,c)} (${dist}/${sel.speed})`,'sys');
         sel.row = r; sel.col = c;
+        sel.moved = true; // lock further movement
         triggerTerrainEffect(sel, r, c);
         detectFlanking(); renderAll(); clearHighlights();
-        document.getElementById('modeLabel').textContent = 'Click a token to select · Click empty cell to move';
+        document.getElementById('modeLabel').textContent = `${sel.name} has moved. Use Attack/Skill or End Turn.`;
       } else { log(`${sel.name} can't reach ${coord(r,c)} (${dist} > ${sel.speed})`,'miss'); }
     }
   }
@@ -2187,7 +2205,6 @@ function cardHTML(tok) {
     </div>
     ${!tok.dead?`<div class="ctrl-row" style="margin-top:3px">
       <button class="mini-btn atk-btn ${isAtking?'active':''}" onclick="event.stopPropagation();enterAttackMode(${tok.id})">&#9876; ATTACK</button>
-      ${tok.side==='ally'?`<button class="mini-btn home-btn" onclick="event.stopPropagation();sendHome(${tok.id})">&#127968; Home</button>`:''}
       ${tok.side==='enemy'&&!tok.dead&&souls>=3?`<button class="mini-btn" style="border-color:#4a8b4a;color:#8abf8a;font-size:0.55rem" onclick="event.stopPropagation();attemptRecruit(${tok.id})">&#9670; Recruit</button>`:''}
     </div>`:''}
     <div class="actions-row">
@@ -2554,14 +2571,33 @@ function rollTrust(){
 }
 
 // =============================================================================
-// TURN ORDER
+// TURN ORDER (with strict enforcement in Campaign mode)
 // =============================================================================
-function rebuildTurnOrder(){turnOrder=tokens.filter(t=>!t.dead&&!t._home).map(t=>({id:t.id,name:t.name,side:t.side,init:0}));if(turnIndex>=turnOrder.length)turnIndex=0;renderTurnOrder();}
+function rebuildTurnOrder(){turnOrder=tokens.filter(t=>!t.dead).map(t=>({id:t.id,name:t.name,side:t.side,init:0}));if(turnIndex>=turnOrder.length)turnIndex=0;renderTurnOrder();}
 function rollInitiative(){
   // Official rule: Speed + d4 determines turn order
-  turnOrder=tokens.filter(t=>!t.dead&&!t._home).map(t=>({id:t.id,name:t.name,side:t.side,init:(t.speed||0)+Math.floor(Math.random()*4)+1}));
+  turnOrder=tokens.filter(t=>!t.dead).map(t=>({id:t.id,name:t.name,side:t.side,init:(t.speed||0)+Math.floor(Math.random()*4)+1}));
   turnOrder.sort((a,b)=>b.init-a.init);turnIndex=0;renderTurnOrder();
+  // Reset per-turn flags
+  tokens.forEach(t => { t.moved = false; t.actions = true; });
   log(`Initiative (SPD+d4): ${turnOrder.map(t=>t.name+'('+t.init+')').join(', ')}`,'sys');
+}
+function currentTurnTokenId() {
+  if (!turnOrder || turnOrder.length === 0) return null;
+  return turnOrder[turnIndex]?.id ?? null;
+}
+function isItMyTurn(tokId) {
+  // In GM Sandbox (no active campaign), allow any token to act
+  if (!CAMPAIGN.active) return true;
+  return tokId === currentTurnTokenId();
+}
+function enforceTurn(tok) {
+  if (!isItMyTurn(tok.id)) {
+    const cur = tokens.find(t => t.id === currentTurnTokenId());
+    log(`Not ${tok.name}'s turn — it is ${cur?cur.name:'?'}'s turn.`, 'miss');
+    return false;
+  }
+  return true;
 }
 function renderTurnOrder(){
   const list=document.getElementById('turnList');
@@ -2574,12 +2610,24 @@ function renderTurnOrder(){
 }
 function nextTurn(){
   if(!turnOrder.length)return;
-  turnIndex=(turnIndex+1)%turnOrder.length;
+  // Skip dead tokens
+  let attempts = 0;
+  do {
+    turnIndex=(turnIndex+1)%turnOrder.length;
+    attempts++;
+    if (attempts > turnOrder.length) break;
+  } while (tokens.find(t=>t.id===turnOrder[turnIndex].id)?.dead);
+  // If we wrapped around to start, new round
+  if (turnIndex === 0) { nextRound(); return; }
   const cur=turnOrder[turnIndex];
-  log(`-> ${cur.name}'s turn`,'sys');
-  selectedId=cur.id;
   const tok=tokens.find(t=>t.id===cur.id);
-  if(tok&&!tok.dead&&!tok._home) showMoveRange(tok);
+  if (tok) {
+    tok.moved = false;       // reset move flag for new turn
+    tok.actions = true;
+  }
+  log(`-> ${cur.name}'s turn (SPD ${tok?.speed||'?'}, can move ${tok?.speed||0})`,'sys');
+  selectedId=cur.id;
+  if(tok&&!tok.dead) showMoveRange(tok);
   cancelTargetMode(); renderAll();
 }
 function nextRound(){
@@ -2601,7 +2649,7 @@ function nextRound(){
   resetActions();rebuildTurnOrder();turnIndex=0;detectFlanking();
   renderAll();renderBarracks();
 }
-function resetActions(){tokens.forEach(t=>{if(!t.dead&&!t._home){t.actions=true;}});renderCards();log('Actions reset.','sys');}
+function resetActions(){tokens.forEach(t=>{if(!t.dead){t.actions=true;t.moved=false;}});renderCards();log('Actions reset.','sys');}
 
 // =============================================================================
 // UTILITY
@@ -4125,6 +4173,109 @@ const EQUIPMENT = {
   vitalAmulet:  {id:'vitalAmulet',  name:'Vital Amulet',  icon:'📿',  slot:'accessory', stats:{hp:5},                           desc:'+5 max HP',                                         tier:1, classes:'all'},
   warBanner:    {id:'warBanner',    name:'War Banner',    icon:'🚩',  slot:'accessory', stats:{atk:1, def:1},                   desc:'+1 ATK, +1 DEF',                                    tier:2, classes:'all'},
   manaPendant:  {id:'manaPendant',  name:'Mana Pendant',  icon:'💠',  slot:'accessory', stats:{maxMana:2, manaRegen:1},         desc:'+2 max MP, +1 regen',                               tier:1, classes:'all'},
+
+  // ════════════════ DANIEL'S FULL EQUIPMENT (Skills&Equipment.docx) ════════════════
+  // Main Hand — Cleric/holy
+  wand:           {id:'wand',           name:'Wand',              icon:'🪄', slot:'weapon', stats:{maxMana:1, manaRegen:1},                        desc:'+1 MP, +1 MP regen',                                            tier:0, classes:['Cleric','Wizard']},
+  wandOfLife:     {id:'wandOfLife',     name:'Wand of Life',      icon:'🪄', slot:'weapon', stats:{maxMana:2, manaRegen:1},                        desc:'+2 MP, +1 regen, +25% heal/shield (GM)',                        tier:1, classes:['Cleric']},
+  eternalGrace:   {id:'eternalGrace',   name:'Eternal Grace Wand',icon:'🪄', slot:'weapon', stats:{maxMana:3, manaRegen:2},                        desc:'+3 MP, +2 regen, +50% heal/shield (GM)',                        tier:2, classes:['Cleric']},
+  // Main Hand — Fighter
+  shortSwordD:    {id:'shortSwordD',    name:'Short Sword',       icon:'⚔️', slot:'weapon', stats:{atk:1},                                         desc:'+1 ATK',                                                        tier:0, classes:['Fighter','Rogue']},
+  steelSword:     {id:'steelSword',     name:'Steel Sword',       icon:'⚔️', slot:'weapon', stats:{atk:2, def:1},                                  desc:'+2 ATK, +1 DEF',                                                tier:1, classes:['Fighter']},
+  ironOathblade:  {id:'ironOathblade',  name:'Iron Oathblade',    icon:'⚔️', slot:'weapon', stats:{atk:3, def:2},                                  desc:'+3 ATK, +2 DEF, +1 dmg vs armoured (GM)',                       tier:2, classes:['Fighter']},
+  // Main Hand — Ranger spears
+  huntingSpear:   {id:'huntingSpear',   name:'Hunting Spear',     icon:'🔱', slot:'weapon', stats:{atk:1, range:1},                                desc:'+1 ATK, +1 RNG',                                                tier:0, classes:['Ranger','Fighter']},
+  falconSpear:    {id:'falconSpear',    name:'Falcon Spear',      icon:'🔱', slot:'weapon', stats:{atk:2, range:1},                                desc:'+2 ATK, +1 RNG',                                                tier:1, classes:['Ranger','Fighter']},
+  skypiercer:     {id:'skypiercer',     name:'Skypiercer Spear',  icon:'🔱', slot:'weapon', stats:{atk:3, range:2},                                desc:'+3 ATK, +2 RNG, first atk/combat +1 ATK (GM)',                  tier:2, classes:['Ranger']},
+  // Main Hand — Cleric maces
+  prayerMace:     {id:'prayerMace',     name:'Prayer Mace',       icon:'🔨', slot:'weapon', stats:{atk:1, maxMana:1},                              desc:'+1 ATK, +1 MP',                                                 tier:0, classes:['Cleric']},
+  sacredMace:     {id:'sacredMace',     name:'Sacred Mace',       icon:'🔨', slot:'weapon', stats:{atk:2, manaRegen:1},                            desc:'+2 ATK, +1 MP regen',                                           tier:1, classes:['Cleric']},
+  dawnSaintMace:  {id:'dawnSaintMace',  name:'Dawn Saint Mace',   icon:'🔨', slot:'weapon', stats:{atk:3, maxMana:2},                              desc:'+3 ATK, +2 MP, heal 1 HP on kill (GM)',                         tier:2, classes:['Cleric']},
+  // Main Hand — Wizard wands
+  apprenticeWand: {id:'apprenticeWand', name:'Apprentice Wand',   icon:'🪄', slot:'weapon', stats:{maxMana:2},                                     desc:'+2 MP',                                                         tier:0, classes:['Wizard','Mage']},
+  arcaneWand:     {id:'arcaneWand',     name:'Arcane Wand',       icon:'🪄', slot:'weapon', stats:{maxMana:3, manaRegen:1},                        desc:'+3 MP, +1 regen',                                               tier:1, classes:['Wizard','Mage']},
+  voidStarWand:   {id:'voidStarWand',   name:'Void Star Wand',    icon:'🪄', slot:'weapon', stats:{maxMana:5, manaRegen:2, range:1},               desc:'+5 MP, +2 regen, +1 spell RNG',                                 tier:2, classes:['Wizard']},
+
+  // Off Hand — shields
+  shield:         {id:'shield',         name:'Shield',            icon:'🛡️', slot:'accessory', stats:{def:4},                                      desc:'+4 DEF',                                                        tier:0, classes:'all'},
+  guardianShield: {id:'guardianShield', name:'Guardian Shield',   icon:'🛡️', slot:'accessory', stats:{def:5, hp:1},                                desc:'+5 DEF, +1 HP',                                                 tier:1, classes:'all'},
+  lastStand:      {id:'lastStand',      name:'Last Stand Shield', icon:'🛡️', slot:'accessory', stats:{def:7, hp:2},                                desc:'+7 DEF, +2 HP, once/combat reduce dmg by 2 (GM)',               tier:2, classes:'all'},
+  // Off Hand — Rogue
+  daggerGuard:    {id:'daggerGuard',    name:'Dagger Guard',      icon:'🗡️', slot:'accessory', stats:{atk:1, def:1},                               desc:'+1 ATK, +1 DEF',                                                tier:0, classes:['Rogue']},
+  shadowBuckler:  {id:'shadowBuckler',  name:'Shadow Buckler',    icon:'🗡️', slot:'accessory', stats:{atk:2, def:2},                               desc:'+2 ATK, +2 DEF',                                                tier:1, classes:['Rogue']},
+  nightfang:      {id:'nightfang',      name:'Nightfang Buckler', icon:'🗡️', slot:'accessory', stats:{atk:3, def:3},                               desc:'+3 ATK, +3 DEF, +1 ATK after dodge/move (GM)',                  tier:2, classes:['Rogue']},
+  // Off Hand — Ranger
+  quiver:         {id:'quiver',         name:'Quiver',            icon:'🏹', slot:'accessory', stats:{range:1},                                    desc:'+1 RNG',                                                        tier:0, classes:['Ranger']},
+  reinforcedQuiver:{id:'reinforcedQuiver',name:'Reinforced Quiver',icon:'🏹',slot:'accessory', stats:{range:1, atk:1},                             desc:'+1 RNG, +1 ATK',                                                tier:1, classes:['Ranger']},
+  stormfeather:   {id:'stormfeather',   name:'Stormfeather Quiver',icon:'🏹',slot:'accessory', stats:{range:2, atk:2},                             desc:'+2 RNG, +2 ATK, first ranged atk -1 MP (GM)',                   tier:2, classes:['Ranger']},
+  // Off Hand — Cleric
+  cross:          {id:'cross',          name:'Cross',             icon:'✝️', slot:'accessory', stats:{},                                           desc:'+1 to heal/shield (GM)',                                        tier:0, classes:['Cleric']},
+  holyCross:      {id:'holyCross',      name:'Holy Cross',        icon:'✝️', slot:'accessory', stats:{manaRegen:1},                                desc:'+2 heal/shield, +1 regen',                                      tier:1, classes:['Cleric']},
+  martyrCross:    {id:'martyrCross',    name:'Martyr\'s Cross',   icon:'✝️', slot:'accessory', stats:{manaRegen:2},                                desc:'+3 heal/shield, +2 regen, +1 DEF when healing (GM)',            tier:2, classes:['Cleric']},
+  // Off Hand — Wizard
+  manaCrystal:    {id:'manaCrystal',    name:'Mana Crystal',      icon:'💠', slot:'accessory', stats:{maxMana:5, manaRegen:1},                     desc:'+5 MP, +1 regen',                                               tier:0, classes:['Wizard','Mage','Cleric']},
+  arcaneOrb:      {id:'arcaneOrb',      name:'Arcane Orb',        icon:'🔮', slot:'accessory', stats:{maxMana:6, manaRegen:2},                     desc:'+6 MP, +2 regen',                                               tier:1, classes:['Wizard','Mage']},
+  abyssOrb:       {id:'abyssOrb',       name:'Abyss Orb',         icon:'🔮', slot:'accessory', stats:{maxMana:8, manaRegen:3},                     desc:'+8 MP, +3 regen, once/combat spell -2 MP (GM)',                 tier:2, classes:['Wizard']},
+  tome:           {id:'tome',           name:'Tome',              icon:'📕', slot:'accessory', stats:{},                                           desc:'+2 MP on kill (GM)',                                            tier:0, classes:['Wizard','Mage']},
+  forbiddenTome:  {id:'forbiddenTome',  name:'Forbidden Tome',    icon:'📕', slot:'accessory', stats:{manaRegen:1},                                desc:'+3 MP on kill, +1 regen',                                       tier:1, classes:['Wizard']},
+  ruinTome:       {id:'ruinTome',       name:'Ruin Tome',         icon:'📕', slot:'accessory', stats:{manaRegen:2},                                desc:'+4 MP on kill, +2 regen, +1 spell dmg vs <50% HP (GM)',         tier:2, classes:['Wizard']},
+
+  // Double-Handed — bows
+  bow:            {id:'bow',            name:'Bow',               icon:'🏹', slot:'weapon', stats:{range:3},                                       desc:'+3 RNG',                                                        tier:0, classes:['Ranger']},
+  heavyBow:       {id:'heavyBow',       name:'Heavy Bow',         icon:'🏹', slot:'weapon', stats:{range:4, atk:1},                                desc:'+4 RNG, +1 ATK',                                                tier:1, classes:['Ranger']},
+  moonrendingBow: {id:'moonrendingBow', name:'Moonrending Bow',   icon:'🏹', slot:'weapon', stats:{range:5, atk:2},                                desc:'+5 RNG, +2 ATK, +1 dmg at max range (GM)',                      tier:2, classes:['Ranger']},
+  warHammerD:     {id:'warHammerD',     name:'War Hammer',        icon:'🔨', slot:'weapon', stats:{atk:3},                                         desc:'+3 ATK, knockback 1 on basic atk (GM)',                         tier:1, classes:['Fighter','Tank']},
+  greatAxe:       {id:'greatAxe',       name:'Great Axe',         icon:'🪓', slot:'weapon', stats:{atk:4},                                         desc:'+4 ATK',                                                        tier:1, classes:['Fighter','Tank']},
+  titanbreaker:   {id:'titanbreaker',   name:'Titanbreaker Axe',  icon:'🪓', slot:'weapon', stats:{atk:5},                                         desc:'+5 ATK, cleave 1 dmg to adjacent enemy (GM)',                   tier:2, classes:['Fighter']},
+  rapidFireBow:   {id:'rapidFireBow',   name:'Rapid Fire Bow',    icon:'🏹', slot:'weapon', stats:{atk:-1, range:3, manaRegen:1},                  desc:'-1 ATK, -1 MP cost, +1 regen, +3 RNG',                          tier:1, classes:['Ranger']},
+  stormBow:       {id:'stormBow',       name:'Storm Bow',         icon:'🏹', slot:'weapon', stats:{atk:1, range:4, speed:1},                       desc:'+1 ATK, +4 RNG, +1 SPD',                                        tier:1, classes:['Ranger']},
+  thunderhawk:    {id:'thunderhawk',    name:'Thunderhawk Bow',   icon:'🏹', slot:'weapon', stats:{atk:2, range:5, speed:1},                       desc:'+2 ATK, +5 RNG, +1 SPD, first atk after move +1 ATK (GM)',      tier:2, classes:['Ranger']},
+  staff:          {id:'staff',          name:'Staff',             icon:'🪄', slot:'weapon', stats:{maxMana:4, manaRegen:1},                        desc:'+4 MP, +1 regen',                                               tier:0, classes:['Cleric','Wizard']},
+  holyStaff:      {id:'holyStaff',      name:'Holy Staff',        icon:'🪄', slot:'weapon', stats:{maxMana:5, manaRegen:2},                        desc:'+5 MP, +2 regen, +1 heal/shield (GM)',                          tier:1, classes:['Cleric']},
+  seraphimStaff:  {id:'seraphimStaff',  name:'Seraphim Staff',    icon:'🪄', slot:'weapon', stats:{maxMana:7, manaRegen:2},                        desc:'+7 MP, +2 regen, +2 heal/shield, healing gives +1 DEF (GM)',    tier:2, classes:['Cleric']},
+  arcaneStaff:    {id:'arcaneStaff',    name:'Arcane Staff',      icon:'🪄', slot:'weapon', stats:{maxMana:6, manaRegen:1, range:1},               desc:'+6 MP, +1 regen, +1 RNG',                                       tier:1, classes:['Wizard','Mage']},
+  blackStarStaff: {id:'blackStarStaff', name:'Black Star Staff',  icon:'🪄', slot:'weapon', stats:{maxMana:8, manaRegen:3, range:2},               desc:'+8 MP, +3 regen, +2 RNG, +1 spell dmg (GM)',                    tier:2, classes:['Wizard']},
+
+  // Single-Handed
+  dagger:         {id:'dagger',         name:'Dagger',            icon:'🗡️', slot:'weapon', stats:{atk:1},                                         desc:'+1 ATK',                                                        tier:0, classes:['Rogue']},
+  steelDagger:    {id:'steelDagger',    name:'Steel Dagger',      icon:'🗡️', slot:'weapon', stats:{atk:2},                                         desc:'+2 ATK',                                                        tier:1, classes:['Rogue']},
+  venomedge:      {id:'venomedge',      name:'Venomedge Dagger',  icon:'🗡️', slot:'weapon', stats:{atk:3},                                         desc:'+3 ATK, +1 ATK after moving (GM)',                              tier:2, classes:['Rogue']},
+  swordD:         {id:'swordD',         name:'Sword',             icon:'⚔️', slot:'weapon', stats:{atk:2},                                         desc:'+2 ATK',                                                        tier:0, classes:['Fighter','Rogue']},
+  knightSword:    {id:'knightSword',    name:'Knight Sword',      icon:'⚔️', slot:'weapon', stats:{atk:3, def:1},                                  desc:'+3 ATK, +1 DEF',                                                tier:1, classes:['Fighter']},
+  dragonslayer:   {id:'dragonslayer',   name:'Dragonslayer Sword',icon:'⚔️', slot:'weapon', stats:{atk:4, def:2},                                  desc:'+4 ATK, +2 DEF, +1 vs large enemies (GM)',                      tier:2, classes:['Fighter']},
+  huntingKnife:   {id:'huntingKnife',   name:'Hunting Knife',     icon:'🗡️', slot:'weapon', stats:{atk:1, speed:1},                                desc:'+1 ATK, +1 SPD',                                                tier:0, classes:['Rogue','Ranger']},
+  falconKnife:    {id:'falconKnife',    name:'Falcon Knife',      icon:'🗡️', slot:'weapon', stats:{atk:2, speed:1},                                desc:'+2 ATK, +1 SPD',                                                tier:1, classes:['Rogue','Ranger']},
+  windcutter:     {id:'windcutter',     name:'Windcutter Knife',  icon:'🗡️', slot:'weapon', stats:{atk:3, speed:1, range:1},                       desc:'+3 ATK, +1 SPD, +1 RNG',                                        tier:2, classes:['Rogue','Ranger']},
+  sacredBlade:    {id:'sacredBlade',    name:'Sacred Blade',      icon:'⚔️', slot:'weapon', stats:{atk:1, maxMana:1},                              desc:'+1 ATK, +1 MP',                                                 tier:0, classes:['Cleric','Wizard']},
+  blessedBlade:   {id:'blessedBlade',   name:'Blessed Blade',     icon:'⚔️', slot:'weapon', stats:{atk:2, manaRegen:1},                            desc:'+2 ATK, +1 regen',                                              tier:1, classes:['Cleric']},
+  angelborn:      {id:'angelborn',      name:'Angelborn Blade',   icon:'⚔️', slot:'weapon', stats:{atk:3, maxMana:2},                              desc:'+3 ATK, +2 MP, heal 1 HP on kill (GM)',                         tier:2, classes:['Cleric']},
+  runeDagger:     {id:'runeDagger',     name:'Rune Dagger',       icon:'🗡️', slot:'weapon', stats:{atk:1, maxMana:2},                              desc:'+1 ATK, +2 MP',                                                 tier:0, classes:['Wizard','Mage','Rogue']},
+  mageBlade:      {id:'mageBlade',      name:'Mage Blade',        icon:'🗡️', slot:'weapon', stats:{atk:2, maxMana:3},                              desc:'+2 ATK, +3 MP',                                                 tier:1, classes:['Wizard','Mage']},
+  voidSpellblade: {id:'voidSpellblade', name:'Void Spellblade',   icon:'🗡️', slot:'weapon', stats:{atk:3, maxMana:5},                              desc:'+3 ATK, +5 MP, +1 spell dmg after basic atk (GM)',              tier:2, classes:['Wizard']},
+
+  // Helmet / Head
+  leatherCap:     {id:'leatherCap',     name:'Leather Cap',       icon:'🧢', slot:'armor', stats:{def:3},                                          desc:'+3 DEF',                                                        tier:0, classes:'all'},
+  shadowHood:     {id:'shadowHood',     name:'Shadow Hood',       icon:'🎩', slot:'armor', stats:{def:3, speed:1},                                 desc:'+3 DEF, +1 SPD',                                                tier:0, classes:['Rogue','Ranger']},
+  nightHood:      {id:'nightHood',      name:'Night Assassin Hood',icon:'🎩',slot:'armor', stats:{def:4, speed:2},                                 desc:'+4 DEF, +2 SPD, 1st move/turn -1 MP (GM)',                      tier:2, classes:['Rogue']},
+  ironHelmet:     {id:'ironHelmet',     name:'Iron Helmet',       icon:'⛑️', slot:'armor', stats:{def:6},                                          desc:'+6 DEF',                                                        tier:1, classes:['Fighter','Tank']},
+  steelHelmet:    {id:'steelHelmet',    name:'Steel Helmet',      icon:'⛑️', slot:'armor', stats:{def:7, speed:-1},                                desc:'+7 DEF, -1 SPD',                                                tier:1, classes:['Fighter','Tank']},
+  ironLegion:     {id:'ironLegion',     name:'Iron Legion Helmet',icon:'⛑️', slot:'armor', stats:{def:9, hp:1, speed:-1},                          desc:'+9 DEF, +1 HP, -1 SPD',                                         tier:2, classes:['Fighter','Tank']},
+  goggles:        {id:'goggles',        name:'Goggles',           icon:'🥽', slot:'armor', stats:{def:1, range:1},                                 desc:'+1 DEF, +1 RNG',                                                tier:0, classes:['Ranger']},
+  hawkeye:        {id:'hawkeye',        name:'Hawkeye Goggles',   icon:'🥽', slot:'armor', stats:{def:2, range:2},                                 desc:'+2 DEF, +2 RNG',                                                tier:1, classes:['Ranger']},
+  stormHunter:    {id:'stormHunter',    name:'Storm Hunter Goggles',icon:'🥽',slot:'armor',stats:{def:3, range:3},                                 desc:'+3 DEF, +3 RNG, +1 ATK from 4+ blocks (GM)',                    tier:2, classes:['Ranger']},
+  wizardHat:      {id:'wizardHat',      name:'Wizard Hat',        icon:'🎩', slot:'armor', stats:{def:1, manaRegen:1},                             desc:'+1 DEF, +1 regen',                                              tier:0, classes:['Wizard','Cleric']},
+  goldenHalo:     {id:'goldenHalo',     name:'Golden Halo Crown', icon:'👑', slot:'armor', stats:{def:3, manaRegen:2},                             desc:'+3 DEF, +2 regen, +1 heal/shield (GM)',                         tier:2, classes:['Cleric']},
+  apprenticeHat:  {id:'apprenticeHat',  name:'Apprentice Hat',    icon:'🎩', slot:'armor', stats:{def:1, maxMana:2},                               desc:'+1 DEF, +2 MP',                                                 tier:0, classes:['Wizard','Mage']},
+  arcaneHat:      {id:'arcaneHat',      name:'Arcane Hat',        icon:'🎩', slot:'armor', stats:{def:2, maxMana:3, manaRegen:1},                  desc:'+2 DEF, +3 MP, +1 regen',                                       tier:1, classes:['Wizard','Mage']},
+  celestialHat:   {id:'celestialHat',   name:'Celestial Library Hat',icon:'🎩',slot:'armor',stats:{def:3, maxMana:5, manaRegen:2, range:1},        desc:'+3 DEF, +5 MP, +2 regen, +1 spell RNG',                         tier:2, classes:['Wizard']},
+
+  // Boots
+  swiftBoots:     {id:'swiftBoots',     name:'Swift Boots',       icon:'👢', slot:'accessory', stats:{def:2, speed:2},                             desc:'+2 DEF, +2 SPD, split your movement (GM)',                      tier:0, classes:'all'},
+  shadowBoots:    {id:'shadowBoots',    name:'Shadow Boots',      icon:'👢', slot:'accessory', stats:{def:3, speed:2},                             desc:'+3 DEF, +2 SPD',                                                tier:1, classes:['Rogue','Ranger']},
+  phantomStep:    {id:'phantomStep',    name:'Phantom Step Boots',icon:'👢', slot:'accessory', stats:{def:4, speed:3},                             desc:'+4 DEF, +3 SPD, free movement through enemies (GM)',            tier:2, classes:['Rogue']},
+  ironBoots:      {id:'ironBoots',      name:'Iron Boots',        icon:'🥾', slot:'accessory', stats:{def:4, speed:-1},                            desc:'+4 DEF, -1 SPD',                                                tier:0, classes:['Fighter','Tank']},
+  warBoots:       {id:'warBoots',       name:'War Boots',         icon:'🥾', slot:'accessory', stats:{def:6},                                      desc:'+6 DEF',                                                        tier:1, classes:['Fighter','Tank']},
+  ironGiant:      {id:'ironGiant',      name:'Iron Giant Boots',  icon:'🥾', slot:'accessory', stats:{def:8, atk:1},                               desc:'+8 DEF, +1 ATK, cannot be pushed (GM)',                         tier:2, classes:['Tank']},
 };
 
 const STARTER_WEAPONS = {
@@ -4873,6 +5024,32 @@ function wrapSkillPoolPersistence() {
     skillPool = saved;
     if (typeof renderSkillPool === 'function') renderSkillPool();
     log(`Loaded ${saved.length} saved skill(s) from browser storage.`, 'sys');
+  } else {
+    // First-time load: seed skillPool with all CLASS_SKILL_POOLS (Daniel's skills) so GM can edit
+    let nextId = (skillPool.reduce((m,s)=>Math.max(m,s.id||0),0) || 0) + 1;
+    Object.entries(CLASS_SKILL_POOLS).forEach(([cls, skills]) => {
+      skills.forEach(sk => {
+        // Avoid duplicates by name
+        if (skillPool.find(x => x.name === sk.name)) return;
+        skillPool.push({
+          id: nextId++,
+          name: sk.name,
+          classOrigin: cls,
+          manaCost: sk.manaCost || 0,
+          cooldown: sk.cooldown || 0,
+          range: sk.range || 1,
+          targetType: sk.targetType || 'enemy-adj',
+          effectType: sk.effectType || 'damage',
+          effectValue: sk.effectValue || 0,
+          effectStatus: sk.effectStatus || null,
+          actionType: 'action',
+          desc: sk.desc || ''
+        });
+      });
+    });
+    saveSkillPool();
+    if (typeof renderSkillPool === 'function') renderSkillPool();
+    log(`Seeded Skill Pool with ${skillPool.length} class skills (editable in Skill Designer).`, 'sys');
   }
 }
 

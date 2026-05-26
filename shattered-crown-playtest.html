@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 <title>Shattered Crown — Playtest Tool v2</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -407,6 +408,63 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
 .char-detail-box .cd-actions .btn-close{background:#1a1f3c;border-color:#888;color:#aaa}
 .char-detail-box .cd-actions .btn-give{background:#1a1410;border-color:#dfaf3a;color:#dfaf3a}
 .char-detail-box .cd-actions .btn-give:hover{background:#dfaf3a;color:#0a0f1c}
+
+/* ============ RESPONSIVE / MOBILE ============ */
+/* Tablet portrait (768px wide) */
+@media (max-width: 1100px) {
+  .layout{flex-direction:column;gap:8px}
+  .panel-left,.panel-right{width:100%;flex-direction:row;flex-wrap:wrap}
+  .panel-left .panel,.panel-right .panel{flex:1;min-width:260px}
+  .hero-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+}
+/* Tablet small / Large phone (640px) */
+@media (max-width: 768px) {
+  header{flex-direction:column;gap:6px;padding:8px 12px}
+  header h1{font-size:1rem;letter-spacing:0.5px}
+  .header-meta{font-size:0.65rem}
+  .grid{grid-template-columns:repeat(10, 42px);grid-template-rows:repeat(10, 42px)}
+  .cell{width:42px;height:42px}
+  .token{width:34px;height:34px;font-size:0.55rem}
+  .token .sprite-portrait{font-size:1.05rem}
+  .tok-name{font-size:0.4rem!important}
+  .tok-hp{font-size:0.5rem!important}
+  .tok-hpbar{width:30px}
+  .terrain-bar,.place-bar{flex-wrap:wrap;gap:3px}
+  .t-btn,.p-btn{font-size:0.65rem;padding:4px 6px}
+  .screen-title h1{font-size:1.8rem;letter-spacing:3px}
+  .screen-title h2{font-size:0.85rem}
+  .big-btn{padding:10px 18px;font-size:0.85rem}
+  .map-svg{height:260px}
+  .map-stats{flex-wrap:wrap;gap:8px;font-size:0.75rem}
+  .stat-chip{font-size:0.75rem;padding:4px 8px}
+  .hero-card .stats{font-size:0.65rem}
+  .char-detail-box{padding:14px}
+  .char-detail-box .cd-stats{grid-template-columns:repeat(2,1fr)}
+  .help-modal-box{padding:16px;max-width:90vw}
+}
+/* Phone portrait (480px) */
+@media (max-width: 480px) {
+  .grid{grid-template-columns:repeat(10, 32px);grid-template-rows:repeat(10, 32px)}
+  .cell{width:32px;height:32px}
+  .token{width:26px;height:26px}
+  .token .sprite-portrait{font-size:0.85rem}
+  .tok-name{display:none}
+  .tok-hp{font-size:0.45rem!important}
+  .tok-hpbar{width:24px;height:2px}
+  .weapon-icon{font-size:0.6rem!important;top:-3px;right:-3px}
+  .coord{font-size:0.4rem}
+  .terrain-emoji{font-size:0.7rem!important}
+  .screen-title h1{font-size:1.4rem}
+  .map-svg{height:200px}
+  .panel{padding:6px}
+  .panel h3{font-size:0.7rem}
+  .map-container{padding:10px}
+  .shop-container,.ending-container{padding:14px}
+  .panel-left .panel,.panel-right .panel{min-width:100%}
+  /* Hide bottom debug bar items on phone */
+  .btoolbar{flex-wrap:wrap;gap:3px}
+  .tool-btn{font-size:0.65rem;padding:4px 6px}
+}
 </style>
 </head>
 <body>
@@ -496,6 +554,32 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
       </div>
       <svg class="map-svg" id="mapSvg" viewBox="0 0 1000 320"></svg>
       <div class="map-party" id="mapParty"></div>
+      <details style="margin-top:12px;background:#0a0f1c;border:1px solid #2a3050;border-radius:6px;padding:8px">
+        <summary style="cursor:pointer;color:#c9a84c;font-size:0.8rem;letter-spacing:1px;user-select:none">⚖ Trust &amp; Recruitment Quick Actions <span style="color:#888;font-size:0.7rem;font-weight:normal">— click to expand</span></summary>
+        <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:0.75rem">
+          <div>
+            <div style="color:#c9a84c;font-size:0.7rem;letter-spacing:1px;margin-bottom:4px">⚖ TRUST EVENTS</div>
+            <div style="display:flex;flex-wrap:wrap;gap:3px">
+              <button class="mini-btn" style="font-size:0.6rem;padding:3px 6px;border-color:#2d7a2d;color:#7fb87f" onclick="trustEvent(5, 'Story moment: bond formed')">+5 Bond</button>
+              <button class="mini-btn" style="font-size:0.6rem;padding:3px 6px;border-color:#2d7a2d;color:#7fb87f" onclick="trustEvent(10, 'Major victory together')">+10 Victory</button>
+              <button class="mini-btn" style="font-size:0.6rem;padding:3px 6px;border-color:#8b1a1a;color:#e05555" onclick="trustEvent(-5, 'Tense moment')">-5 Tension</button>
+              <button class="mini-btn" style="font-size:0.6rem;padding:3px 6px;border-color:#8b1a1a;color:#e05555" onclick="trustEvent(-15, 'Friendly fire on ally')">-15 Friendly Fire</button>
+            </div>
+            <div style="margin-top:6px;font-size:0.65rem;color:#666;line-height:1.4">
+              Current: <strong style="color:#c9a84c" id="trustQuick">${trust}</strong>/100<br>
+              0=Hostile · &lt;20=Critical · &lt;40=GM controls · &lt;60=Neutral · &lt;80=Building · 80+=Joint Abilities
+            </div>
+          </div>
+          <div>
+            <div style="color:#c9a84c;font-size:0.7rem;letter-spacing:1px;margin-bottom:4px">⚖ TRUST CHECK (d100)</div>
+            <button class="big-btn" style="padding:6px 12px;font-size:0.75rem;width:100%" onclick="rollTrust2()">🎲 Roll d100 vs Trust</button>
+            <div id="trustRollResultQuick" style="margin-top:6px;font-size:0.7rem;color:#aaa;min-height:30px"></div>
+          </div>
+        </div>
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid #2a3050;font-size:0.7rem;color:#888">
+          <strong style="color:#ccaaff">⚔ Recruitment:</strong> Need 3+ souls (currently <span style="color:#ccaaff" id="recruitSouls">${souls}</span>). Dead enemies with ⚔ icon are recruitable. Click them to bring up the modal.
+        </div>
+      </details>
       <details id="runStatsPanel" style="margin-top:16px;padding-top:12px;border-top:1px solid #1e2540">
         <summary style="cursor:pointer;color:#c9a84c;font-size:0.85rem;letter-spacing:1px;padding:6px;user-select:none">📊 RUN STATS <span style="color:#888;font-size:0.7rem;font-weight:normal">(click to expand)</span></summary>
         <div id="runStatsBody" style="margin-top:10px;font-size:0.8rem"></div>
@@ -2090,7 +2174,10 @@ function renderGrid() {
         </div>`;
       } else if (dead) {
         const sprite = spriteFor(dead.class);
-        content += `<div class="token dead-tok ${dead.side==='ally'?'ally':'enemy-tok'}" style="opacity:0.25" title="${dead.name} (fallen)"><span style="font-size:1.2rem;filter:grayscale(1)">${sprite.portrait}</span><span style="font-size:0.5rem">&#10013;</span></div>`;
+        const recruitable = CAMPAIGN.active && dead.side === 'enemy' && canRecruit(dead).ok;
+        const recruitHint = recruitable ? `<span style="position:absolute;top:-4px;right:-4px;font-size:0.7rem;background:#4a1a8b;color:#ccaaff;border-radius:50%;padding:1px 3px;animation:spriteIdle 1.6s ease-in-out infinite" title="Click to recruit">&#9876;</span>` : '';
+        const click = recruitable ? `onclick="event.stopPropagation();showRecruitModal(tokens.find(t=>t.id===${dead.id}))"` : '';
+        content += `<div class="token dead-tok ${dead.side==='ally'?'ally':'enemy-tok'}" style="opacity:0.4;${recruitable?'cursor:pointer':''};position:relative" ${click} title="${dead.name} (fallen)${recruitable?' — Click to recruit':''}">${recruitHint}<span style="font-size:1.2rem;filter:grayscale(1)">${sprite.portrait}</span><span style="font-size:0.5rem">&#10013;</span></div>`;
       }
       cell.innerHTML = content;
       cell.onclick = ()=>cellClick(r,c);
@@ -2584,6 +2671,18 @@ function rollTrust(){
   else{outcome=`Roll ${roll} ≤ ${trust+40}: party member follows Varn's command.`;cls='hit';}
   document.getElementById('trustRollResult').textContent=outcome;
   log(`[Trust d100] ${outcome}`,cls);
+}
+// Map screen version with inline result
+function rollTrust2() {
+  const roll = Math.floor(Math.random()*100)+1;
+  let outcome='', color='#aaa';
+  if (trust === 0) { outcome = `🗡 Roll ${roll}: HOSTILE — ally attacks Varn!`; color = '#e05555'; }
+  else if (roll > trust + 70) { outcome = `🏃 Roll ${roll} > ${trust+70}: Ally FLEES!`; color = '#e05555'; }
+  else if (roll > trust + 40) { outcome = `🤔 Roll ${roll} > ${trust+40}: GM controls (self-preservation)`; color = '#dfaf3a'; }
+  else { outcome = `✓ Roll ${roll} ≤ ${trust+40}: Ally OBEYS Varn`; color = '#7fb87f'; }
+  const el = document.getElementById('trustRollResultQuick');
+  if (el) { el.innerHTML = `<div style="color:${color};padding:4px;background:#0d1420;border-radius:3px">${outcome}</div>`; }
+  log(`[Trust d100] ${outcome}`, color === '#e05555' ? 'death' : color === '#dfaf3a' ? 'miss' : 'hit');
 }
 
 // =============================================================================
@@ -3826,48 +3925,101 @@ function showLevelUpModal(reports, onClose) {
 }
 
 // ----- Monster Recruitment -----
-function tryRecruitMonster(deadTok) {
-  if (!CAMPAIGN.active) return;
-  if (deadTok.side !== 'enemy') return;
-  // Need at least 1 vision unlocked
+function canRecruit(deadTok) {
+  if (!CAMPAIGN.active) return {ok:false, why:'Not in campaign mode'};
+  if (!deadTok || deadTok.side !== 'enemy') return {ok:false, why:'Not an enemy'};
+  if (deadTok.class === 'Aldric') return {ok:false, why:'Boss cannot be recruited'};
   const tier = souls >= 7 ? 2 : souls >= 3 ? 1 : 0;
-  if (tier === 0) return;
-  // Tier 1 = common monsters; Tier 2 = also elites (any enemy)
-  const eliteClasses = ['Soul Eater','Royal Guard','Orc','Necromancer','Aldric'];
-  if (tier === 1 && eliteClasses.includes(deadTok.class)) return;
-  if (deadTok.class === 'Aldric') return; // never recruit boss
-  // 30% chance to even offer
-  if (Math.random() > 0.35) return;
-  // Need a dead party slot to put them in (or under-party)
-  const livingCount = CAMPAIGN.heroes.filter(h=>!h.dead).length;
-  if (livingCount >= 4) return;
-  // Defer the prompt until current combat actions resolve
-  setTimeout(() => {
-    const accept = confirm(`&#9876; ${deadTok.name} (${deadTok.class}) has fallen.\n\nThe sword whispers: "another one... willing."\n\nDo you accept ${deadTok.name} into your party?\n(They will replace a fallen ally's slot.)`);
-    if (!accept) return;
-    // Replace a dead hero
-    const deadIdx = CAMPAIGN.heroes.findIndex(h => h.dead);
-    const newHero = {
-      class: deadTok.class,
-      name: deadTok.name,
-      hp: deadTok.maxHp, maxHp: deadTok.maxHp,
-      mana: deadTok.maxMana, maxMana: deadTok.maxMana,
-      manaRegen: deadTok.manaRegen,
-      atk: deadTok.atk, def: deadTok.def, speed: deadTok.speed, range: deadTok.range,
-      str: deadTok.str, vit: deadTok.vit, int: deadTok.int, dex: deadTok.dex,
-      cooldowns: {}, statuses: [],
-      skills: [null, null],
-      equipment: [],
-      level: 1, xp: 0,
-      traitName: 'Recruited',
-      dead: false,
-      isMonster: true
-    };
-    if (deadIdx >= 0) CAMPAIGN.heroes[deadIdx] = newHero;
-    else if (CAMPAIGN.heroes.length < 5) CAMPAIGN.heroes.push(newHero);
-    log(`&#9876; ${deadTok.name} joins the party as a recruited ally.`, 'vision');
-    saveCampaign();
-  }, 300);
+  if (tier === 0) return {ok:false, why:`Need 3+ souls (have ${souls}). Vision I must trigger first.`};
+  const eliteClasses = ['Soul Eater','Royal Guard','Orc','Necromancer','Mage Goblin'];
+  if (tier === 1 && eliteClasses.includes(deadTok.class)) return {ok:false, why:`Need 7+ souls to recruit elites (${deadTok.class}). Have ${souls}.`};
+  return {ok:true};
+}
+function tryRecruitMonster(deadTok) {
+  const check = canRecruit(deadTok);
+  if (!check.ok) return;
+  // 50% chance auto-offer; GM can always manually recruit later via dead enemy click
+  if (Math.random() > 0.5) {
+    log(`&#9876; The sword whispers "another one..." but the moment passes. (GM: click dead ${deadTok.name} to recruit manually.)`, 'sys');
+    return;
+  }
+  setTimeout(() => showRecruitModal(deadTok), 400);
+}
+function showRecruitModal(deadTok) {
+  const check = canRecruit(deadTok);
+  if (!check.ok) { alert('Cannot recruit: ' + check.why); return; }
+  const spr = spriteFor(deadTok.class);
+  // Determine target slot — replace dead hero or grow to 5
+  const deadHeroes = CAMPAIGN.heroes.filter(h => h.dead);
+  const livingCount = CAMPAIGN.heroes.filter(h => !h.dead).length;
+  let slotChoice = '';
+  if (deadHeroes.length > 0) {
+    slotChoice = `<div style="font-size:0.75rem;color:#aaa;margin:8px 0">Replace which fallen ally?</div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        ${deadHeroes.map(h => {
+          const idx = CAMPAIGN.heroes.indexOf(h);
+          return `<button onclick="executeRecruit(${idx}, ${deadTok.id})" style="background:#2a4a2a;border:1px solid #4a8f4a;color:#9fdf9f;padding:6px 10px;cursor:pointer;border-radius:3px;text-align:left">↻ Replace <strong>${h.name}</strong> (${h.class}) †</button>`;
+        }).join('')}
+      </div>`;
+  } else if (livingCount < 5) {
+    slotChoice = `<div style="font-size:0.75rem;color:#aaa;margin:8px 0">All slots full. Add as 5th member?</div>
+      <button onclick="executeRecruit(-1, ${deadTok.id})" style="background:#2a4a2a;border:1px solid #4a8f4a;color:#9fdf9f;padding:6px 14px;cursor:pointer;border-radius:3px">✓ Add to party</button>`;
+  } else {
+    slotChoice = `<div style="color:#e05555;font-size:0.8rem">Party is full (5). Dismiss someone first.</div>`;
+  }
+  const html = `
+    <div id="recruitModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:10000">
+      <div style="background:#0d1420;border:2px solid #4a1a8b;border-radius:8px;padding:24px;max-width:420px;width:90%;text-align:center">
+        <div style="color:#888;font-size:0.65rem;letter-spacing:2px">&#9876; THE SWORD WHISPERS</div>
+        <div style="font-size:3rem;margin:10px 0">${spr.portrait}</div>
+        <h2 style="color:#ccaaff;letter-spacing:1px;font-size:1.1rem;margin:0">${deadTok.name}</h2>
+        <div style="color:#888;font-size:0.75rem;margin:4px 0 14px">${deadTok.class} · HP ${deadTok.maxHp} · ATK ${deadTok.atk} · DEF ${deadTok.def} · SPD ${deadTok.speed} · RNG ${deadTok.range}</div>
+        <div style="font-style:italic;color:#aaa;line-height:1.5;border-left:2px solid #4a1a8b;padding-left:12px;text-align:left;margin:10px 0">"another one... willing. take it. let it serve you."</div>
+        <div style="color:#dfaf3a;font-size:0.7rem;margin:8px 0">⚠ Recruiting will cost -5 Trust (humans uneasy)</div>
+        ${slotChoice}
+        <button onclick="document.getElementById('recruitModal').remove()" style="margin-top:14px;background:#1a1f3c;border:1px solid #888;color:#aaa;padding:5px 14px;cursor:pointer;border-radius:3px;font-size:0.8rem">Refuse</button>
+      </div>
+    </div>`;
+  const wrap = document.createElement('div');
+  wrap.innerHTML = html;
+  document.body.appendChild(wrap.firstElementChild);
+}
+function executeRecruit(replaceIdx, deadTokId) {
+  const deadTok = tokens.find(t => t.id === deadTokId);
+  if (!deadTok) return;
+  // Bring in matching class skill from CLASS_SKILL_POOLS if available
+  const enemyTpl = ENEMY_CLASSES.find(c => c.name === deadTok.class);
+  const classSkill = enemyTpl?.classSkill;
+  const base = {
+    hp: deadTok.maxHp, atk: deadTok.atk, def: deadTok.def,
+    speed: deadTok.speed, range: deadTok.range || 1,
+    maxMana: deadTok.maxMana || 0, manaRegen: deadTok.manaRegen || 0
+  };
+  const newHero = new Hero({
+    class: deadTok.class,
+    name: deadTok.name,
+    baseStats: base,
+    hp: base.hp, maxHp: base.hp,
+    mana: base.maxMana, maxMana: base.maxMana,
+    manaRegen: base.manaRegen,
+    atk: base.atk, def: base.def, speed: base.speed, range: base.range,
+    str: deadTok.str, vit: deadTok.vit, int: deadTok.int, dex: deadTok.dex,
+    skills: classSkill ? [classSkill, null] : [null, null],
+    equipment: [], potions: [{type:'healing', charges:1}],
+    level: 1, traitName: 'Recruited (Monster)',
+    isMonster: true
+  });
+  if (replaceIdx >= 0) {
+    CAMPAIGN.heroes[replaceIdx] = newHero;
+    log(`&#9876; ${newHero.name} replaces the fallen ally. Trust -5.`, 'vision');
+  } else {
+    CAMPAIGN.heroes.push(newHero);
+    log(`&#9876; ${newHero.name} joins as the 5th party member. Trust -5.`, 'vision');
+  }
+  trustEvent(-5, `Recruited monster: ${newHero.name}`);
+  saveCampaign();
+  document.getElementById('recruitModal')?.remove();
+  renderAll();
 }
 
 // ----- Generic Story Modal (reuses vision modal) -----
@@ -3900,6 +4052,8 @@ function renderMap() {
   document.getElementById('mapSouls').textContent = souls;
   document.getElementById('mapTrust').textContent = trust;
   document.getElementById('mapGold').textContent  = gold;
+  const tq = document.getElementById('trustQuick'); if (tq) tq.textContent = trust;
+  const rs = document.getElementById('recruitSouls'); if (rs) rs.textContent = souls;
   const svg = document.getElementById('mapSvg');
   const completed = new Set(CAMPAIGN.completedNodes);
   const current = CAMPAIGN.currentNode;
@@ -5270,6 +5424,8 @@ const HELP_TOPICS = {
   'character':   {title:'Character Panel', desc:'Click any character card or token to open detailed view: all stats, equipment, skills with full descriptions, potions, status effects.', example:'Click Ranger card → see ATK 5, MP 6/6, learned skills with their MP cost and cooldowns.'},
   'placement':   {title:'Placement (Sandbox)', desc:'Use the Place bar to drop ally or enemy tokens on the grid. In Campaign mode this is automatic. In Sandbox, GM uses this for setup.', example:'Click "+ Goblin" → grid cells light up → click a cell to drop.'},
   'roll':        {title:'Trait Roll', desc:'Each hero gets 2 random traits to pick from. Traits modify stats (e.g. Brave +1 ATK, Veteran +4 max HP) and give passive abilities (Lucky re-rolls 1s).', example:'Roll for Fighter — get [Veteran, Reckless]. Pick Reckless: +2 ATK, -2 DEF.'},
+  'recruit':     {title:'Monster Recruitment', desc:'After 3 souls (Vision I), defeated common monsters may join your party. After 7 souls (Vision II), elites too. The Sword whispers to you. Click ☠ symbol on a dead enemy with the ⚔ recruit icon to recruit them. Costs -5 Trust (humans uneasy).', example:'Goblin dies → ⚔ icon appears → click → modal lets you replace a fallen ally OR add as 5th member.'},
+  'trust.use':   {title:'Trust System (Usage)', desc:'Trust 0-100 represents your party\'s loyalty. Auto-changes: +2 per kill, -8 per ally death, -5 per monster recruit. GM also has manual buttons (+/-) in the GM Sandbox panel for narrative events. Roll d100 to check NPC behavior: roll > Trust+40 means GM controls that ally that turn; > Trust+70 means they flee. 0 = HOSTILE — party may attack Varn.', example:'Trust=40. Player orders Cleric to heal Varn. Roll d100=65. 65>40+40=80? No. So Cleric obeys. Roll 95? Yes, Cleric refuses or does something else.'},
 };
 function helpBtn(topic, big) {
   return `<span class="help-btn${big?' big':''}" onclick="event.stopPropagation();showHelp('${topic}')" title="Click for help">?</span>`;

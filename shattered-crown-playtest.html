@@ -988,16 +988,16 @@ const ALLY_CLASSES = [
   {name:'Rogue',   hp:14, speed:4, atk:7, def:12, range:1, color:'#0e2040', bcolor:'#6a6abf',
    str:2, vit:2, int:1, dex:4, maxMana:3, manaRegen:1,
    classSkill:{name:'Sneak Attack', manaCost:0, cooldown:0, targetType:'passive', effectType:'damage-flat', effectValue:6, desc:'Passive: always crits if hidden or attacking from behind. +1d6 vs Flanked targets.'}},
-  {name:'Ranger',  hp:16, speed:3, atk:5, def:13, range:4, color:'#0e2028', bcolor:'#4a9f8f',
+  {name:'Ranger',  hp:16, speed:3, atk:5, def:13, range:1, color:'#0e2028', bcolor:'#4a9f8f',
    str:2, vit:2, int:2, dex:3, maxMana:6, manaRegen:2,
    classSkill:{name:'Heavy Shot', manaCost:2, cooldown:3, targetType:'enemy-range', effectType:'damage', effectValue:2, desc:'Single powerful ranged shot +2 ATK, applies Pinned on hit. 2 mana, 3-round cooldown.'}},
-  {name:'Mage',    hp:10, speed:2, atk:4, def:11, range:5, color:'#0a0a28', bcolor:'#5050cf',
+  {name:'Mage',    hp:10, speed:2, atk:4, def:11, range:1, color:'#0a0a28', bcolor:'#5050cf',
    str:1, vit:1, int:5, dex:2, maxMana:12, manaRegen:3,
    classSkill:{name:'Fireball', manaCost:3, cooldown:3, targetType:'enemy-range', effectType:'damage', effectValue:3, desc:'Deal 1d6+3 fire damage in range, applies Burning. 3 mana, 3-round cooldown. Passive: if kill refunds 50% mana (round down).'}},
   {name:'Cleric',  hp:16, speed:3, atk:3, def:13, range:1, color:'#201020', bcolor:'#9f4abf',
    str:1, vit:2, int:4, dex:1, maxMana:8, manaRegen:3,
    classSkill:{name:'Healing Touch', manaCost:2, cooldown:0, range:1, targetType:'ally-adj', effectType:'heal', effectValue:1, desc:'Heal 1 HP to adjacent ally. 2 mana, no cooldown.'}},
-  {name:'Wizard',  hp:10, speed:2, atk:3, def:11, range:5, color:'#0a0818', bcolor:'#7050cf',
+  {name:'Wizard',  hp:10, speed:2, atk:3, def:11, range:1, color:'#0a0818', bcolor:'#7050cf',
    str:1, vit:1, int:5, dex:1, maxMana:10, manaRegen:3,
    classSkill:{name:'Mana Burst', manaCost:3, cooldown:1, range:4, targetType:'enemy-range', effectType:'damage-flat', effectValue:0, desc:'Deal damage equal to half your current MP (round down, max 5). 3 mana, 1cd.'}},
 ];
@@ -3344,17 +3344,41 @@ function renderHeroSelectUI() {
 }
 function renderSlotPanel() {
   return `<div style="display:flex;gap:10px;margin:10px 0;flex-wrap:wrap;justify-content:center">
-    ${_heroSlots.map((s,i)=>`
-      <div style="background:#0d1420;border:2px solid ${s?'#c9a84c':'#2a3050'};border-radius:6px;padding:10px;min-width:170px;text-align:left">
+    ${_heroSlots.map((s,i)=>{
+      const spr = s ? spriteFor(s.class) : null;
+      const r = s?.rolled;
+      return `<div style="background:#0d1420;border:2px solid ${s?'#c9a84c':'#2a3050'};border-radius:6px;padding:10px;min-width:200px;text-align:left">
         <div style="color:#888;font-size:0.7rem;letter-spacing:1px">SLOT ${i+1}</div>
         ${s ? `
-          <div style="color:#c9a84c;font-weight:bold;font-size:0.95rem">${s.name}</div>
-          <div style="color:#aaa;font-size:0.75rem">${s.class}${s.trait?` · <em style="color:#dfaf3a">${s.trait.name}</em>`:''}</div>
-          <div style="font-size:0.7rem;color:#7a8a9a;margin-top:4px">${s.trait?s.trait.stats:''}</div>
-          <button onclick="event.stopPropagation();clearSlot(${i})" style="margin-top:6px;background:#5a1a1a;border:1px solid #8b3030;color:#e05555;font-size:0.65rem;padding:3px 8px;cursor:pointer;border-radius:3px">&times; Remove</button>
+          <div style="display:flex;align-items:center;gap:8px;margin:4px 0">
+            <span style="font-size:1.5rem">${spr.portrait}</span>
+            <div>
+              <div style="color:#c9a84c;font-weight:bold;font-size:0.95rem">${s.name}</div>
+              <div style="color:#aaa;font-size:0.7rem">${s.class}${s.trait?` · <em style="color:#dfaf3a">${s.trait.name}</em>`:''}</div>
+            </div>
+          </div>
+          ${r ? `<div style="font-size:0.65rem;color:#7a8a9a;background:#0a0f1c;padding:4px 6px;border-radius:3px;margin-top:4px">HP ${r.hp} · ATK ${r.atk} · DEF ${r.def} · SPD ${r.speed} · MP ${r.mana}</div>` : ''}
+          <div style="display:flex;gap:4px;margin-top:6px">
+            <button onclick="event.stopPropagation();editSlot(${i})" style="flex:1;background:#1a1f3c;border:1px solid #4a8fbf;color:#7fb8df;font-size:0.65rem;padding:3px 6px;cursor:pointer;border-radius:3px">✎ Edit</button>
+            <button onclick="event.stopPropagation();clearSlot(${i})" style="flex:1;background:#5a1a1a;border:1px solid #8b3030;color:#e05555;font-size:0.65rem;padding:3px 6px;cursor:pointer;border-radius:3px">&times; Remove</button>
+          </div>
         ` : `<div style="color:#444;font-style:italic;font-size:0.8rem;margin-top:8px">Click a class card →</div>`}
-      </div>`).join('')}
+      </div>`}).join('')}
   </div>`;
+}
+function editSlot(idx) {
+  const s = _heroSlots[idx];
+  if (!s) return;
+  openHeroRollModal(s.class, idx);
+  // Restore previous values
+  if (s.rolled) Object.assign(window._rollState, s.rolled);
+  window._rollState.name = s.name;
+  if (s.trait) {
+    const ti = window._rollState.choices.findIndex(t=>t.name===s.trait.name);
+    if (ti < 0) window._rollState.choices.unshift(s.trait);
+    window._rollState.traitIdx = window._rollState.choices.findIndex(t=>t.name===s.trait.name);
+  }
+  renderHeroRollModal();
 }
 function clearSlot(idx) {
   _heroSlots[idx] = null;
@@ -3370,79 +3394,180 @@ function rollHero(clsName) {
   openHeroRollModal(clsName, slotIdx);
 }
 
+// Roll a single core stat (3d6 drop lowest, range 1-5)
+function rollStat() {
+  const rolls = [Math.ceil(Math.random()*6),Math.ceil(Math.random()*6),Math.ceil(Math.random()*6)];
+  rolls.sort((a,b)=>a-b);
+  const sum = rolls[1] + rolls[2]; // best 2 of 3
+  return Math.max(1, Math.min(6, Math.floor(sum / 2)));
+}
 function openHeroRollModal(clsName, slotIdx) {
   const cls = ALLY_CLASSES.find(c => c.name === clsName);
   const names = NAMES[clsName] || [clsName];
   const rolledName = names[Math.floor(Math.random()*names.length)];
   const shuffled = [...TRAITS].sort(()=>Math.random()-0.5);
   const choices = shuffled.slice(0,2);
-  // Build inline modal HTML
-  const modalHTML = `
-    <div id="heroRollModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:9999">
-      <div style="background:#0d1420;border:2px solid #c9a84c;border-radius:8px;padding:24px;max-width:520px;width:90%">
-        <h2 style="color:#c9a84c;text-align:center;margin-bottom:6px;letter-spacing:2px">Recruiting ${clsName}</h2>
-        <div style="text-align:center;margin-bottom:14px;color:#aaa;font-size:0.85rem">
-          <span id="rolledHeroName" style="color:#c9a84c;font-size:1.1rem;font-weight:bold">${rolledName}</span>
-          <button onclick="rerollHeroName('${clsName}')" style="margin-left:8px;background:#1a1f3c;border:1px solid #4a8fbf;color:#4a8fbf;padding:3px 8px;cursor:pointer;border-radius:3px;font-size:0.7rem">&#127922; Re-roll name</button>
+  // Stash defaults; user can roll or edit
+  window._rollState = {
+    clsName, slotIdx,
+    name: rolledName,
+    str: cls.str, vit: cls.vit, int: cls.int, dex: cls.dex,
+    hp: cls.hp, atk: cls.atk, def: cls.def, speed: cls.speed,
+    mana: cls.maxMana, manaRegen: cls.manaRegen,
+    traitIdx: null,
+    choices
+  };
+  renderHeroRollModal();
+}
+function renderHeroRollModal() {
+  const s = window._rollState;
+  if (!s) return;
+  const cls = ALLY_CLASSES.find(c => c.name === s.clsName);
+  const spr = spriteFor(s.clsName);
+  const existing = document.getElementById('heroRollModal');
+  if (existing) existing.remove();
+  const html = `
+    <div id="heroRollModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;overflow-y:auto">
+      <div style="background:#0d1420;border:2px solid #c9a84c;border-radius:8px;padding:20px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto">
+        <h2 style="color:#c9a84c;text-align:center;margin-bottom:4px;letter-spacing:2px;font-size:1.2rem">
+          <span style="font-size:1.5rem;vertical-align:middle">${spr.portrait}</span> Recruiting ${s.clsName}
+        </h2>
+        <div style="text-align:center;margin-bottom:12px;color:#aaa;font-size:0.8rem">
+          <input id="rollNameInput" value="${s.name}" oninput="window._rollState.name=this.value"
+            style="background:#1a1f3c;border:1px solid #4a8fbf;color:#c9a84c;font-size:1rem;font-weight:bold;text-align:center;padding:4px 8px;border-radius:4px;width:200px"/>
+          <button onclick="rerollHeroName2()" style="margin-left:6px;background:#1a1f3c;border:1px solid #4a8fbf;color:#4a8fbf;padding:4px 8px;cursor:pointer;border-radius:3px;font-size:0.7rem">&#127922; Roll Name</button>
         </div>
-        <div style="font-size:0.75rem;color:#888;text-align:center;margin-bottom:10px;letter-spacing:1px">CHOOSE A TRAIT</div>
-        <div id="heroTraitChoices" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-          ${choices.map((tr,i)=>`
-            <div class="trait-card-opt" data-idx="${i}" onclick="window._pickedHeroTrait=${i};document.querySelectorAll('#heroTraitChoices > div').forEach((el,j)=>el.style.borderColor=j===${i}?'#c9a84c':'#2a3050')"
-              style="background:#1a1f2c;border:2px solid #2a3050;border-radius:6px;padding:10px;min-width:200px;cursor:pointer">
-              <div style="color:#c9a84c;font-weight:bold;font-size:0.95rem">${tr.name}</div>
-              <div style="color:#dfaf3a;font-size:0.75rem;margin:3px 0">${tr.stats}</div>
-              <div style="color:#aaa;font-size:0.7rem;line-height:1.4">${tr.desc}</div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px 0">
+          <span style="color:#dfaf3a;font-size:0.75rem;letter-spacing:1px">⚔ COMBAT STATS</span>
+          <button onclick="rollAllStats()" style="background:#2a4a2a;border:1px solid #7fb87f;color:#9fdf9f;padding:4px 10px;cursor:pointer;border-radius:3px;font-size:0.7rem">&#127922; Roll All</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:6px;background:#0a0f1c;padding:10px;border-radius:4px">
+          ${[['hp','HP',1,40],['atk','ATK',1,12],['def','DEF',8,20],['speed','SPD',1,6],['mana','MP',0,12]].map(([k,label,min,max]) => `
+            <div style="text-align:center">
+              <div style="color:#888;font-size:0.6rem;letter-spacing:1px">${label}</div>
+              <input type="number" min="${min}" max="${max}" value="${s[k]}" id="stat-${k}" oninput="window._rollState.${k}=parseInt(this.value)||${min}"
+                style="background:#1a1f2c;border:1px solid #2a3050;color:#c9a84c;font-size:0.95rem;font-weight:bold;text-align:center;padding:4px;border-radius:3px;width:50px"/>
+              <button onclick="rollOneStat('${k}',${min},${max})" style="display:block;margin:3px auto 0;background:#1a1f3c;border:1px solid #4a8fbf;color:#4a8fbf;padding:2px 6px;cursor:pointer;border-radius:3px;font-size:0.6rem">🎲</button>
+            </div>`).join('')}
+          <div style="text-align:center">
+            <div style="color:#888;font-size:0.6rem;letter-spacing:1px">RNG</div>
+            <div style="background:#0d1420;border:1px dashed #5a4a2a;color:#888;font-size:0.95rem;font-weight:bold;text-align:center;padding:5px;border-radius:3px;width:50px;margin:0 auto" title="Range is always 1 base — increased only by weapons/equipment">1</div>
+            <div style="font-size:0.55rem;color:#666;margin-top:2px">(weapon)</div>
+          </div>
+        </div>
+
+        <div style="margin:14px 0 6px 0;color:#dfaf3a;font-size:0.75rem;letter-spacing:1px;display:flex;justify-content:space-between;align-items:center">
+          <span>🎲 CORE STATS (1-6)</span>
+          <span style="color:#666;font-size:0.65rem">3d6 drop low ÷ 2</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:#0a0f1c;padding:10px;border-radius:4px">
+          ${['str','vit','int','dex'].map(k => `
+            <div style="text-align:center">
+              <div style="color:#888;font-size:0.6rem;letter-spacing:1px">${k.toUpperCase()}</div>
+              <input type="number" min="1" max="6" value="${s[k]}" id="core-${k}" oninput="window._rollState.${k}=parseInt(this.value)||1"
+                style="background:#1a1f2c;border:1px solid #2a3050;color:#c9a84c;font-size:0.95rem;font-weight:bold;text-align:center;padding:4px;border-radius:3px;width:48px"/>
+              <button onclick="rollCoreStat('${k}')" style="display:block;margin:3px auto 0;background:#1a1f3c;border:1px solid #4a8fbf;color:#4a8fbf;padding:2px 6px;cursor:pointer;border-radius:3px;font-size:0.6rem">🎲</button>
             </div>`).join('')}
         </div>
-        <div style="text-align:center;margin-top:18px;display:flex;gap:10px;justify-content:center">
-          <button onclick="confirmHeroRoll('${clsName}',${slotIdx},true)" class="big-btn" style="padding:8px 18px;font-size:0.85rem">Confirm with Trait</button>
-          <button onclick="confirmHeroRoll('${clsName}',${slotIdx},false)" style="background:#1a1f3c;border:1px solid #888;color:#aaa;padding:8px 18px;cursor:pointer;border-radius:4px;font-size:0.85rem">No Trait</button>
-          <button onclick="closeHeroRollModal()" style="background:#1a1f3c;border:1px solid #5a1a1a;color:#e05555;padding:8px 18px;cursor:pointer;border-radius:4px;font-size:0.85rem">Cancel</button>
+
+        <div style="margin-top:14px;color:#dfaf3a;font-size:0.75rem;letter-spacing:1px">⭐ TRAIT (optional)</div>
+        <div id="heroTraitChoices" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+          ${s.choices.map((tr,i)=>`
+            <div class="trait-card-opt" onclick="window._rollState.traitIdx=${i};renderHeroRollModal()"
+              style="background:${s.traitIdx===i?'#1a1f3c':'#0a0f1c'};border:2px solid ${s.traitIdx===i?'#c9a84c':'#2a3050'};border-radius:6px;padding:8px;cursor:pointer">
+              <div style="color:#c9a84c;font-weight:bold;font-size:0.85rem">${tr.name}</div>
+              <div style="color:#dfaf3a;font-size:0.65rem;margin:2px 0">${tr.stats}</div>
+              <div style="color:#aaa;font-size:0.65rem;line-height:1.3">${tr.desc}</div>
+            </div>`).join('')}
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end">
+          <button onclick="window._rollState.traitIdx=null;renderHeroRollModal()" style="background:#0d1420;border:1px solid #888;color:#888;padding:4px 10px;cursor:pointer;border-radius:3px;font-size:0.7rem">No Trait</button>
+          <button onclick="rerollTraits()" style="background:#1a1f3c;border:1px solid #4a8fbf;color:#4a8fbf;padding:4px 10px;cursor:pointer;border-radius:3px;font-size:0.7rem">🎲 Re-roll Traits</button>
+        </div>
+
+        <div style="display:flex;gap:8px;justify-content:center;margin-top:16px;padding-top:12px;border-top:1px solid #2a3050">
+          <button onclick="confirmHeroRoll2()" class="big-btn" style="padding:8px 18px;font-size:0.85rem">✓ Confirm Hero</button>
+          <button onclick="closeHeroRollModal()" style="background:#1a1f3c;border:1px solid #5a1a1a;color:#e05555;padding:8px 16px;cursor:pointer;border-radius:4px;font-size:0.85rem">Cancel</button>
         </div>
       </div>
     </div>`;
   const wrap = document.createElement('div');
-  wrap.innerHTML = modalHTML;
+  wrap.innerHTML = html;
   document.body.appendChild(wrap.firstElementChild);
-  window._currentRollChoices = choices;
-  window._pickedHeroTrait = null;
 }
-function rerollHeroName(clsName) {
-  const names = NAMES[clsName] || [clsName];
-  document.getElementById('rolledHeroName').textContent = names[Math.floor(Math.random()*names.length)];
+function rollOneStat(key, min, max) {
+  // Roll 3d6 drop low, scale to [min, max]
+  const raw = Math.ceil(Math.random()*(max-min+1)) + min - 1;
+  // Slight bias toward middle
+  const bias = Math.floor((min+max)/2);
+  const v = Math.round(raw*0.7 + bias*0.3);
+  const val = Math.max(min, Math.min(max, v));
+  window._rollState[key] = val;
+  document.getElementById('stat-'+key).value = val;
 }
-function confirmHeroRoll(clsName, slotIdx, withTrait) {
-  const name = document.getElementById('rolledHeroName').textContent;
-  const trait = withTrait && window._pickedHeroTrait !== null ? window._currentRollChoices[window._pickedHeroTrait] : null;
-  if (withTrait && !trait) { alert('Pick a trait first, or click "No Trait".'); return; }
-  _heroSlots[slotIdx] = { class: clsName, name, trait };
+function rollCoreStat(key) {
+  const v = rollStat();
+  window._rollState[key] = v;
+  document.getElementById('core-'+key).value = v;
+}
+function rollAllStats() {
+  [['hp',1,40],['atk',1,12],['def',8,20],['speed',1,6],['mana',0,12]].forEach(([k,min,max]) => rollOneStat(k,min,max));
+  ['str','vit','int','dex'].forEach(k => rollCoreStat(k));
+}
+function rerollHeroName2() {
+  const names = NAMES[window._rollState.clsName] || [window._rollState.clsName];
+  const n = names[Math.floor(Math.random()*names.length)];
+  window._rollState.name = n;
+  document.getElementById('rollNameInput').value = n;
+}
+function rerollTraits() {
+  const shuffled = [...TRAITS].sort(()=>Math.random()-0.5);
+  window._rollState.choices = shuffled.slice(0,2);
+  window._rollState.traitIdx = null;
+  renderHeroRollModal();
+}
+function confirmHeroRoll2() {
+  const s = window._rollState;
+  if (!s) return;
+  if (!s.name || s.name.trim()==='') { alert('Hero needs a name.'); return; }
+  const trait = s.traitIdx !== null ? s.choices[s.traitIdx] : null;
+  _heroSlots[s.slotIdx] = {
+    class: s.clsName, name: s.name.trim(), trait,
+    rolled: { hp:s.hp, atk:s.atk, def:s.def, speed:s.speed, mana:s.mana, manaRegen:s.manaRegen,
+              str:s.str, vit:s.vit, int:s.int, dex:s.dex }
+  };
   closeHeroRollModal();
   renderHeroSelectUI();
 }
 function closeHeroRollModal() {
   const m = document.getElementById('heroRollModal');
   if (m) m.remove();
-  window._pickedHeroTrait = null;
-  window._currentRollChoices = null;
+  window._rollState = null;
 }
 
 function confirmParty() {
   const picked = _heroSlots.filter(s => s);
-  if (picked.length !== 4) return;
+  if (picked.length !== 4) {
+    alert(`Pick 4 heroes (currently ${picked.length}).`);
+    return;
+  }
   CAMPAIGN.heroes = picked.map(slot => {
     const tpl = ALLY_CLASSES.find(c => c.name === slot.class);
+    const r = slot.rolled || {};
     const h = {
       class: slot.class,
       name: slot.name,
-      hp: tpl.hp, maxHp: tpl.hp,
-      mana: tpl.maxMana, maxMana: tpl.maxMana,
-      manaRegen: tpl.manaRegen,
-      atk: tpl.atk, def: tpl.def, speed: tpl.speed, range: tpl.range,
-      str: tpl.str, vit: tpl.vit, int: tpl.int, dex: tpl.dex,
+      hp: r.hp ?? tpl.hp, maxHp: r.hp ?? tpl.hp,
+      mana: r.mana ?? tpl.maxMana, maxMana: r.mana ?? tpl.maxMana,
+      manaRegen: r.manaRegen ?? tpl.manaRegen,
+      atk: r.atk ?? tpl.atk, def: r.def ?? tpl.def, speed: r.speed ?? tpl.speed,
+      range: 1, // RANGE ALWAYS 1 — only equipment can increase
+      str: r.str ?? tpl.str, vit: r.vit ?? tpl.vit, int: r.int ?? tpl.int, dex: r.dex ?? tpl.dex,
       cooldowns: {}, statuses: [],
       skills: [null, null],
       equipment: [],
+      potions: [],
       level: 1, xp: 0,
       traitName: slot.trait ? slot.trait.name : null,
       lucky: false, loyal: false, haunted: false, stoic: false, berserker: false, moralImmune: false,
@@ -4569,6 +4694,11 @@ startCombatNode = function(node) {
 // =============================================================================
 init();
 rebindGrid();
+// Move modals to body top so they're visible regardless of which screen is active
+['visionModal','rollModal','attackModal','combatLogModal','skillModal','endTurnModal'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el && el.parentNode !== document.body) document.body.appendChild(el);
+});
 log('Shattered Crown Playtest v2 loaded. Click ? buttons for help. Hover terrain for effects.', 'sys');
 initCampaign();
 setTimeout(()=>{ wrapSkillPoolPersistence(); injectHelpButtons(); }, 100);

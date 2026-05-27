@@ -4093,6 +4093,19 @@ function selectToken(id) {
     }
     return;
   }
+  if (mode==='skill' && skillTargetMode) {
+    const target = tokens.find(t=>t.id===id);
+    if (!target) return;
+    if (skillTargetMode.classSkill) {
+      applyClassSkillEffect(skillTargetMode.classSkill, tokens.find(t=>t.id===skillTargetMode.tokenId), target);
+    } else {
+      const skill = skillPool.find(s=>s.id===skillTargetMode.skillId);
+      const user = tokens.find(t=>t.id===skillTargetMode.tokenId);
+      if (skill && user && target) applySkillEffect(skill, user, target);
+    }
+    cancelTargetMode(); setMode('select', document.getElementById('selectModeBtn'));
+    return;
+  }
   if (mode!=='select') { setMode('select',null); }
   selectedId = id;
   const tok = tokens.find(t=>t.id===id);

@@ -51,7 +51,7 @@ header h1{color:#c9a84c;font-size:1.2rem;letter-spacing:1px}
 .card-name{font-size:0.8rem;font-weight:bold;color:#c9a84c}
 .card-name.ename{color:#e05555}
 .card-class{font-size:0.6rem;color:#666}
-.card-trait{font-size:0.58rem;color:#9966cc;margin-bottom:3px;font-style:italic}
+
 .hp-row{display:flex;align-items:center;gap:4px;margin:3px 0}
 .hp-bar-bg{flex:1;background:#060a10;height:6px;border-radius:3px;overflow:hidden}
 .hp-bar-fill{height:100%;border-radius:3px;background:#2d7a2d;transition:width 0.3s}
@@ -192,13 +192,7 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
 .roll-name-display{font-size:1.4rem;color:#e8e0d0;font-style:italic;flex:1}
 .roll-name-btn{background:#1a1f3c;border:1px solid #2a2f5c;color:#888;padding:4px 10px;border-radius:3px;cursor:pointer;font-size:0.7rem}
 .roll-name-btn:hover{border-color:#c9a84c;color:#c9a84c}
-.trait-cards{display:flex;gap:12px;margin-bottom:16px}
-.trait-card-opt{flex:1;background:#0d1420;border:2px solid #1e2540;border-radius:6px;padding:14px;cursor:pointer;transition:border-color 0.2s,background 0.2s}
-.trait-card-opt:hover{border-color:#9966cc;background:#14112a}
-.trait-card-opt.selected{border-color:#c9a84c;background:#1a1830}
-.trait-card-name{color:#ccaaff;font-size:0.9rem;font-weight:bold;margin-bottom:6px}
-.trait-card-stats{font-size:0.72rem;color:#c9a84c;margin-bottom:6px}
-.trait-card-desc{font-size:0.7rem;color:#666;line-height:1.5}
+
 .roll-actions{display:flex;gap:8px;justify-content:flex-end}
 .btn-confirm{background:#1a1050;border:1px solid #c9a84c;color:#c9a84c;padding:8px 20px;border-radius:4px;cursor:pointer;font-size:0.8rem}
 .btn-confirm:hover{background:#2a2060}
@@ -486,6 +480,30 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
 .die-pair-sum.mp-stat{color:#7a9aba}
 .die-20 .dface { border-color: #dfaf3a; color: #dfaf3a; background: #1a1410; }
 .large-tok { transform: scale(1.4); z-index: 10; border-width: 3px !important; }
+/* ── LEVEL DESIGNER ──────────────────────────────────── */
+.ld-grid-container{overflow-x:auto;padding:4px;background:#0a0f1c;border:1px solid #1a2540;border-radius:6px;margin-bottom:8px}
+.ld-grid{display:grid;grid-template-columns:repeat(10,56px);gap:2px;margin:0 auto;width:fit-content}
+.ld-cell{width:56px;height:56px;background:#1a1f3c;border:1px solid #2a3050;border-radius:3px;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;transition:background 0.15s, border-color 0.15s;font-size:0.8rem;color:#e8e0d0}
+.ld-cell:hover{border-color:#c9a84c;background:#222a50}
+.ld-cell .ld-coord{position:absolute;top:1px;left:2px;font-size:0.5rem;color:#4a5070;pointer-events:none}
+.ld-cell .ld-marker{font-size:0.75rem;font-weight:bold;text-shadow:0 0 6px rgba(0,0,0,0.8)}
+.ld-cell.terrain-wall{background:#3a2a1a;border-color:#5a3a1a}
+.ld-cell.terrain-high-ground{background:#2a3a2a;border-color:#4a6a3a}
+.ld-cell.terrain-water{background:#1a2a4a;border-color:#2a4a7a}
+.ld-cell.terrain-fire{background:#4a1a0a;border-color:#8b3010}
+.ld-cell.terrain-grass{background:#1a3a1a;border-color:#2a5a2a}
+.ld-cell.terrain-crack{background:#2a1a14;border-color:#5a3a2a}
+.ld-cell.terrain-ledge{background:#2a2414;border-color:#5a4a1a}
+.ld-cell.ld-hspawn{background:#1a2a3a;border-color:#4a8acf;box-shadow:inset 0 0 8px rgba(74,138,207,0.3)}
+.ld-cell.ld-espawn{background:#3a1a1a;border-color:#bf3030;box-shadow:inset 0 0 8px rgba(191,48,48,0.3)}
+.ld-toolbar{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;align-items:center}
+.ld-tool-btn{padding:3px 8px;font-size:0.7rem;background:#0a0f1c;border:1px solid #2a3050;color:#aaa;border-radius:4px;cursor:pointer;transition:all 0.15s}
+.ld-tool-btn:hover{border-color:#5a6a9a;color:#e8e0d0}
+.ld-tool-btn.active{background:#1a2a4a;border-color:#4a8acf;color:#7abfdf}
+.ld-load-item{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border:1px solid #1a2540;border-radius:4px;margin-bottom:4px;background:#0a0f1c}
+.ld-load-item:hover{border-color:#2a3a6a}
+@media(max-width:700px){.ld-grid{grid-template-columns:repeat(10,40px)}.ld-cell{width:40px;height:40px;font-size:0.6rem}}
+@media(max-width:500px){.ld-grid{grid-template-columns:repeat(10,32px)}.ld-cell{width:32px;height:32px;font-size:0.5rem}.ld-cell .ld-coord{display:none}}
 </style>
 </head>
 <body>
@@ -530,6 +548,7 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
       <button class="big-btn" id="btnContinue" onclick="continueRun()" style="display:none">&#9654; Continue Run</button>
       <button class="big-btn" onclick="startNewRun()">&#9760; New Run</button>
       <button class="big-btn" onclick="switchScene('combat')">&#9881; GM Sandbox Mode</button>
+      <button class="big-btn" onclick="openLevelDesigner()" style="border-color:#6a4a1a;color:#c9a84c">🗺 Level Designer</button>
     </div>
     <div class="btn-row" style="margin-top:6px">
       <button class="big-btn danger" id="btnAbandon" onclick="abandonRun()" style="display:none;font-size:0.8rem;padding:8px 16px">Abandon Run</button>
@@ -885,11 +904,8 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
       <div class="roll-name-display" id="rolledName">Aldric</div>
       <button class="roll-name-btn" onclick="rerollName()">&#8634; Re-roll Name</button>
     </div>
-    <div style="font-size:0.7rem;color:#888;margin-bottom:12px">Choose a trait for this character:</div>
-    <div class="trait-cards" id="traitChoices"></div>
     <div class="roll-actions">
-      <button class="btn-skip" onclick="confirmCharacter(false)">No Trait</button>
-      <button class="btn-confirm" onclick="confirmCharacter(true)">Recruit &rarr;</button>
+      <button class="btn-confirm" onclick="confirmCharacter()">Recruit &rarr;</button>
     </div>
   </div>
 </div>
@@ -992,6 +1008,65 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
     <div style="font-size:0.92rem;color:#e8e0d0;line-height:2;font-style:italic;white-space:pre-line;text-align:left;border-left:2px solid #4a1a8b;padding-left:16px" id="visionModalText"></div>
     <div style="margin-top:20px;font-size:0.65rem;color:#4a2a6a;letter-spacing:1px" id="visionUnlock"></div>
     <button class="btn-confirm" id="visionCloseBtn" onclick="closeVisionModal()" style="margin-top:16px;border-color:#4a1a8b;color:#ccaaff;display:none">The Sword Has Spoken</button>
+  </div>
+</div>
+
+<!-- LEVEL DESIGNER MODAL -->
+<div class="modal-overlay" id="ldModal" style="display:none">
+  <div class="modal-box" style="max-width:760px;max-height:92vh;overflow-y:auto">
+    <button class="modal-close" onclick="closeLevelDesigner()">&times;</button>
+    <h2 style="margin-bottom:6px">🗺 Level Designer</h2>
+    <div style="display:flex;gap:10px;margin-bottom:8px;align-items:end;flex-wrap:wrap">
+      <div style="flex:1;min-width:150px">
+        <label style="font-size:0.6rem;color:#888;letter-spacing:1px;text-transform:uppercase">Level Name</label>
+        <input type="text" id="ldName" value="Custom Level" style="background:#060a10;border:1px solid #2a2f5c;color:#e8e0d0;padding:5px 8px;width:100%;border-radius:4px">
+      </div>
+      <div>
+        <label style="font-size:0.6rem;color:#888;letter-spacing:1px;text-transform:uppercase">Type</label>
+        <select id="ldType" style="background:#060a10;border:1px solid #2a2f5c;color:#e8e0d0;padding:5px;border-radius:4px">
+          <option value="combat">Combat</option>
+          <option value="boss">Boss</option>
+        </select>
+      </div>
+      <button class="mini-btn" onclick="ldClearAll()" style="color:#e05555;border-color:#8b1a1a">Clear</button>
+    </div>
+    <div class="ld-grid-container"><div class="ld-grid" id="ldGrid"></div></div>
+    <div class="ld-toolbar">
+      <button class="ld-tool-btn active" onclick="ldSetTerrainMode('normal',this)">▢ Normal</button>
+      <button class="ld-tool-btn" onclick="ldSetTerrainMode('wall',this)">🧱 Wall</button>
+      <button class="ld-tool-btn" onclick="ldSetTerrainMode('high-ground',this)">⛰️ High</button>
+      <button class="ld-tool-btn" onclick="ldSetTerrainMode('water',this)">🌊 Water</button>
+      <button class="ld-tool-btn" onclick="ldSetTerrainMode('fire',this)">🔥 Fire</button>
+      <button class="ld-tool-btn" onclick="ldSetTerrainMode('grass',this)">🌿 Grass</button>
+      <button class="ld-tool-btn" onclick="ldSetTerrainMode('crack',this)">✱ Crack</button>
+      <button class="ld-tool-btn" onclick="ldSetTerrainMode('ledge',this)">⬇ Ledge</button>
+    </div>
+    <div class="ld-toolbar">
+      <button class="ld-tool-btn" onclick="ldSetMode('hero-spawn',this)">★ Hero</button>
+      <button class="ld-tool-btn" onclick="ldSetMode('enemy-spawn',this)">☠ Enemy</button>
+      <button class="ld-tool-btn" onclick="ldSetMode('eraser',this)">✕ Eraser</button>
+      <span style="margin-left:8px;display:inline-flex;align-items:center;gap:4px">
+        <span style="font-size:0.65rem;color:#888">Enemy:</span>
+        <select id="ldEnemyClass" style="background:#060a10;border:1px solid #2a2f5c;color:#e8e0d0;padding:3px;border-radius:3px;font-size:0.7rem"></select>
+      </span>
+    </div>
+    <div id="ldModeLabel" style="font-size:0.7rem;color:#6a6a6a;margin:4px 0">Mode: Paint Normal</div>
+    <div id="ldSummary" style="font-size:0.7rem;color:#888;margin-bottom:8px"></div>
+    <div class="roll-actions" style="flex-wrap:wrap">
+      <button class="btn-skip" onclick="closeLevelDesigner()">Cancel</button>
+      <button class="btn-skip" onclick="ldExport()">📤 Export</button>
+      <label class="btn-skip" style="cursor:pointer">📥 Import<input type="file" accept=".json" style="display:none" onchange="ldImport(event)"></label>
+      <button class="btn-skip" onclick="ldShowLoad()">📂 Load</button>
+      <button class="btn-confirm" onclick="ldSave()">💾 Save</button>
+      <button class="btn-confirm" style="border-color:#c9a84c;color:#c9a84c" onclick="ldPlay()">▶ Play</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="ldLoadModal" style="display:none" onclick="if(event.target===this)ldCloseLoad()">
+  <div class="modal-box" style="max-width:500px;max-height:70vh;overflow-y:auto">
+    <button class="modal-close" onclick="ldCloseLoad()">&times;</button>
+    <h2>Load Level</h2>
+    <div id="ldLoadList"></div>
   </div>
 </div>
 
@@ -1409,12 +1484,6 @@ function recalcHeroStats(h) {
     h.statuses = h.statuses.filter(s=>s!=='large');
   }
 
-  // Apply trait (if has one)
-  if (h.traitName) {
-    const tr = TRAITS.find(t => t.name === h.traitName);
-    // Some traits set flags (lucky etc.) which we re-apply; stat modifiers also reapplied
-    if (tr) tr.apply(h); // will mutate h with bonuses
-  }
   // Apply equipment
   (h.equipment || []).forEach(itemId => {
     const item = EQUIPMENT[itemId];
@@ -2069,25 +2138,25 @@ And now he knows you know.`,
 // maxMana / manaRegen: mana economy (replaces bonus action + reaction)
 // classSkill: manaCost + cooldown (rounds)
 const ALLY_CLASSES = [
-  {name:'Fighter', hp:20, speed:3, atk:5, def:0, range:1, color:'#0e2240', bcolor:'#4a8fbf',
+  {name:'Fighter', hp:28, speed:3, atk:5, def:0, range:1, color:'#0e2240', bcolor:'#4a8fbf',
    str:4, vit:3, int:1, dex:2, maxMana:4, manaRegen:1,
    classSkill:{name:'Shield Bash', manaCost:0, cooldown:3, targetType:'enemy-adj', effectType:'push', effectValue:1, desc:'Push adjacent enemy 1 square. 0 mana, 3-round cooldown.'}},
-  {name:'Tank',    hp:26, speed:2, atk:4, def:0, range:1, color:'#0e1a30', bcolor:'#3a6abf',
+  {name:'Tank',    hp:34, speed:2, atk:4, def:0, range:1, color:'#0e1a30', bcolor:'#3a6abf',
    str:3, vit:5, int:1, dex:1, maxMana:5, manaRegen:1,
    classSkill:{name:'Taunt', manaCost:1, cooldown:3, targetType:'enemy-adj', effectType:'status-add', effectValue:0, desc:'Adjacent enemies must target you next turn. 1 mana, 3-round cooldown. Passive: can become 2×2 (Thick) blocking chokepoints.'}},
-  {name:'Rogue',   hp:14, speed:4, atk:7, def:0, range:1, color:'#0e2040', bcolor:'#6a6abf',
+  {name:'Rogue',   hp:22, speed:4, atk:7, def:0, range:1, color:'#0e2040', bcolor:'#6a6abf',
    str:2, vit:2, int:1, dex:4, maxMana:3, manaRegen:1,
    classSkill:{name:'Sneak Attack', manaCost:0, cooldown:0, targetType:'passive', effectType:'damage-flat', effectValue:6, desc:'Passive: always crits if hidden or attacking from behind. +1d6 vs Flanked targets.'}},
-  {name:'Ranger',  hp:16, speed:3, atk:5, def:0, range:1, color:'#0e2028', bcolor:'#4a9f8f',
+  {name:'Ranger',  hp:24, speed:3, atk:5, def:0, range:1, color:'#0e2028', bcolor:'#4a9f8f',
    str:2, vit:2, int:2, dex:3, maxMana:6, manaRegen:2,
    classSkill:{name:'Heavy Shot', manaCost:2, cooldown:3, targetType:'enemy-range', effectType:'damage', effectValue:2, desc:'Single powerful ranged shot +2 ATK, applies Pinned on hit. 2 mana, 3-round cooldown.'}},
-  {name:'Mage',    hp:10, speed:2, atk:4, def:0, range:1, color:'#0a0a28', bcolor:'#5050cf',
+  {name:'Mage',    hp:18, speed:2, atk:4, def:0, range:1, color:'#0a0a28', bcolor:'#5050cf',
    str:1, vit:1, int:5, dex:2, maxMana:12, manaRegen:3,
    classSkill:{name:'Fireball', manaCost:3, cooldown:3, targetType:'enemy-range', effectType:'damage', effectValue:3, desc:'Deal 1d6+3 fire damage in range, applies Burning. 3 mana, 3-round cooldown. Passive: if kill refunds 50% mana (round down).'}},
-  {name:'Cleric',  hp:16, speed:3, atk:3, def:0, range:1, color:'#201020', bcolor:'#9f4abf',
+  {name:'Cleric',  hp:24, speed:3, atk:3, def:0, range:1, color:'#201020', bcolor:'#9f4abf',
    str:1, vit:2, int:4, dex:1, maxMana:8, manaRegen:3,
    classSkill:{name:'Healing Touch', manaCost:2, cooldown:0, range:1, targetType:'ally-adj', effectType:'heal', effectValue:1, desc:'Heal 1 HP to adjacent ally. 2 mana, no cooldown.'}},
-  {name:'Wizard',  hp:10, speed:2, atk:3, def:0, range:1, color:'#0a0818', bcolor:'#7050cf',
+  {name:'Wizard',  hp:18, speed:2, atk:3, def:0, range:1, color:'#0a0818', bcolor:'#7050cf',
    str:1, vit:1, int:5, dex:1, maxMana:10, manaRegen:3,
    classSkill:{name:'Mana Burst', manaCost:3, cooldown:1, range:4, targetType:'enemy-range', effectType:'damage-flat', effectValue:0, desc:'Deal damage equal to half your current MP (round down, max 5). 3 mana, 1cd.'}},
 ];
@@ -2218,25 +2287,12 @@ const CLASS_SKILL_POOLS = {
 
 // Class-specific collars — automatically applied on character creation (replaces generic traits)
 const CLASS_COLLARS = {
-  Fighter: { name:'Iron Collar',    stats:'+2 DEF, +2 HP',       desc:'Battle-hardened. Stood when others fled.',          apply: h => { h.def+=2; h.maxHp+=2; h.hp+=2; if(h.baseStats){h.baseStats.def+=2;h.baseStats.hp+=2;} } },
-  Rogue:   { name:'Shadow Collar',  stats:'+1 SPD, +1 ATK',      desc:'Fluid as smoke. Strikes when least expected.',       apply: h => { h.speed+=1; h.atk+=1;   if(h.baseStats){h.baseStats.speed+=1;h.baseStats.atk+=1;} } },
-  Ranger:  { name:"Hunter's Collar",stats:'+1 RNG, +1 SPD',      desc:'Patient. Deadly at distance.',                       apply: h => { h.range+=1; h.speed+=1;  if(h.baseStats){h.baseStats.range=(h.baseStats.range||1)+1;h.baseStats.speed+=1;} } },
-  Cleric:  { name:'Holy Collar',    stats:'+2 MP, +1 MP regen',  desc:'Faith sustains them. Light in the dark.',            apply: h => { h.maxMana+=2; h.mana+=2; h.manaRegen+=1; if(h.baseStats){h.baseStats.maxMana+=2;h.baseStats.manaRegen+=1;} } },
-  Wizard:  { name:'Arcane Collar',  stats:'+3 MP, +1 MP regen',  desc:'Power flows through practised hands.',               apply: h => { h.maxMana+=3; h.mana+=3; h.manaRegen+=1; if(h.baseStats){h.baseStats.maxMana+=3;h.baseStats.manaRegen+=1;} } },
+  Fighter: { name:'Iron Collar',    stats:'+2 ATK, +4 HP, -1 SPD, -2 MP', desc:'All or nothing. The Iron way.', apply: h => { h.atk+=2; h.maxHp+=4; h.hp+=4; h.speed-=1; h.maxMana=Math.max(2,(h.maxMana||4)-2); h.mana=Math.min(h.mana||0,h.maxMana); if(h.baseStats){h.baseStats.atk+=2;h.baseStats.hp+=4;h.baseStats.speed-=1;h.baseStats.maxMana=Math.max(2,(h.baseStats.maxMana||4)-2);} } },
+  Rogue:   { name:'Shadow Collar',  stats:'+1 ATK, +2 SPD',     desc:'Fluid as smoke. Strikes when least expected.',       apply: h => { h.atk+=1; h.speed+=2; if(h.baseStats){h.baseStats.atk+=1;h.baseStats.speed+=2;} } },
+  Ranger:  { name:"Hunter's Collar",stats:'-1 HP, +6 MP',        desc:'Patient. Deadly at distance.',                       apply: h => { h.maxHp = Math.max(4,(h.maxHp||16)-1); h.hp = Math.min(h.hp||0, h.maxHp); h.maxMana+=6; h.mana=Math.min((h.mana||0)+6,h.maxMana); if(h.baseStats){h.baseStats.hp=Math.max(4,(h.baseStats.hp||16)-1);h.baseStats.maxMana+=6;} } },
+  Cleric:  { name:'Holy Collar',    stats:'-2 ATK, +2 HP, -1 SPD, +7 MP', desc:'Faith sustains them. Light in the dark.',        apply: h => { h.atk = Math.max(1, (h.atk||3)-2); h.maxHp+=2; h.hp+=2; h.speed = Math.max(1, (h.speed||3)-1); h.maxMana+=7; h.mana=Math.min((h.mana||0)+7,h.maxMana); if(h.baseStats){h.baseStats.atk=Math.max(1,(h.baseStats.atk||3)-2);h.baseStats.hp+=2;h.baseStats.speed=Math.max(1,(h.baseStats.speed||3)-1);h.baseStats.maxMana+=7;} } },
+  Wizard:  { name:'Arcane Collar',  stats:'+10 MP, -2 HP, -2 ATK', desc:'Limitless arcane wellspring.',                        apply: h => { h.maxMana+=10; h.mana+=10; h.maxHp=Math.max(4,(h.maxHp||18)-2); h.hp=Math.min(h.hp||0,h.maxHp); h.atk=Math.max(1,(h.atk||3)-2); if(h.baseStats){h.baseStats.maxMana+=10;h.baseStats.hp=Math.max(4,(h.baseStats.hp||18)-2);h.baseStats.atk=Math.max(1,(h.baseStats.atk||3)-2);} } },
 };
-
-const TRAITS = [
-  {name:'Brave',     stats:'+1 ATK',            desc:'Immune to morale breaks. Never hesitates — always reliable.', apply:t=>{t.atk+=1; t.moralImmune=true;}},
-  {name:'Reckless',  stats:'+2 ATK, -2 DEF',    desc:'Hits hard, guards poorly. High-risk striker.', apply:t=>{t.atk+=2; t.def-=2;}},
-  {name:'Cautious',  stats:'+2 DEF, -1 Speed',  desc:'Careful and measured. Hard to kill but slow.', apply:t=>{t.def+=2; t.speed-=1;}},
-  {name:'Swift',     stats:'+1 Speed',           desc:'Always moves first in a tie. Covers ground quickly.', apply:t=>{t.speed+=1;}},
-  {name:'Veteran',   stats:'+4 max HP',          desc:'Scarred but durable. Has survived worse.', apply:t=>{t.hp+=4; t.maxHp+=4;}},
-  {name:'Lucky',     stats:'Re-roll 1s',         desc:'Once per turn, may re-roll a natural 1.', apply:t=>{t.lucky=true;}},
-  {name:'Loyal',     stats:'+1 Trust on kill',   desc:'When this character kills an enemy, gain +1 Trust.', apply:t=>{t.loyal=true;}},
-  {name:'Haunted',   stats:'+1 ATK per threshold',desc:'Each Soul threshold reached grants +1 ATK permanently.', apply:t=>{t.haunted=true;}},
-  {name:'Stoic',     stats:'Immune to statuses', desc:'Cannot gain Bleeding, Burning, Rattled, Distrust, or Pinned.', apply:t=>{t.stoic=true;}},
-  {name:'Berserker', stats:'+3 ATK below 50% HP',desc:'When HP drops below half, gains +3 ATK until end of combat.', apply:t=>{t.berserker=true;}},
-];
 
 const NAMES = {
   Fighter:        ['Brand','Dorn','Kira','Tomas','Sera','Voss','Holt','Cara','Bren','Mira','Thane','Aldous'],
@@ -2324,8 +2380,6 @@ let skillTargetMode = null; // {skillId, tokenId}
 // Roll modal state
 let pendingCls = null;
 let pendingSide = null;
-let pendingTraitIndex = null;
-let currentTraits = [];
 let currentName = '';
 let skillPoolOpen = false;
 let currentSkillType = 'action';
@@ -2976,7 +3030,7 @@ function triggerTerrainEffect(tok, r, c) {
 // =============================================================================
 // PLACE TOKEN
 // =============================================================================
-function placeToken(cls, side, r, c, name, trait) {
+function placeToken(cls, side, r, c, name) {
   const template = (side==='ally' ? ALLY_CLASSES : ENEMY_CLASSES).find(x=>x.name===cls);
   const existingCount = tokens.filter(t=>t.class===cls&&t.side===side).length;
   const names = NAMES[cls] || [cls];
@@ -3001,12 +3055,10 @@ function placeToken(cls, side, r, c, name, trait) {
     faction: template.faction || null,
     // Equipment
     equipment: [],
-    trait: trait || null,
     skills: [null, null],
     classSkill: template.classSkill || null,
-    moralImmune: false, lucky: false, loyal: false, haunted: false, stoic: false, berserker: false,
+
   };
-  if (trait) trait.apply(tok);
   tokens.push(makeToken(tok));  // OOP: wrap with Hero/Enemy/Token class
   rebuildTurnOrder();
   renderAll();
@@ -3017,16 +3069,12 @@ function placeToken(cls, side, r, c, name, trait) {
 // CHARACTER ROLL MODAL
 // =============================================================================
 function openRollModal(cls, side, btn) {
-  pendingCls = cls; pendingSide = side; pendingTraitIndex = null;
+  pendingCls = cls; pendingSide = side;
   document.querySelectorAll('.p-btn').forEach(b=>b.classList.remove('p-active'));
   if(btn) btn.classList.add('p-active');
-  // Pick 2 random traits
-  const shuffled = [...TRAITS].sort(()=>Math.random()-0.5);
-  currentTraits = shuffled.slice(0,2);
   currentName = rollName(cls);
   document.getElementById('rollModalTitle').textContent = `Recruiting ${cls}...`;
   document.getElementById('rolledName').textContent = currentName;
-  renderTraitChoices();
   document.getElementById('rollModal').style.display = 'flex';
 }
 
@@ -3040,28 +3088,11 @@ function rerollName() {
   document.getElementById('rolledName').textContent = currentName;
 }
 
-function renderTraitChoices() {
-  document.getElementById('traitChoices').innerHTML = currentTraits.map((tr, i) => `
-    <div class="trait-card-opt ${pendingTraitIndex===i?'selected':''}" onclick="selectTrait(${i})">
-      <div class="trait-card-name">${tr.name}</div>
-      <div class="trait-card-stats">${tr.stats}</div>
-      <div class="trait-card-desc">${tr.desc}</div>
-    </div>`).join('');
-}
-
-function selectTrait(i) {
-  pendingTraitIndex = i;
-  renderTraitChoices();
-}
-
-function confirmCharacter(useTrait) {
-  const trait = (useTrait && pendingTraitIndex !== null) ? currentTraits[pendingTraitIndex] : null;
+function confirmCharacter() {
   closeRollModal();
   setPlaceMode(pendingCls, pendingSide, null);
-  document.getElementById('modeLabel').textContent = `Click grid to place ${currentName} (${pendingCls})${trait?' ['+trait.name+']':''}`;
-  // Store pending name+trait for placeToken
+  document.getElementById('modeLabel').textContent = `Click grid to place ${currentName} (${pendingCls})`;
   window._pendingRollName = currentName;
-  window._pendingRollTrait = trait;
 }
 
 function closeRollModal() {
@@ -3069,21 +3100,11 @@ function closeRollModal() {
 }
 
 // Override placeToken call from cellClick to use pending name/trait
-const _origCellClick = cellClick;
-// (handled inline in cellClick via placeTokenWithPending)
 function placeTokenWithPending(cls, side, r, c) {
   const name = window._pendingRollName || null;
-  const trait = window._pendingRollTrait || null;
-  window._pendingRollName = null; window._pendingRollTrait = null;
-  placeToken(cls, side, r, c, name, trait);
+  window._pendingRollName = null;
+  placeToken(cls, side, r, c, name);
 }
-
-// Patch cellClick place branch
-const _origPlaceToken = placeToken;
-// handled inline below -- override the place call in cellClick:
-const _cellClickPatch = () => {
-  const orig = cellClick;
-};
 
 // =============================================================================
 // BARRACKS / GOING HOME
@@ -3116,7 +3137,6 @@ function returnFromBarracks(id) {
   placeMode = {cls: tok.class, side: tok.side};
   mode = 'place';
   window._pendingRollName = tok.name;
-  window._pendingRollTrait = null;
   document.getElementById('modeLabel').textContent = `Return ${tok.name} to the board -- click a cell`;
   renderAll();
   renderBarracks();
@@ -3130,7 +3150,7 @@ function renderBarracks() {
   panel.innerHTML = barracks.map(b => {
     const ready = (round - b.sentRound) >= 2;
     return `<div class="barracks-item">
-      <div class="barracks-name">${b.tok.name} <span style="color:#666;font-size:0.6rem">(${b.tok.class}${b.tok.trait?' · '+b.tok.trait.name:''})</span></div>
+      <div class="barracks-name">${b.tok.name} <span style="color:#666;font-size:0.6rem">(${b.tok.class})</span></div>
       <div class="barracks-meta">HP ${b.tok.hp}/${b.tok.maxHp} · Sent Round ${b.sentRound}</div>
       ${ready ? `<button class="barracks-return" onclick="returnFromBarracks(${b.tok.id})">Return (+1 ATK, Full HP)</button>` : `<div class="barracks-meta" style="margin-top:4px">Returns Round ${b.sentRound+2}</div>`}
     </div>`;
@@ -3177,7 +3197,6 @@ function resolveAttack(attacker, target) {
   // Calculate final ATK with modifiers
   let atk = attacker.atk;
   if (terrain[attacker.row][attacker.col]==='high-ground' && attacker.range>1) atk += 1;
-  if (attacker.berserker && attacker.hp < attacker.maxHp/2) atk += 3;
   if (attacker.equipment && attacker.equipment.includes('stormHunter')) {
     const dist = Math.abs(attacker.row - target.row) + Math.abs(attacker.col - target.col);
     if (dist >= 4) { atk += 1; log(`${attacker.name} snipes! +1 ATK from Storm Hunter Goggles.`, 'skill'); }
@@ -3233,7 +3252,6 @@ function resolveAttack(attacker, target) {
     animCell(target.row, target.col, 'anim-crit');
     animToken(target.id, 'anim-shake');
     fxBlast(target.row, target.col, '💥');
-    if (attacker.loyal) changeTrust(1);
   } else {
     const shieldPct = target.maxDef > 0 ? (target.def / target.maxDef) : 0;
     const shieldStr = defDmg > 0 ? ` (${defDmg} shield)` : '';
@@ -3242,7 +3260,6 @@ function resolveAttack(attacker, target) {
     animCell(target.row, target.col, 'anim-hit');
     animToken(target.id, 'anim-shake');
     if (target.hp <= 0) trustEvent(2, `${attacker.name} killed ${target.name}`);
-    if (attacker.loyal && target.hp <= 0) changeTrust(1);
   }
 
   // Clear attacker sneak after attacking
@@ -3617,7 +3634,6 @@ function _executeEffect(sk, user, target) {
     }
     case 'status-add': {
       if (!target) break;
-      if (target.stoic) { log(`${target.name} is Stoic -- ignores status.`,'sys'); break; }
       const s = sk.effectStatus || 'rattled';
       const ccEffects = ['stunned','pinned','rattled','distrust'];
       // CC resistance loosened: now requires 15+ DEF to block
@@ -3906,9 +3922,9 @@ function rerollOneDie(stat, dieIdx) {
 
 function rerollDiePair(stat) {
   if (!window._diceState[stat]) window._diceState[stat] = [1,1];
-  window._diceState[stat] = [rollD4(), rollD4()];
+  window._diceState[stat] = stat==='speed' ? [rollD4(), 0] : [rollD4(), rollD4()];
   animateDie(stat, 0, window._diceState[stat][0]);
-  animateDie(stat, 1, window._diceState[stat][1], 80);
+  if (stat!=='speed') animateDie(stat, 1, window._diceState[stat][1], 80);
   setTimeout(() => {
     syncDiceToRollState();
     const btn = document.getElementById('btnConfirmSlotRoll');
@@ -3925,9 +3941,9 @@ function rerollDiePair(stat) {
 function rollAllDice3D() {
   const stats = ['hp','atk','speed','mana'];
   stats.forEach((st, i) => {
-    window._diceState[st] = [rollD4(), rollD4()];
+    window._diceState[st] = st==='speed' ? [rollD4(), 0] : [rollD4(), rollD4()];
     animateDie(st, 0, window._diceState[st][0], i * 120);
-    animateDie(st, 1, window._diceState[st][1], i * 120 + 80);
+    if (st!=='speed') animateDie(st, 1, window._diceState[st][1], i * 120 + 80);
   });
   setTimeout(() => {
     syncDiceToRollState();
@@ -3945,7 +3961,7 @@ function rollAllDice3D() {
 function updateDiceSum(stat) {
   const el = document.getElementById(`dsum-${stat}`);
   if (!el || !window._diceState[stat]) return;
-  const sum = window._diceState[stat][0] + window._diceState[stat][1];
+  const sum = stat==='speed' ? window._diceState[stat][0] : window._diceState[stat][0] + window._diceState[stat][1];
   const isDouble = stat === 'hp' || stat === 'mana';
   el.textContent = isDouble ? `${sum} ×2 = ${sum*2}` : `${sum}`;
 }
@@ -3954,11 +3970,11 @@ function syncDiceToRollState() {
   if (!window._rollState) return;
   const d = window._diceState;
   const cls = ALLY_CLASSES.find(c=>c.name===window._rollState.clsName);
-  // HP and MP: 2d4 ×2; ATK/SPD: 2d4; DEF always 0 (equipment only)
+  // HP and MP: 2d4 ×2; ATK: 2d4; SPD: 1d4; DEF always 0 (equipment only)
   window._rollState.hp    = (d.hp[0]+d.hp[1]) * 2;
   window._rollState.atk   = d.atk[0]+d.atk[1];
   window._rollState.def   = 0;
-  window._rollState.speed = d.speed[0]+d.speed[1];
+  window._rollState.speed = d.speed[0];
   window._rollState.mana  = (d.mana[0]+d.mana[1]) * 2;
   // Update sum displays
   ['hp','atk','speed','mana'].forEach(st => updateDiceSum(st));
@@ -4111,7 +4127,7 @@ function selectToken(id) {
   const tok = tokens.find(t=>t.id===id);
   renderAll();
   if (tok&&!tok.dead&&!tok._home) showMoveRange(tok);
-  if (tok) document.getElementById('modeLabel').textContent = `Selected: ${tok.name} · ATK+${tok.atk} DEF${tok.def} SPD${tok.speed} RNG${tok.range}${tok.trait?' ['+tok.trait.name+']':''}`;
+  if (tok) document.getElementById('modeLabel').textContent = `Selected: ${tok.name} · ATK+${tok.atk} DEF${tok.def} SPD${tok.speed} RNG${tok.range}`;
 }
 
 function showMoveRange(tok) {
@@ -4218,7 +4234,7 @@ function cardHTML(tok) {
     return `<span class="skill-pip${stateClass}" onclick="event.stopPropagation();${fn}" title="${s.desc||''}">${s.name}${mpLabel}${cdLabel}</span>`;
   }).join('');
 
-  const traitLine = tok.trait ? `<div class="card-trait">${tok.trait.name}: ${tok.trait.stats}</div>` : '';
+  const traitLine = '';
 
   return `<div class="char-card ${tok.side==='enemy'?'enemy-card':''}${sel?' selected-card':''}${tok.dead?' dead-card':''}"
     onclick="openCharDetail(${tok.id})" id="card-${tok.id}">
@@ -4249,6 +4265,7 @@ function cardHTML(tok) {
       ${tok.class==='Aldric'&&!tok.dead?`<button class="mini-btn" style="border-color:#5050af;color:#9090df;font-size:0.55rem" onclick="event.stopPropagation();aldricPullAll(${tok.id})">🌀 PULL</button><button class="mini-btn" style="border-color:#af5000;color:#df9000;font-size:0.55rem" onclick="event.stopPropagation();aldricSpinAttack(${tok.id})">⚡ SPIN</button>`:''}
       ${tok.class==='Electric Eel'&&!tok.dead?`<button class="mini-btn" style="border-color:#dfdf20;color:#ffff60;font-size:0.55rem" onclick="event.stopPropagation();electricEelZoneAttack(${tok.id})">⚡ ZAP</button>`:''}
       ${tok.side==='enemy'&&!tok.dead&&souls>=3?`<button class="mini-btn" style="border-color:#4a8b4a;color:#8abf8a;font-size:0.55rem" onclick="event.stopPropagation();attemptRecruit(${tok.id})">&#9670; Recruit</button>`:''}
+      ${tok.side==='ally'&&!tok.dead&&souls>=1?(souls>=20||(souls>=12&&!PLAYABLE_CLASSES.includes(tok.class)))?`<button class="mini-btn" style="border-color:#8b4acf;color:#bb8aff;font-size:0.55rem" onclick="event.stopPropagation();jointSoulStrike(${tok.id})">⚡ Soul Strike</button>`:``:''}
     </div>`:''}
     <div class="actions-row">
       <span class="a-pip act${tok.actions?'':' used'}" onclick="event.stopPropagation();toggleAction(${tok.id},'actions')">Action</span>
@@ -4452,7 +4469,6 @@ function toggleAction(id, type) {
 }
 function toggleStatus(id, status) {
   const tok = tokens.find(t=>t.id===id); if(!tok) return;
-  if (tok.stoic&&['bleeding','burning','rattled','distrust','pinned'].includes(status)) { log(`${tok.name} is Stoic -- ignores status.`,'sys'); return; }
   const ccEffects = ['stunned','pinned','rattled','distrust'];
   const adding = !tok.statuses.includes(status);
   if (adding && ccEffects.includes(status) && (tok.def||0) > 0) { log(`${tok.name} resists CC — DEF ${tok.def} > 0!`,'miss'); return; }
@@ -4522,11 +4538,9 @@ function changeSouls(delta) {
   souls=Math.max(0,Math.min(MAX_SOULS,souls+delta));
   updateSouls();
   statsTimelineSnap();
-  // Check haunted allies
   THRESHOLDS.forEach(th=>{
     if(souls>=th&&prev<th&&!triggeredThresholds.has(th)) {
       triggeredThresholds.add(th);
-      tokens.filter(t=>t.haunted&&!t.dead).forEach(t=>{t.atk+=1;});
       showVisionModal(th);
     }
   });
@@ -4671,12 +4685,10 @@ function rollTrust2() {
 // =============================================================================
 function rebuildTurnOrder(){turnOrder=tokens.filter(t=>!t.dead).map(t=>({id:t.id,name:t.name,side:t.side,init:0}));if(turnIndex>=turnOrder.length)turnIndex=0;renderTurnOrder();}
 function rollInitiative(){
-  // Official rule: Speed + d4 determines turn order
-  turnOrder=tokens.filter(t=>!t.dead).map(t=>({id:t.id,name:t.name,side:t.side,init:(t.speed||0)+Math.floor(Math.random()*4)+1}));
+  turnOrder=tokens.filter(t=>!t.dead).map(t=>({id:t.id,name:t.name,side:t.side,init:Math.floor(Math.random()*4)+1}));
   turnOrder.sort((a,b)=>b.init-a.init);turnIndex=0;renderTurnOrder();
-  // Reset per-turn flags
   tokens.forEach(t => { t.moved = false; t.actions = true; });
-  log(`Initiative (SPD+d4): ${turnOrder.map(t=>t.name+'('+t.init+')').join(', ')}`,'sys');
+  log(`Initiative (d4): ${turnOrder.map(t=>t.name+'('+t.init+')').join(', ')}`,'sys');
 }
 function currentTurnTokenId() {
   if (!turnOrder || turnOrder.length === 0) return null;
@@ -4982,10 +4994,8 @@ const _originalCellClick = cellClick;
 // Make sure place branch uses pending name
 function _patchedPlaceCall(cls, side, r, c) {
   const name = window._pendingRollName || null;
-  const trait = window._pendingRollTrait || null;
   window._pendingRollName = null;
-  window._pendingRollTrait = null;
-  placeToken(cls, side, r, c, name, trait);
+  placeToken(cls, side, r, c, name);
 }
 // Monkey-patch cellClick's place branch:
 const __orig = cellClick;
@@ -4993,10 +5003,8 @@ window.cellClick = function(r, c) {
   if (mode === 'place' && placeMode) {
     if (tokens.find(t=>t.row===r&&t.col===c&&!t.dead&&!t._home)) return;
     const name = window._pendingRollName || null;
-    const trait = window._pendingRollTrait || null;
     window._pendingRollName = null;
-    window._pendingRollTrait = null;
-    placeToken(placeMode.cls, placeMode.side, r, c, name, trait);
+    placeToken(placeMode.cls, placeMode.side, r, c, name);
     // Re-bind grid cells
     for(let rr=0;rr<GRID_SIZE;rr++) for(let cc=0;cc<GRID_SIZE;cc++) document.getElementById(`cell-${rr}-${cc}`).onclick=()=>window.cellClick(rr,cc);
     return;
@@ -5028,62 +5036,58 @@ function getRecruitPhase() {
 
 function attemptRecruit(id) {
   const tok = tokens.find(t=>t.id===id);
-  if(!tok||tok.side!=='enemy'||tok.dead) return;
-  const phase = getRecruitPhase();
-  if(phase===0) { log('Recruitment locked — reach 3 souls first.','miss'); return; }
+  if(!tok||tok.side!=='enemy'||tok.dead) { log('Cannot recruit that target.','sys'); return; }
 
-  const isElite = ELITE_ENEMIES.includes(tok.class);
+  log(`The Sword speaks. ${tok.name} recognises Varn's mark.`, 'vision');
+  convertToAlly(tok);
+  trustEvent(-5, 'Human allies uneasy about new monster recruit');
+  renderAll();
+}
 
-  // Phase check
-  if(isElite && phase<2) { log(`Cannot recruit elite monsters until 7 souls (currently ${souls}).`,'miss'); return; }
-
-  // Phase 4: free recruit
-  if(phase===4) {
-    log(`Phase 4: The Sword speaks. ${tok.name} recognises Varn's mark. No roll needed.`,'vision');
-    convertToAlly(tok);
-    return;
-  }
-
-  // Phase 2: costs 1 soul
-  if(isElite && phase>=2) {
-    if(!confirm(`Recruiting elite ${tok.name} costs 1 soul. Currently: ${souls} souls. Confirm?`)) return;
-    souls = Math.max(0, souls-1);
-    updateSouls();
-  }
-
-  const threshold = isElite ? 15 : 12;
-  const roll = Math.floor(Math.random()*20)+1;
-  log(`[Recruit] Roll d20: ${roll} vs DC ${threshold} to recruit ${tok.name}.`, 'sys');
-
-  if(roll >= threshold) {
-    log(`Success! ${tok.name} surrenders and joins Varn's party.`, 'vision');
-    convertToAlly(tok);
-    trustEvent(-5, 'Human allies uneasy about new monster recruit');
-  } else {
-    log(`Failed. ${tok.name} refuses — killed instead. +1 Soul.`, 'death');
-    tok.hp = 0;
-    checkDeath(tok);
-  }
+// ----- Joint Ability: Soul Strike -----
+function jointSoulStrike(tokId) {
+  const tok = tokens.find(t=>t.id===tokId);
+  if (!tok || tok.dead) return;
+  if (souls < 1) { log('Not enough souls.','sys'); return; }
+  if (tok.actions) { log(`${tok.name} hasn't acted yet — use their normal action first.`,'sys'); return; }
+  tok.actions = true;
+  souls--;
+  changeTrust(-2);
+  updateSouls();
+  log(`⚡ ${tok.name} surges with dark energy — extra action granted! (${souls} souls left)`, 'skill');
+  rebuildTurnOrder();
   renderAll();
 }
 
 function convertToAlly(tok) {
-  // Convert enemy token to ally: keep stats, change side, roll a trait
   tok.side = 'ally';
   tok.color = '#0e2240';
   tok.bcolor = '#4a8fbf';
-  tok.hp = Math.ceil(tok.maxHp * 0.5); // joins at 50% HP (wounded)
+  tok.hp = Math.ceil(tok.maxHp * 0.5);
   tok.actions = true;
   if(!tok.mana) tok.mana = 3;
   if(!tok.maxMana) tok.maxMana = 3;
   if(!tok.manaRegen) tok.manaRegen = 1;
   if(!tok.str) { tok.str=2; tok.vit=2; tok.int=1; tok.dex=2; }
   if(!tok.equipment) tok.equipment=[];
-  // Roll a random trait
-  const trait = TRAITS[Math.floor(Math.random()*TRAITS.length)];
-  tok.trait = trait;
-  trait.apply(tok);
-  log(`${tok.name} joins as ally [${trait.name} trait]. HP: ${tok.hp}/${tok.maxHp}. Trust with humans starts low.`, 'vision');
+  // Also add to campaign party
+  const enemyTpl = ENEMY_CLASSES.find(c => c.name === tok.class);
+  const classSkill = enemyTpl?.classSkill;
+  const newHero = new Hero({
+    class: tok.class, name: tok.name,
+    baseStats: { hp: tok.maxHp, atk: tok.atk, def: tok.def, speed: tok.speed, range: tok.range||1, maxMana: tok.maxMana||3, manaRegen: tok.manaRegen||1 },
+    hp: tok.hp, maxHp: tok.maxHp,
+    mana: tok.mana, maxMana: tok.maxMana,
+    manaRegen: tok.manaRegen,
+    atk: tok.atk, def: tok.def, speed: tok.speed, range: tok.range||1,
+    str: tok.str||2, vit: tok.vit||2, int: tok.int||1, dex: tok.dex||2,
+    skills: classSkill ? [classSkill, null] : [null, null],
+    equipment: [], potions: [{type:'healing', charges:1}],
+    level: 1, isMonster: true
+  });
+  CAMPAIGN.heroes.push(newHero);
+  saveCampaign();
+  log(`${tok.name} joins as ally. HP: ${tok.hp}/${tok.maxHp}. Trust with humans starts low.`, 'vision');
   rebuildTurnOrder();
   renderAll();
 }
@@ -5806,14 +5810,6 @@ function startNewRun() {
 const PLAYABLE_CLASSES = ['Fighter','Rogue','Ranger','Cleric','Wizard'];
 
 // Flat bonuses applied to rolled stats when a class is chosen
-const CLASS_STAT_BONUSES = {
-  'Fighter': { hp: +8,  atk: +3, speed:  0, mana: -2 },  // Sturdy melee brawler
-  'Rogue':   { hp: -2,  atk: +4, speed: +2, mana: -2 },  // Fast glass cannon
-  'Ranger':  { hp: +2,  atk: +2, speed: +1, mana: +2 },  // Balanced skirmisher
-  'Cleric':  { hp: +4,  atk: -1, speed:  0, mana: +6 },  // Support & healing
-  'Wizard':  { hp: -4,  atk: -1, speed: -1, mana: +8 },  // Mana powerhouse
-};
-
 let _heroSlots = [null, null, null, null]; // {class, name, startingSkill, rolled, collar}
 let _slotRolls = [null, null, null, null]; // {hp:[d1,d2], atk:[d1,d2], speed:[d1,d2], mana:[d1,d2]}
 let _activeSlot = null; // index of slot currently being configured (0-3)
@@ -5870,7 +5866,7 @@ function renderHeroSelectUI() {
       return `<div style="text-align:center;background:#0a0f1c;border:1px solid #2a3050;border-radius:6px;padding:12px 8px">
         <div style="color:#888;font-size:0.65rem;letter-spacing:1px;margin-bottom:8px">${label}${isDouble?' ×2':''}</div>
         <div style="display:flex;gap:6px;justify-content:center;margin-bottom:6px">
-          ${renderDie3D(k,0)} ${renderDie3D(k,1)}
+          ${renderDie3D(k,0)} ${k!=='speed'?renderDie3D(k,1):''}
         </div>
         <button onclick="rerollDiePair('${k}')" style="background:#0d1420;border:1px solid #2a3050;color:#4a6a8a;padding:2px 8px;cursor:pointer;border-radius:3px;font-size:0.6rem;margin-bottom:4px">↻ reroll</button>
         <div class="die-pair-sum${k==='mana'?' mp-stat':''}" id="dsum-${k}" style="color:#c9a84c;font-weight:bold;font-size:1rem;min-height:1.4em">—</div>
@@ -5906,7 +5902,7 @@ function renderHeroSelectUI() {
   const pr = _slotRolls[_activeSlot];
   const baseHp    = (pr.hp[0]+pr.hp[1]) * 2;
   const baseAtk   = pr.atk[0]+pr.atk[1];
-  const baseSpd   = pr.speed[0]+pr.speed[1];
+  const baseSpd   = pr.speed[0];
   const baseMana  = (pr.mana[0]+pr.mana[1]) * 2;
 
   const statSummary = `<div style="grid-column:1/-1;background:#0a0f1c;border:1px solid #2a5a2a;border-radius:6px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
@@ -5924,27 +5920,16 @@ function renderHeroSelectUI() {
     const spr = spriteFor(clsName);
     const alreadyPicked = _heroSlots.some((s, idx) => s && s.class === clsName && idx !== _activeSlot);
     const starter = EQUIPMENT[STARTER_WEAPONS[clsName]];
-    const bon = CLASS_STAT_BONUSES[clsName] || {};
-    const fHp   = Math.max(1, baseHp   + (bon.hp   || 0));
-    const fAtk  = Math.max(1, baseAtk  + (bon.atk  || 0));
-    const fSpd  = Math.max(1, baseSpd  + (bon.speed || 0));
-    const fMana = Math.max(0, baseMana + (bon.mana  || 0));
-    const bonStr = [
-      bon.hp   ? `${bon.hp>0?'+':''}${bon.hp} HP`     : null,
-      bon.atk  ? `${bon.atk>0?'+':''}${bon.atk} ATK`  : null,
-      bon.speed? `${bon.speed>0?'+':''}${bon.speed} SPD`: null,
-      bon.mana ? `${bon.mana>0?'+':''}${bon.mana} MP`  : null,
-    ].filter(Boolean).join(' · ');
     
     return `<div class="hero-card${alreadyPicked?' selected':''}" onclick="${alreadyPicked?'':'rollHero(\''+clsName+'\')'}">
       ${alreadyPicked?'<div class="check" style="color:#e05555;font-size:0.7rem">PICKED</div>':''}
       <div class="icon">${spr.portrait}</div>
       <h3>${cls.name}</h3>
-      <div style="font-size:0.6rem;color:#7fb87f;background:#0a1a0a;border:1px solid #2a5a2a;border-radius:3px;padding:2px 6px;margin-bottom:4px;text-align:center">${bonStr}</div>
+      <div style="font-size:0.6rem;color:#7fb87f;background:#0a1a0a;border:1px solid #2a5a2a;border-radius:3px;padding:2px 6px;margin-bottom:4px;text-align:center">Collar applies on pick</div>
       <div class="stats">
-        <span>HP <strong style="color:#c9a84c">${fHp}</strong></span><span>DEF from gear</span>
-        <span>ATK <strong style="color:#e05555">${fAtk}</strong></span><span>SPD <strong style="color:#4a8fbf">${fSpd}</strong></span>
-        <span>RNG ${cls.range||1}</span><span>MP <strong style="color:#9f5abf">${fMana}</strong></span>
+        <span>HP <strong style="color:#c9a84c">${baseHp}</strong></span><span>DEF from gear</span>
+        <span>ATK <strong style="color:#e05555">${baseAtk}</strong></span><span>SPD <strong style="color:#4a8fbf">${baseSpd}</strong></span>
+        <span>RNG ${cls.range||1}</span><span>MP <strong style="color:#9f5abf">${baseMana}</strong></span>
       </div>
       ${starter ? `<div style="font-size:0.7rem;color:#dfaf3a;background:#1a1410;border:1px solid #5a3a1a;padding:4px 6px;border-radius:3px;margin:6px 0;text-align:center">${starter.icon} ${starter.name}<br><span style="color:#aaa;font-size:0.65rem">${starter.desc}</span></div>` : ''}
       <div class="skill-info"><strong style="color:#c9a84c">${cls.classSkill.name}</strong><br>${cls.classSkill.desc}</div>
@@ -5997,9 +5982,9 @@ function startSlotConfig(idx) {
 function doSlotRoll() {
   const stats = ['hp','atk','speed','mana'];
   stats.forEach((st, i) => {
-    window._diceState[st] = [rollD4(), rollD4()];
+    window._diceState[st] = st==='speed' ? [rollD4(), 0] : [rollD4(), rollD4()];
     animateDie(st, 0, window._diceState[st][0], i * 120);
-    animateDie(st, 1, window._diceState[st][1], i * 120 + 80);
+    if (st!=='speed') animateDie(st, 1, window._diceState[st][1], i * 120 + 80);
   });
   
   setTimeout(() => {
@@ -6021,7 +6006,7 @@ function confirmSlotRoll() {
   _slotRolls[_activeSlot] = {
     hp:    [...(d.hp    || [1,1])],
     atk:   [...(d.atk   || [1,1])],
-    speed: [...(d.speed || [1,1])],
+    speed: [d.speed?.[0] || 1, 0],
     mana:  [...(d.mana  || [1,1])],
   };
   renderHeroSelectUI();
@@ -6061,16 +6046,15 @@ function openHeroRollModal(clsName, slotIdx) {
   const skillChoices = shuffledSkills.slice(0, 2);
   
   const d = _slotRolls[slotIdx];
-  const bon = CLASS_STAT_BONUSES[clsName] || {};
   window._rollState = {
     clsName, slotIdx,
     name: rolledName,
     str: cls.str, vit: cls.vit, int: cls.int, dex: cls.dex,
-    hp:    Math.max(1, (d.hp[0]+d.hp[1]) * 2    + (bon.hp    || 0)),
-    atk:   Math.max(1, d.atk[0]+d.atk[1]        + (bon.atk   || 0)),
+    hp:    Math.max(1, (d.hp[0]+d.hp[1]) * 2),
+    atk:   Math.max(1, d.atk[0]+d.atk[1]),
     def:   0,
-    speed: Math.max(1, d.speed[0]+d.speed[1]     + (bon.speed || 0)),
-    mana:  Math.max(0, (d.mana[0]+d.mana[1]) * 2 + (bon.mana  || 0)),
+    speed: Math.max(1, d.speed[0]),
+    mana:  Math.max(0, (d.mana[0]+d.mana[1]) * 2),
     manaRegen: cls.manaRegen,
     skillIdx: null,
     skillChoices
@@ -6082,23 +6066,21 @@ function renderHeroRollModal() {
   if (!s) return;
   const cls = ALLY_CLASSES.find(c => c.name === s.clsName);
   const spr = spriteFor(s.clsName);
-  const bon = CLASS_STAT_BONUSES[s.clsName] || {};
   const existing = document.getElementById('heroRollModal');
   if (existing) existing.remove();
 
-  // Stat summary row (rolled + class bonus = final)
+  // Stat summary row (pure rolled)
   const statCols = [
-    ['HP',  s.hp,    '#7fb87f', bon.hp],
-    ['ATK', s.atk,   '#e08050', bon.atk],
-    ['SPD', s.speed, '#50d0d0', bon.speed],
-    ['MP',  s.mana,  '#9f7fdf', bon.mana],
-    ['DEF', '0+gear','#5080e0', null],
+    ['HP',  s.hp,    '#7fb87f'],
+    ['ATK', s.atk,   '#e08050'],
+    ['SPD', s.speed, '#50d0d0'],
+    ['MP',  s.mana,  '#9f7fdf'],
+    ['DEF', '0+gear','#5080e0'],
   ];
-  const statSummary = statCols.map(([lbl,val,col,b])=>`
+  const statSummary = statCols.map(([lbl,val,col])=>`
     <div style="text-align:center;background:#0a0f1c;border:1px solid #2a3050;border-radius:4px;padding:6px 4px">
       <div style="color:#555;font-size:0.58rem;letter-spacing:1px">${lbl}</div>
       <div style="color:${col};font-weight:bold;font-size:1rem">${val}</div>
-      ${b!=null?`<div style="color:${b>=0?'#7fb87f':'#e05555'};font-size:0.6rem">${b>=0?'+':''}${b} class</div>`:''}
     </div>`).join('');
 
   const html = `
@@ -6116,8 +6098,8 @@ function renderHeroRollModal() {
           <button onclick="rerollHeroName2()" style="margin-left:6px;background:#1a1f3c;border:1px solid #4a8fbf;color:#4a8fbf;padding:4px 8px;cursor:pointer;border-radius:3px;font-size:0.7rem">🎲</button>
         </div>
 
-        <!-- Final stats (rolled + class bonus) -->
-        <div style="color:#888;font-size:0.65rem;letter-spacing:1px;margin-bottom:6px">FINAL STATS (rolled + class bonus)</div>
+        <!-- Final stats (rolled) -->
+        <div style="color:#888;font-size:0.65rem;letter-spacing:1px;margin-bottom:6px">FINAL STATS</div>
         <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:14px">${statSummary}</div>
 
         <!-- Collar -->
@@ -6178,12 +6160,6 @@ function rerollHeroName2() {
   const n = names[Math.floor(Math.random()*names.length)];
   window._rollState.name = n;
   document.getElementById('rollNameInput').value = n;
-}
-function rerollTraits() {
-  const shuffled = [...TRAITS].sort(()=>Math.random()-0.5);
-  window._rollState.choices = shuffled.slice(0,2);
-  window._rollState.traitIdx = null;
-  renderHeroRollModal();
 }
 function rerollSkillChoices() {
   const classSkills = CLASS_SKILL_POOLS[window._rollState.clsName] || [];
@@ -6352,28 +6328,22 @@ function showLevelUpModal(reports, onClose) {
 function canRecruit(deadTok) {
   if (!CAMPAIGN.active) return {ok:false, why:'Not in campaign mode'};
   if (!deadTok || deadTok.side !== 'enemy') return {ok:false, why:'Not an enemy'};
-  if (deadTok.class === 'Aldric') return {ok:false, why:'Boss cannot be recruited'};
-  const maxPerCombat = souls >= 7 ? 2 : souls >= 3 ? 1 : 0;
-  if (maxPerCombat === 0) return {ok:false, why:`Need 3+ souls (have ${souls}). Vision I must trigger first.`};
+  if (souls < 3) return {ok:false, why:`Need 3+ souls (have ${souls}). Vision I must trigger first.`};
+  const maxPerCombat = souls >= 7 ? 2 : 1;
   const done = window._recruitsDoneThisCombat || 0;
-  if (done >= maxPerCombat) return {ok:false, why:`Already recruited ${done}/${maxPerCombat} this combat. Need 7+ souls for 2 recruits.`};
+  if (done >= maxPerCombat) return {ok:false, why:`Already recruited ${done}/${maxPerCombat} this combat.`};
   const eliteClasses = ['Soul Eater','Royal Guard','Orc','Necromancer','Mage Goblin'];
   if (souls < 7 && eliteClasses.includes(deadTok.class)) return {ok:false, why:`Need 7+ souls to recruit elites (${deadTok.class}). Have ${souls}.`};
   return {ok:true, maxPerCombat, done};
 }
 function tryRecruitMonster(deadTok) {
-  const check = canRecruit(deadTok);
-  if (!check.ok) return;
-  // 3+ souls = always offer (100% success), no dice roll
+  if (!canRecruit(deadTok).ok) return;
   setTimeout(() => showRecruitModal(deadTok), 400);
 }
 function showRecruitModal(deadTok) {
-  const check = canRecruit(deadTok);
-  if (!check.ok) { alert('Cannot recruit: ' + check.why); return; }
+  if (!canRecruit(deadTok).ok) return;
   const spr = spriteFor(deadTok.class);
-  // Determine target slot — replace dead hero or grow to 5
   const deadHeroes = CAMPAIGN.heroes.filter(h => h.dead);
-  const livingCount = CAMPAIGN.heroes.filter(h => !h.dead).length;
   let slotChoice = '';
   if (deadHeroes.length > 0) {
     slotChoice = `<div style="font-size:0.75rem;color:#aaa;margin:8px 0">Replace which fallen ally?</div>
@@ -6383,11 +6353,8 @@ function showRecruitModal(deadTok) {
           return `<button onclick="executeRecruit(${idx}, ${deadTok.id})" style="background:#2a4a2a;border:1px solid #4a8f4a;color:#9fdf9f;padding:6px 10px;cursor:pointer;border-radius:3px;text-align:left">↻ Replace <strong>${h.name}</strong> (${h.class}) †</button>`;
         }).join('')}
       </div>`;
-  } else if (livingCount < 5) {
-    slotChoice = `<div style="font-size:0.75rem;color:#aaa;margin:8px 0">All slots full. Add as 5th member?</div>
-      <button onclick="executeRecruit(-1, ${deadTok.id})" style="background:#2a4a2a;border:1px solid #4a8f4a;color:#9fdf9f;padding:6px 14px;cursor:pointer;border-radius:3px">✓ Add to party</button>`;
   } else {
-    slotChoice = `<div style="color:#e05555;font-size:0.8rem">Party is full (5). Dismiss someone first.</div>`;
+    slotChoice = `<button onclick="executeRecruit(-1, ${deadTok.id})" style="background:#2a4a2a;border:1px solid #4a8f4a;color:#9fdf9f;padding:6px 14px;cursor:pointer;border-radius:3px">✓ Add to party</button>`;
   }
   const html = `
     <div id="recruitModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:10000">
@@ -6409,7 +6376,6 @@ function showRecruitModal(deadTok) {
 function executeRecruit(replaceIdx, deadTokId) {
   const deadTok = tokens.find(t => t.id === deadTokId);
   if (!deadTok) return;
-  // Bring in matching class skill from CLASS_SKILL_POOLS if available
   const enemyTpl = ENEMY_CLASSES.find(c => c.name === deadTok.class);
   const classSkill = enemyTpl?.classSkill;
   const base = {
@@ -6428,7 +6394,7 @@ function executeRecruit(replaceIdx, deadTokId) {
     str: deadTok.str, vit: deadTok.vit, int: deadTok.int, dex: deadTok.dex,
     skills: classSkill ? [classSkill, null] : [null, null],
     equipment: [], potions: [{type:'healing', charges:1}],
-    level: 1, traitName: 'Recruited (Monster)',
+    level: 1,
     isMonster: true
   });
   if (replaceIdx >= 0) {
@@ -6436,12 +6402,19 @@ function executeRecruit(replaceIdx, deadTokId) {
     log(`&#9876; ${newHero.name} replaces the fallen ally. Trust -5.`, 'vision');
   } else {
     CAMPAIGN.heroes.push(newHero);
-    log(`&#9876; ${newHero.name} joins as the 5th party member. Trust -5.`, 'vision');
+    log(`&#9876; ${newHero.name} joins the party. Trust -5.`, 'vision');
   }
   trustEvent(-5, `Recruited monster: ${newHero.name}`);
   window._recruitsDoneThisCombat = (window._recruitsDoneThisCombat || 0) + 1;
   saveCampaign();
   document.getElementById('recruitModal')?.remove();
+  // Place on the grid near the dead enemy
+  const spawnR = deadTok.row;
+  const spawnC = deadTok.col + 1;
+  placeHeroFromCampaign(newHero, spawnR, spawnC);
+  // Remove corpse token
+  tokens = tokens.filter(t => t.id !== deadTokId);
+  rebuildTurnOrder();
   renderAll();
 }
 
@@ -6585,6 +6558,8 @@ function placeHeroFromCampaign(h, r, c) {
     color:tpl.color, bcolor:tpl.bcolor,
     cooldowns:{...h.cooldowns}, statuses:[...h.statuses],
     skills:[...(h.skills||[null,null])],
+    equipment:[...(h.equipment||[])],
+    potions:[...(h.potions||[])],
     actions:true, bonusAction:true, reaction:true,
     dead:false, _campaignRef:h
   }));
@@ -6886,6 +6861,173 @@ const TERRAIN_INFO = {
 };
 
 // =============================================================================
+// LEVEL DESIGNER
+// =============================================================================
+const LD_STORAGE_KEY = 'shatteredCrownCustomLevels_v1';
+const _ld = {
+  levels: [], currentId: Date.now(),
+  name: 'Custom Level', type: 'combat',
+  terrainSparse: [], heroSpawns: [[1,1],[3,1],[5,1],[7,1]],
+  enemies: [],
+  mode: 'terrain', currentTerrain: 'normal', currentEnemyClass: 'Goblin', dirty: false
+};
+function ldLoadAll() {
+  try { _ld.levels = JSON.parse(localStorage.getItem(LD_STORAGE_KEY)||'[]'); }
+  catch(e) { _ld.levels = []; }
+  return _ld.levels;
+}
+function ldSaveAll() {
+  try { localStorage.setItem(LD_STORAGE_KEY, JSON.stringify(_ld.levels)); }
+  catch(e) { console.warn('Save levels failed:', e); }
+}
+function openLevelDesigner() {
+  ldLoadAll();
+  _ld.currentId = Date.now();
+  _ld.name = document.getElementById('ldName').value = 'Custom Level';
+  _ld.type = 'combat'; document.getElementById('ldType').value = 'combat';
+  _ld.terrainSparse = []; _ld.heroSpawns = [[1,1],[3,1],[5,1],[7,1]]; _ld.enemies = [];
+  _ld.mode = 'terrain'; _ld.currentTerrain = 'normal'; _ld.currentEnemyClass = 'Goblin'; _ld.dirty = false;
+  document.getElementById('ldEnemyClass').innerHTML = ENEMY_CLASSES.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
+  document.getElementById('ldModal').style.display = 'flex';
+  ldRenderGrid();
+}
+function closeLevelDesigner() {
+  if (_ld.dirty && !confirm('Unsaved changes will be lost. Close?')) return;
+  document.getElementById('ldModal').style.display = 'none';
+}
+function ldRenderGrid() {
+  const grid = document.getElementById('ldGrid'); grid.innerHTML = '';
+  const tmap = {}, hmap = {}, emap = {};
+  _ld.terrainSparse.forEach(({r,c,t}) => tmap[`${r},${c}`] = t);
+  _ld.heroSpawns.forEach(([r,c],i) => hmap[`${r},${c}`] = i+1);
+  _ld.enemies.forEach(e => emap[`${e.r},${e.c}`] = e.cls);
+  for (let r=0; r<GRID_SIZE; r++) for (let c=0; c<GRID_SIZE; c++) {
+    const cell = document.createElement('div'); cell.className = 'ld-cell';
+    cell.dataset.r = r; cell.dataset.c = c;
+    const t = tmap[`${r},${c}`]||'normal';
+    if (t!=='normal') cell.classList.add('terrain-'+t);
+    const coord = document.createElement('span'); coord.className = 'ld-coord';
+    coord.textContent = `${String.fromCharCode(65+c)}${r+1}`; cell.appendChild(coord);
+    if (hmap[`${r},${c}`]) { cell.classList.add('ld-hspawn'); const s=document.createElement('span');s.className='ld-marker';s.textContent=`★${hmap[`${r},${c}`]}`;cell.appendChild(s); }
+    else if (emap[`${r},${c}`]) { cell.classList.add('ld-espawn'); const s=document.createElement('span');s.className='ld-marker';s.textContent=`☠${emap[`${r},${c}`].substring(0,3)}`;cell.appendChild(s); }
+    else if (t!=='normal' && TERRAIN_INFO[t]?.emoji) { const s=document.createElement('span');s.textContent=TERRAIN_INFO[t].emoji;s.style.fontSize='1rem';cell.appendChild(s); }
+    cell.onclick = () => ldCellClick(r,c);
+    grid.appendChild(cell);
+  }
+  ldUpdateSummary();
+}
+function ldUpdateSummary() {
+  document.getElementById('ldSummary').textContent = `Hero spawns: ${_ld.heroSpawns.length} · Enemies: ${_ld.enemies.length} · Terrain tiles: ${_ld.terrainSparse.length}`;
+}
+function ldCellClick(r,c) {
+  if (_ld.mode==='terrain') {
+    _ld.terrainSparse = _ld.terrainSparse.filter(x=>x.r!==r||x.c!==c);
+    if (_ld.currentTerrain!=='normal') _ld.terrainSparse.push({r,c,t:_ld.currentTerrain});
+  } else if (_ld.mode==='hero-spawn') {
+    const idx = _ld.heroSpawns.findIndex(([hr,hc])=>hr===r&&hc===c);
+    idx>=0 ? _ld.heroSpawns.splice(idx,1) : _ld.heroSpawns.length<4 && _ld.heroSpawns.push([r,c]);
+  } else if (_ld.mode==='enemy-spawn') {
+    const idx = _ld.enemies.findIndex(e=>e.r===r&&e.c===c);
+    idx>=0 ? _ld.enemies.splice(idx,1) : _ld.enemies.push({cls:_ld.currentEnemyClass,r,c});
+  } else if (_ld.mode==='eraser') {
+    _ld.terrainSparse = _ld.terrainSparse.filter(x=>x.r!==r||x.c!==c);
+    _ld.heroSpawns = _ld.heroSpawns.filter(([hr,hc])=>hr!==r||hc!==c);
+    _ld.enemies = _ld.enemies.filter(e=>e.r!==r||e.c!==c);
+  }
+  _ld.dirty = true; ldRenderGrid();
+}
+function ldSetTerrainMode(t,btn) {
+  _ld.mode='terrain'; _ld.currentTerrain=t;
+  document.querySelectorAll('.ld-tool-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  document.getElementById('ldModeLabel').textContent = `Mode: Paint ${(TERRAIN_INFO[t]||{name:t}).name}`;
+}
+function ldSetMode(mode,btn) {
+  _ld.mode=mode;
+  document.querySelectorAll('.ld-tool-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  const L={'hero-spawn':'Place Hero Spawns (★, max 4)','enemy-spawn':'Place Enemy Spawns (☠)','eraser':'Eraser (click to clear cell)'};
+  document.getElementById('ldModeLabel').textContent = `Mode: ${L[mode]||mode}`;
+}
+function ldClearAll() {
+  if(!confirm('Clear the entire level?'))return;
+  _ld.terrainSparse=[];_ld.heroSpawns=[[1,1],[3,1],[5,1],[7,1]];_ld.enemies=[];
+  _ld.dirty=true; ldRenderGrid();
+}
+function ldSave() {
+  ldLoadAll();
+  _ld.name = document.getElementById('ldName').value.trim()||'Custom Level';
+  _ld.type = document.getElementById('ldType').value;
+  const idx = _ld.levels.findIndex(l=>l.id===_ld.currentId);
+  const data = {id:_ld.currentId,name:_ld.name,type:_ld.type,terrainSparse:JSON.parse(JSON.stringify(_ld.terrainSparse)),heroSpawns:JSON.parse(JSON.stringify(_ld.heroSpawns)),enemies:JSON.parse(JSON.stringify(_ld.enemies))};
+  idx>=0 ? _ld.levels[idx]=data : _ld.levels.push(data);
+  ldSaveAll(); _ld.dirty=false; alert('Level saved!');
+}
+function ldShowLoad() {
+  ldLoadAll();
+  const list = document.getElementById('ldLoadList'); list.innerHTML = '';
+  if (!_ld.levels.length) { list.innerHTML = '<div style="padding:20px;color:#666;text-align:center">No saved levels yet.</div>'; }
+  else _ld.levels.forEach(l => {
+    const d = document.createElement('div'); d.className = 'ld-load-item';
+    d.innerHTML = `<div><strong style="color:#c9a84c">${l.name}</strong><span style="color:#888;font-size:0.7rem"> — ${l.type}, ${(l.enemies||[]).length} enemies</span></div>
+      <div style="display:flex;gap:4px">
+        <button class="mini-btn" style="color:#7fbf7f;border-color:#2d7a2d" onclick="ldLoadById(${l.id})">Load</button>
+        <button class="mini-btn" style="color:#e05555;border-color:#8b1a1a" onclick="ldDeleteById(${l.id})">Del</button>
+      </div>`;
+    list.appendChild(d);
+  });
+  document.getElementById('ldLoadModal').style.display = 'flex';
+}
+function ldLoadById(id) {
+  const l = _ld.levels.find(x=>x.id===id); if(!l)return;
+  _ld.currentId=l.id;_ld.name=l.name;_ld.type=l.type;
+  _ld.terrainSparse=JSON.parse(JSON.stringify(l.terrainSparse||[]));
+  _ld.heroSpawns=JSON.parse(JSON.stringify(l.heroSpawns||[[1,1],[3,1],[5,1],[7,1]]));
+  _ld.enemies=JSON.parse(JSON.stringify(l.enemies||[]));_ld.dirty=false;
+  document.getElementById('ldName').value=l.name;
+  document.getElementById('ldType').value=l.type;
+  document.getElementById('ldLoadModal').style.display='none'; ldRenderGrid();
+}
+function ldDeleteById(id) {
+  if(!confirm('Delete this level?'))return;
+  _ld.levels=_ld.levels.filter(l=>l.id!==id); ldSaveAll(); ldShowLoad();
+}
+function ldCloseLoad() { document.getElementById('ldLoadModal').style.display='none'; }
+function ldExport() {
+  ldSave();
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(_ld.levels,null,2)],{type:'application/json'}));a.download='shattered-crown-levels.json';a.click();
+}
+function ldImport(e) {
+  const f=e.target.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=function(ev){try{const d=JSON.parse(ev.target.result);if(Array.isArray(d)){ldLoadAll();_ld.levels=_ld.levels.concat(d);ldSaveAll();alert(`Imported ${d.length} level(s)!`);ldShowLoad();}}catch(err){alert('Invalid level file.');}};
+  r.readAsText(f);e.target.value='';
+}
+function ldPlay() {
+  if (_ld.enemies.length===0 && !confirm('No enemies placed. Start empty combat?')) return;
+  _ld.name = document.getElementById('ldName').value.trim()||'Custom Level';
+  _ld.type = document.getElementById('ldType').value;
+  ldSave(); closeLevelDesigner();
+  tokens=[];turnOrder=[];turnIndex=0;round=1;
+  document.getElementById('roundNum').textContent='1';selectedId=null;
+  window._recruitsDoneThisCombat=0;window._combatVictoryTrustGiven=false;
+  clearMap();
+  (_ld.terrainSparse||[]).forEach(({r,c,t})=>{terrain[r][c]=t;});
+  const sp = _ld.heroSpawns||[[1,1],[3,1],[5,1],[7,1]];
+  if (CAMPAIGN.active && CAMPAIGN.heroes) {
+    CAMPAIGN.heroes.forEach((h,i)=>{if(!h.dead){const[r,c]=sp[i]||[1,1+i];placeHeroFromCampaign(h,r,c);}});
+  } else {
+    const da = ALLY_CLASSES.slice(0,4);
+    da.forEach((tpl,i)=>{const[r,c]=sp[i]||[1,1+i];const id=(tokens.reduce((m,t)=>Math.max(m,t.id),0)||0)+1;tokens.push(makeToken({id,side:'ally',class:tpl.name,name:NAMES[tpl.name]?.[0]||tpl.name,row:r,col:c,hp:tpl.hp,maxHp:tpl.hp,mana:tpl.maxMana||0,maxMana:tpl.maxMana||0,manaRegen:tpl.manaRegen||0,atk:tpl.atk,def:tpl.def,maxDef:tpl.def,speed:tpl.speed,range:tpl.range,str:tpl.str||1,vit:tpl.vit||1,int:tpl.int||1,dex:tpl.dex||1,color:tpl.color,bcolor:tpl.bcolor,cooldowns:{},statuses:[],skills:[...(tpl.classSkill?[tpl.classSkill]:[]),null],actions:true,bonusAction:true,reaction:true,dead:false}));});
+  }
+  (_ld.enemies||[]).forEach(e=>placeEnemyFromEncounter(e.cls,e.r,e.c));
+  tokens.forEach(t=>{if(t.side==='ally')t.def=t.maxDef;});
+  rebuildTurnOrder();rollInitiative();detectFlanking();renderAll();
+  document.getElementById('combatNodeName').textContent=`🗺 ${_ld.name}`;
+  switchScene('combat');log(`=== PLAY CUSTOM LEVEL: ${_ld.name} ===`,'vision');
+}
+
+// =============================================================================
 // HELP SYSTEM
 // =============================================================================
 const HELP_TOPICS = {
@@ -6906,6 +7048,7 @@ const HELP_TOPICS = {
   'roll':        {title:'Trait Roll', desc:'Each hero gets 2 random traits to pick from. Traits modify stats (e.g. Brave +1 ATK, Veteran +4 max HP) and give passive abilities (Lucky re-rolls 1s).', example:'Roll for Fighter — get [Veteran, Reckless]. Pick Reckless: +2 ATK, -2 DEF.'},
   'recruit':     {title:'Monster Recruitment', desc:'After 3 souls (Vision I), defeated common monsters may join your party. After 7 souls (Vision II), elites too. The Sword whispers to you. Click ☠ symbol on a dead enemy with the ⚔ recruit icon to recruit them. Costs -5 Trust (humans uneasy).', example:'Goblin dies → ⚔ icon appears → click → modal lets you replace a fallen ally OR add as 5th member.'},
   'trust.use':   {title:'Trust System (Usage)', desc:'Trust 0-100 represents your party\'s loyalty. Auto-changes: +2 per kill, -8 per ally death, -5 per monster recruit. GM also has manual buttons (+/-) in the GM Sandbox panel for narrative events. Roll d100 to check NPC behavior: roll > Trust+40 means GM controls that ally that turn; > Trust+70 means they flee. 0 = HOSTILE — party may attack Varn.', example:'Trust=40. Player orders Cleric to heal Varn. Roll d100=65. 65>40+40=80? No. So Cleric obeys. Roll 95? Yes, Cleric refuses or does something else.'},
+  'level.designer': {title:'Level Designer', desc:'Design and save custom combat levels. Paint terrain (wall, water, high-ground, fire, grass, crack, ledge), place hero spawn points (★, max 4), and place enemy spawns with class selection. Save to browser, load later, or export/import as JSON to share. Click "Play" to jump directly into combat with the current design. Works in both Campaign and GM Sandbox mode.', example:'1. Name your level "Goblin Fort"\n2. Paint walls and high-ground\n3. Add hero spawns at the left edge\n4. Place 5 Goblin enemies at various positions\n5. Save → Play → combat starts with your layout!'},
 };
 function helpBtn(topic, big) {
   return `<span class="help-btn${big?' big':''}" onclick="event.stopPropagation();showHelp('${topic}')" title="Click for help">?</span>`;
@@ -7071,7 +7214,7 @@ function renderCharDetail(tokId) {
           style="background:transparent;border:none;border-bottom:1px solid #4a3a1a;color:#c9a84c;font-size:1.15rem;font-weight:bold;width:100%;padding:0 0 2px 0;cursor:text"
           title="Edit name">
         <div style="color:#888;font-size:0.78rem">${tok.class} · ${tok.side==='ally'?'🔵 Ally':'🔴 Enemy'}${tok.dead?' · ☠ Dead':''}</div>
-        ${tok.trait?`<div style="color:#dfaf3a;font-size:0.68rem">${tok.trait.name||''}</div>`:''}
+        
       </div>
       <button onclick="closeCharDetail()" style="background:none;border:1px solid #444;color:#666;width:26px;height:26px;cursor:pointer;border-radius:4px;font-size:0.9rem;flex-shrink:0">✕</button>
     </div>
@@ -7362,7 +7505,7 @@ startCombatNode = function(node) {
 init();
 rebindGrid();
 // Move modals to body top so they're visible regardless of which screen is active
-['visionModal','rollModal','attackModal','combatLogModal','skillModal','endTurnModal'].forEach(id => {
+['visionModal','rollModal','attackModal','combatLogModal','skillModal','endTurnModal','ldModal','ldLoadModal'].forEach(id => {
   const el = document.getElementById(id);
   if (el && el.parentNode !== document.body) document.body.appendChild(el);
 });

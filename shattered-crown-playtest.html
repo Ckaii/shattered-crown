@@ -22,7 +22,7 @@ header h1{color:#c9a84c;font-size:1.2rem;letter-spacing:1px}
 .grid{display:grid;grid-template-columns:repeat(10,60px);grid-template-rows:repeat(10,60px);border:2px solid #c9a84c;gap:1px;background:#c9a84c44}
 .cell{width:60px;height:60px;background:#12192a;position:relative;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.1s}
 .cell:hover{background:#1a2540}
-.cell.high-ground{background:#0e1e10}.cell.fire{background:#1f1008}.cell.crack{background:#1a1510}.cell.ledge{background:#080d18}.cell.wall{background:#050508;cursor:not-allowed}.cell.water{background:#081828;outline:1px solid #2a5a8a}
+.cell.high-ground{background:#0e1e10}.cell.fire{background:#1f1008}.cell.crack{background:#1a1510}.cell.ledge{background:#080d18}.cell.wall{background:#050508;cursor:not-allowed}.cell.water{background:#081828;outline:1px solid #2a5a8a}.cell.grass{background:#0a1e08;outline:1px solid #2a6a2a}
 .cell.in-range{background:#142414;outline:1px solid #2d6a2d}
 .cell.target-range{background:#241414;outline:1px solid #6a2d2d}
 .cell.atk-range{background:#2a0e0e;outline:2px solid #c04040;cursor:crosshair}
@@ -686,6 +686,7 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
       <button class="t-btn" onclick="setTerrainMode('ledge',this)">Ledge</button>
       <button class="t-btn" onclick="setTerrainMode('wall',this)">&#9632; Wall</button>
       <button class="t-btn" onclick="setTerrainMode('water',this)">🌊 Water</button>
+      <button class="t-btn" onclick="setTerrainMode('grass',this)">🌿 Tall Grass</button>
       <button class="t-btn t-active" style="border-color:#4a8fbf;color:#4a8fbf" onclick="setMode('select',this)" id="selectModeBtn">&#9678; Select/Move</button>
     </div>
     <div class="place-bar" id="placeBar"></div>
@@ -2981,6 +2982,15 @@ function resolveAttack(attacker, target) {
     target.sneaking = false;
   }
 
+  // Tall grass: 50% dodge chance when target is in grass terrain
+  if (terrain[target.row]?.[target.col] === 'grass') {
+    if (Math.random() < 0.5) {
+      log(`${target.name} hides in the tall grass — DODGE!`, 'miss');
+      spawnFloat(target.row, target.col, 'DODGE!', 'fdmg-miss');
+      return;
+    }
+  }
+
   // Sprite animation: lunge toward target
   const sprAtt = spriteFor(attacker.class);
   spriteAnim(attacker.id, 'attacking');
@@ -4907,15 +4917,22 @@ const ENCOUNTERS = {
   goblin_archers: [{cls:'Ranged Goblin', r:1, c:8}, {cls:'Ranged Goblin', r:4, c:8}, {cls:'Ranged Goblin', r:7, c:8},
                    {cls:'Mage Goblin', r:4, c:9}],
 
-  // Node 5 — water: aquatic enemies + straggler goblins
-  water_ambush:   [{cls:'Icefish', r:2, c:7}, {cls:'Icefish', r:6, c:7},
-                   {cls:'Electric Eel', r:4, c:8},
-                   {cls:'Goblin', r:1, c:9}, {cls:'Goblin', r:7, c:9}],
+  // Node 5 — water: Slime, Icefish, Swordfish, Siren, Electric Eel (Orc proxy)
+  water_ambush:   [{cls:'Slime',        r:0, c:7},
+                   {cls:'Slime',        r:2, c:9},
+                   {cls:'Icefish',      r:1, c:6},
+                   {cls:'Icefish',      r:3, c:9},
+                   {cls:'Swordfish',    r:0, c:5},
+                   {cls:'Siren',        r:2, c:7},
+                   {cls:'Electric Eel', r:4, c:8}],
 
-  // Node 6 — tree: elf rangers + growing plants
-  tree_encounter: [{cls:'Elf', r:2, c:8}, {cls:'Elf', r:6, c:8},
-                   {cls:'Sapling', r:4, c:7},
-                   {cls:'Seedling', r:2, c:6}, {cls:'Seedling', r:6, c:6}],
+  // Node 6 — Rotwood: Elf + Seeds in tall grass (Orc=Seed, Goblin=Elf)
+  tree_encounter: [{cls:'Elf',      r:0, c:8},
+                   {cls:'Elf',      r:1, c:6},
+                   {cls:'Elf',      r:2, c:9},
+                   {cls:'Seed',     r:0, c:5},
+                   {cls:'Seedling', r:1, c:8},
+                   {cls:'Sapling',  r:3, c:7}],
 
   // Node 8 — small undead patrol
   undead_patrol:  [{cls:'Zombie', r:2, c:8}, {cls:'Zombie', r:6, c:8}, {cls:'Skeleton', r:4, c:9}],
@@ -4936,10 +4953,8 @@ const ENCOUNTERS = {
                    {cls:'Spear Goblin', r:3, c:9}, {cls:'Spear Goblin', r:5, c:9},
                    {cls:'Mage Goblin', r:4, c:6}],
 
-  // Node 14 — Aldric boss fight
-  aldric:         [{cls:'Aldric', r:4, c:8},
-                   {cls:'Shield Bearer', r:3, c:7}, {cls:'Shield Bearer', r:5, c:7},
-                   {cls:'Healer', r:2, c:9}, {cls:'Turret', r:6, c:9}]
+  // Node 14 — Aldric: solo boss (heroes enter from bottom)
+  aldric:         [{cls:'Aldric', r:4, c:4}]
 };
 
 // =============================================================================
@@ -4980,29 +4995,41 @@ const LEVEL_DESIGNS = {
     ],
     heroSpawns: [[1,1],[3,1],[5,1],[7,1]]
   },
-  // Node 5 — The Flooded Valley: water fills the centre
+  // Node 5 — The Flooded Valley: large connected water body (right/centre)
   5: {
     name: 'The Flooded Valley',
     terrainSparse: [
-      {r:2, c:4, t:'water'}, {r:2, c:5, t:'water'}, {r:2, c:6, t:'water'},
-      {r:3, c:3, t:'water'}, {r:3, c:4, t:'water'}, {r:3, c:5, t:'water'}, {r:3, c:6, t:'water'}, {r:3, c:7, t:'water'},
-      {r:4, c:3, t:'water'}, {r:4, c:4, t:'water'}, {r:4, c:5, t:'water'}, {r:4, c:6, t:'water'}, {r:4, c:7, t:'water'}, {r:4, c:8, t:'water'},
-      {r:5, c:3, t:'water'}, {r:5, c:4, t:'water'}, {r:5, c:5, t:'water'}, {r:5, c:6, t:'water'}, {r:5, c:7, t:'water'},
-      {r:6, c:4, t:'water'}, {r:6, c:5, t:'water'}, {r:6, c:6, t:'water'},
+      // Water body — connected for Electric Eel zone attacks
+      {r:0, c:5, t:'water'}, {r:0, c:6, t:'water'}, {r:0, c:7, t:'water'}, {r:0, c:8, t:'water'},
+      {r:1, c:4, t:'water'}, {r:1, c:5, t:'water'}, {r:1, c:6, t:'water'}, {r:1, c:7, t:'water'}, {r:1, c:8, t:'water'}, {r:1, c:9, t:'water'},
+      {r:2, c:3, t:'water'}, {r:2, c:4, t:'water'}, {r:2, c:5, t:'water'}, {r:2, c:6, t:'water'}, {r:2, c:7, t:'water'}, {r:2, c:8, t:'water'}, {r:2, c:9, t:'water'},
+      {r:3, c:3, t:'water'}, {r:3, c:4, t:'water'}, {r:3, c:5, t:'water'}, {r:3, c:6, t:'water'}, {r:3, c:7, t:'water'}, {r:3, c:8, t:'water'}, {r:3, c:9, t:'water'},
+      {r:4, c:3, t:'water'}, {r:4, c:4, t:'water'}, {r:4, c:5, t:'water'}, {r:4, c:6, t:'water'}, {r:4, c:7, t:'water'}, {r:4, c:8, t:'water'}, {r:4, c:9, t:'water'},
+      {r:5, c:3, t:'water'}, {r:5, c:4, t:'water'}, {r:5, c:5, t:'water'}, {r:5, c:6, t:'water'}, {r:5, c:7, t:'water'}, {r:5, c:8, t:'water'},
+      {r:6, c:4, t:'water'}, {r:6, c:5, t:'water'}, {r:6, c:6, t:'water'}, {r:6, c:7, t:'water'},
+      {r:7, c:5, t:'water'}, {r:7, c:6, t:'water'},
+      // Shore walls
+      {r:2, c:2, t:'wall'}, {r:5, c:2, t:'wall'},
     ],
     heroSpawns: [[1,1],[3,1],[5,1],[7,1]]
   },
-  // Node 6 — The Rotwood: forested terrain, high-ground trees
+  // Node 6 — The Rotwood: tall grass scattered (50% dodge) + tree stumps
   6: {
     name: 'The Rotwood',
     terrainSparse: [
-      {r:1, c:3, t:'high-ground'}, {r:1, c:4, t:'high-ground'},
-      {r:4, c:5, t:'high-ground'}, {r:5, c:6, t:'high-ground'},
-      {r:7, c:3, t:'high-ground'}, {r:8, c:4, t:'high-ground'},
-      {r:2, c:7, t:'wall'}, {r:3, c:7, t:'wall'},
-      {r:6, c:7, t:'wall'}, {r:7, c:7, t:'wall'},
+      // Tall grass patches — scattered across map
+      {r:0, c:3, t:'grass'}, {r:0, c:6, t:'grass'}, {r:0, c:9, t:'grass'},
+      {r:1, c:1, t:'grass'}, {r:1, c:5, t:'grass'}, {r:1, c:8, t:'grass'},
+      {r:2, c:3, t:'grass'}, {r:2, c:7, t:'grass'},
+      {r:3, c:0, t:'grass'}, {r:3, c:4, t:'grass'}, {r:3, c:8, t:'grass'},
+      {r:4, c:2, t:'grass'}, {r:4, c:6, t:'grass'},
+      {r:5, c:4, t:'grass'}, {r:5, c:8, t:'grass'},
+      {r:6, c:1, t:'grass'}, {r:6, c:5, t:'grass'},
+      {r:7, c:3, t:'grass'}, {r:7, c:7, t:'grass'},
+      // Tree stumps (walls)
+      {r:2, c:5, t:'wall'}, {r:5, c:2, t:'wall'}, {r:5, c:7, t:'wall'},
     ],
-    heroSpawns: [[1,1],[3,1],[5,1],[7,1]]
+    heroSpawns: [[8,0],[8,2],[9,0],[9,2]]
   },
   // Node 8 — Undead Patrol: graveyard with cracked floor
   8: {
@@ -5047,17 +5074,20 @@ const LEVEL_DESIGNS = {
     ],
     heroSpawns: [[2,1],[4,1],[6,1],[8,1]]
   },
-  // Node 14 — Aldric: throne room, central dais + flanking pillars
+  // Node 14 — Aldric: open throne room, left column walled off
   14: {
     name: 'Aldric — Throne Room',
     terrainSparse: [
-      {r:4, c:8, t:'high-ground'},
-      {r:3, c:8, t:'high-ground'}, {r:5, c:8, t:'high-ground'},
-      {r:2, c:6, t:'wall'}, {r:7, c:6, t:'wall'},
-      {r:4, c:4, t:'fire'},
-      {r:0, c:0, t:'wall'}, {r:9, c:0, t:'wall'},
+      // Left column — sealed dungeon wall
+      {r:0, c:0, t:'wall'}, {r:1, c:0, t:'wall'}, {r:2, c:0, t:'wall'},
+      {r:3, c:0, t:'wall'}, {r:4, c:0, t:'wall'}, {r:5, c:0, t:'wall'},
+      {r:6, c:0, t:'wall'}, {r:7, c:0, t:'wall'}, {r:8, c:0, t:'wall'}, {r:9, c:0, t:'wall'},
+      // Throne dais (Aldric's raised position, right side)
+      {r:3, c:8, t:'high-ground'}, {r:4, c:8, t:'high-ground'}, {r:5, c:8, t:'high-ground'},
+      // Ceremonial fire
+      {r:4, c:5, t:'fire'},
     ],
-    heroSpawns: [[3,1],[4,1],[5,1],[6,1]]
+    heroSpawns: [[8,2],[8,4],[8,6],[8,8]]
   }
 };
 
@@ -6223,7 +6253,8 @@ const TERRAIN_INFO = {
   'crack':       {emoji:'✱', name:'Cracked Floor', short:'Roll d20: 16-20 = 1d4 damage', desc:'Roll d20 when entering. On 16-20, the floor gives way — token takes 1d4 damage. On 1-15, crosses safely.', example:'Goblin crosses cracked floor. Roll 18 (≥16) — takes 3 damage!'},
   'ledge':       {emoji:'⬇️', name:'Ledge / Drop', short:'Push targets here = 1d6 fall damage', desc:'Tokens pushed onto a Ledge fall to lower level. Takes 1d6 fall damage and is repositioned at the bottom by the GM.', example:'Fighter uses Shield Bash — pushes Goblin onto a Ledge. Roll 1d6 = 4 fall damage.'},
   'wall':        {emoji:'🟫', name:'Wall', short:'Impassable', desc:'Cannot be entered or moved through. Blocks line-of-sight for ranged attacks.', example:'A pillar in the throne room — ranged shots cannot pass through it.'},
-  'water':       {emoji:'🌊', name:'Water', short:'Electric spreads; Icefish can freeze', desc:'Tokens standing in water can be hit by Electric Eel zone attacks and frozen by Icefish.', example:'Electric Eel activates — all tokens in connected water take damage.'}
+  'water':       {emoji:'🌊', name:'Water', short:'Electric spreads; Icefish can freeze', desc:'Tokens standing in water can be hit by Electric Eel zone attacks and frozen by Icefish.', example:'Electric Eel activates — all tokens in connected water take damage.'},
+  'grass':       {emoji:'🌿', name:'Tall Grass', short:'50% dodge chance', desc:'Tokens in tall grass have a 50% chance to dodge any incoming attack automatically before it is resolved.', example:'Elf stands in grass — attacker rolls to hit, but first a 50% dodge check fires. On success, the attack misses entirely.'}
 };
 
 // =============================================================================

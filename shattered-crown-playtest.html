@@ -3839,7 +3839,7 @@ function cardHTML(tok) {
   const traitLine = tok.trait ? `<div class="card-trait">${tok.trait.name}: ${tok.trait.stats}</div>` : '';
 
   return `<div class="char-card ${tok.side==='enemy'?'enemy-card':''}${sel?' selected-card':''}${tok.dead?' dead-card':''}"
-    onclick="selectToken(${tok.id})" id="card-${tok.id}">
+    onclick="openCharDetail(${tok.id})" id="card-${tok.id}">
     <div class="card-header">
       <span class="card-name ${tok.side==='enemy'?'ename':''}">${tok.name}</span>
       <span class="card-class">${tok.class}${tok.faction?` <span style="color:${FACTION_COLORS[tok.faction]||'#888'};font-size:0.5rem">[${tok.faction.toUpperCase()}]</span>`:''}</span>
@@ -6341,81 +6341,237 @@ function givePotion(tokId, potionType) {
 // CHARACTER DETAIL MODAL
 // =============================================================================
 function openCharDetail(tokId) {
+  selectedId = tokId;      // highlight token on grid
+  renderAll();             // refresh grid with selection
   renderCharDetail(tokId);
   document.getElementById('charDetailModal').classList.add('active');
 }
-function closeCharDetail() { document.getElementById('charDetailModal').classList.remove('active'); }
+function closeCharDetail() {
+  document.getElementById('charDetailModal').classList.remove('active');
+}
 function renderCharDetail(tokId) {
   const tok = tokens.find(t => t.id === tokId);
   if (!tok) return;
   const tpl = (tok.side==='ally'?ALLY_CLASSES:ENEMY_CLASSES).find(c=>c.name===tok.class);
-  const skillsHtml = (tok.skills||[]).filter(Boolean).map(s => {
-    const cdKey = s.id ? 'pool_'+s.id : 'cls_'+s.name;
-    const cd = tok.cooldowns[cdKey] || 0;
-    return `<div class="cd-skill"><strong>${s.name}</strong>${s.manaCost?` <span style="color:#9f7fdf">[${s.manaCost} MP]</span>`:''}${cd?` <span style="color:#e05555">[CD: ${cd}]</span>`:''}<em>${s.desc||'(no description)'}</em></div>`;
-  }).join('') || '<div style="color:#666;font-style:italic;font-size:0.8rem">No learned skills</div>';
+  const spr = spriteFor(tok.class);
   const classSk = tpl?.classSkill;
-  const classSkillHtml = classSk ? `<div class="cd-skill" style="border-color:#dfaf3a"><strong>★ ${classSk.name}</strong> <span style="color:#888;font-size:0.7rem">(class skill)</span>${classSk.manaCost?` <span style="color:#9f7fdf">[${classSk.manaCost} MP]</span>`:''}<em>${classSk.desc}</em></div>` : '';
-  const eqHtml = (tok.equipment||[]).length ? tok.equipment.map(e=>`<div class="cd-item"><strong>${e.name||e}</strong>${e.desc?` <em>${e.desc}</em>`:''}</div>`).join('') : '<div style="color:#666;font-style:italic;font-size:0.8rem">No equipment</div>';
-  const potionRows = (tok.potions||[]).length ? tok.potions.map((p,i)=>{
-    const t = POTION_TYPES[p.type]; if(!t) return '';
-    return `<div class="cd-potion-row">
-      <span class="pname">🧪 ${t.name}</span>
-      <span style="font-size:0.7rem;color:#aaa">${t.desc}</span>
-      <span class="pcharges">×${p.charges}</span>
-      <button class="puse" onclick="usePotion(${tok.id},${i})">Use</button>
+
+  // ── Stat rows with +/- controls ──
+  const statRows = [
+    ['hp','HP','#7fb87f'], ['maxHp','MAX HP','#7fb87f'],
+    ['mana','MP','#9f7fdf'], ['maxMana','MAX MP','#9f7fdf'],
+    ['atk','ATK','#e08050'], ['def','DEF','#5080e0'],
+    ['speed','SPD','#50d0d0'], ['range','RNG','#d0d050'],
+    ['manaRegen','REGEN','#9f7fdf']
+  ];
+  const statsGrid = statRows.map(([k,label,col])=>`
+    <div style="text-align:center;background:#0a0f1c;border:1px solid #2a3050;border-radius:4px;padding:5px 2px">
+      <div style="color:#555;font-size:0.58rem;letter-spacing:1px;margin-bottom:2px">${label}</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:2px">
+        <button onclick="cdmAdj(${tokId},'${k}',-1)" style="background:#2a0a0a;border:1px solid #6a2a2a;color:#e05555;width:17px;height:17px;cursor:pointer;border-radius:3px;font-size:0.75rem;padding:0;line-height:1">−</button>
+        <span id="cdv-${tokId}-${k}" style="color:${col};font-weight:bold;font-size:0.9rem;min-width:24px;text-align:center">${tok[k]??0}</span>
+        <button onclick="cdmAdj(${tokId},'${k}',1)" style="background:#0a2a0a;border:1px solid #2a6a2a;color:#7fb87f;width:17px;height:17px;cursor:pointer;border-radius:3px;font-size:0.75rem;padding:0;line-height:1">+</button>
+      </div>
+    </div>`).join('');
+
+  // ── Status toggles ──
+  const ALL_STS = ['stunned','pinned','rattled','burning','wet','sneaking','flanked','distrust','poisoned'];
+  const curSts = tok.statuses||[];
+  const stsActive = curSts.map(s=>`<span onclick="cdmToggleSts(${tokId},'${s}')" title="click to remove" style="cursor:pointer;background:#5a1a1a;color:#e05555;padding:2px 8px;border-radius:10px;font-size:0.7rem">${s} ×</span>`).join(' ') || `<span style="color:#555;font-style:italic;font-size:0.75rem">None</span>`;
+  const stsBtns = ALL_STS.map(s=>{
+    const on=curSts.includes(s);
+    return `<button onclick="cdmToggleSts(${tokId},'${s}')" style="background:${on?'#5a1a1a':'#141420'};border:1px solid ${on?'#8b2020':'#2a2a4a'};color:${on?'#e05555':'#666'};padding:2px 8px;cursor:pointer;border-radius:10px;font-size:0.65rem">${s}</button>`;
+  }).join('');
+
+  // ── Equipment list ──
+  const eqItems = (tok.equipment||[]);
+  const eqList = eqItems.length ? eqItems.map((eid,i)=>{
+    const it = typeof eid==='string' ? EQUIPMENT[eid] : eid;
+    return `<div style="display:flex;align-items:center;gap:6px;background:#0a0f1c;border:1px solid #2a3050;border-radius:4px;padding:5px 8px;margin-bottom:4px">
+      <span style="font-size:1rem">${it?.icon||'📦'}</span>
+      <div style="flex:1"><div style="color:#c9a84c;font-size:0.8rem;font-weight:bold">${it?.name||eid}</div>${it?.desc?`<div style="color:#666;font-size:0.68rem">${it.desc}</div>`:''}</div>
+      <button onclick="cdmRemoveEq(${tokId},${i})" style="background:#3a1a1a;border:1px solid #8b2020;color:#e05555;padding:2px 6px;cursor:pointer;border-radius:3px;font-size:0.65rem">✕</button>
     </div>`;
-  }).join('') : '<div style="color:#666;font-style:italic;font-size:0.8rem">No potions</div>';
-  const traitInfo = tok.traitName || '—';
-  const statusInfo = (tok.statuses||[]).length ? tok.statuses.map(s=>`<span style="background:#5a1a1a;color:#e05555;padding:2px 6px;border-radius:8px;font-size:0.7rem;margin-right:4px">${s}</span>`).join('') : '<span style="color:#666;font-style:italic;font-size:0.75rem">None</span>';
+  }).join('') : '<div style="color:#555;font-size:0.75rem;font-style:italic;padding:4px 0">No equipment</div>';
+  const eqPicker = `<details style="margin-top:4px"><summary style="cursor:pointer;font-size:0.75rem;color:#dfaf3a;padding:3px 0">＋ Add Equipment</summary>
+    <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;max-height:120px;overflow-y:auto">
+      ${Object.values(EQUIPMENT).map(it=>`<button onclick="cdmAddEq(${tokId},'${it.id}')" style="background:#1a1410;border:1px solid #4a3a1a;color:#dfaf3a;padding:2px 7px;cursor:pointer;border-radius:3px;font-size:0.65rem">${it.icon} ${it.name}</button>`).join('')}
+    </div></details>`;
+
+  // ── Learned skills ──
+  const learnedSkills = (tok.skills||[]).filter(Boolean);
+  const skillList = learnedSkills.length ? learnedSkills.map((s,i)=>{
+    const cd = tok.cooldowns['pool_'+(s.id||s.name)]||0;
+    return `<div style="background:#0a0f1c;border:1px solid #2a3050;border-radius:4px;padding:7px;margin-bottom:5px">
+      <div style="display:flex;align-items:flex-start;gap:6px">
+        <div style="flex:1">
+          <span style="color:#c9a84c;font-weight:bold;font-size:0.8rem">${s.name}</span>
+          ${s.manaCost?`<span style="color:#9f7fdf;font-size:0.7rem;margin-left:4px">[${s.manaCost}MP]</span>`:''}
+          ${cd?`<span style="color:#e05555;font-size:0.7rem;margin-left:4px">[CD:${cd}]</span>`:''}
+          <div style="color:#888;font-size:0.68rem;margin-top:2px">${s.desc||''}</div>
+        </div>
+        <button onclick="cdmRemoveSk(${tokId},${i})" style="background:#3a1a1a;border:1px solid #8b2020;color:#e05555;padding:2px 5px;cursor:pointer;border-radius:3px;font-size:0.65rem;flex-shrink:0">✕</button>
+      </div>
+    </div>`;
+  }).join('') : '<div style="color:#555;font-size:0.75rem;font-style:italic;padding:4px 0">No learned skills</div>';
+  const skPicker = `<details style="margin-top:4px"><summary style="cursor:pointer;font-size:0.75rem;color:#dfaf3a;padding:3px 0">＋ Add Skill from Pool</summary>
+    <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;max-height:100px;overflow-y:auto">
+      ${(skillPool||[]).map(s=>`<button onclick="cdmAddSk(${tokId},'${s.id}')" style="background:#0a1428;border:1px solid #2a4a7a;color:#7fb8df;padding:2px 7px;cursor:pointer;border-radius:3px;font-size:0.65rem">${s.name}${s.manaCost?' ['+s.manaCost+'MP]':''}</button>`).join('')}
+    </div></details>`;
+
+  // ── Potions ──
+  const potRows = (tok.potions||[]).map((p,i)=>{
+    const pt=POTION_TYPES[p.type]; if(!pt) return '';
+    return `<div style="display:flex;align-items:center;gap:6px;background:#0a0f1c;border:1px solid #5a3a1a;border-radius:4px;padding:5px 8px;margin-bottom:4px">
+      <span style="flex:1;font-size:0.8rem;color:#dfaf3a">🧪 ${pt.name}</span>
+      <span style="font-size:0.7rem;color:#888">×${p.charges}</span>
+      <button onclick="usePotion(${tok.id},${i});openCharDetail(${tok.id})" style="background:#2a4a2a;border:1px solid #4a8f4a;color:#9fdf9f;padding:2px 8px;cursor:pointer;border-radius:3px;font-size:0.7rem">Use</button>
+    </div>`;
+  }).join('');
+  const potGive = `<details style="margin-top:4px"><summary style="cursor:pointer;font-size:0.75rem;color:#888;padding:3px 0">+ Give potion</summary>
+    <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">
+      ${Object.keys(POTION_TYPES).map(k=>`<button onclick="givePotion(${tok.id},'${k}');openCharDetail(${tok.id})" style="background:#1a1410;border:1px solid #5a3a1a;color:#dfaf3a;padding:2px 7px;cursor:pointer;border-radius:3px;font-size:0.65rem">+ ${POTION_TYPES[k].name}</button>`).join('')}
+    </div></details>`;
+
+  // ── Assemble ──
   document.getElementById('charDetailBox').innerHTML = `
-    <h2>${tok.name} ${helpBtn('character')}</h2>
-    <div class="cd-subtitle">${tok.class} · ${tok.side==='ally'?'Ally':'Enemy'}${tok.traitName?` · <span style="color:#dfaf3a">${tok.traitName}</span>`:''}${tok._campaignRef?.level?` · Level ${tok._campaignRef.level}`:''}</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #2a3050">
+      <span style="font-size:2.2rem;line-height:1">${spr.portrait}</span>
+      <div style="flex:1">
+        <div style="color:#c9a84c;font-size:1.15rem;font-weight:bold">${tok.name}</div>
+        <div style="color:#888;font-size:0.78rem">${tok.class} · ${tok.side==='ally'?'🔵 Ally':'🔴 Enemy'}${tok.dead?' · ☠ Dead':''}</div>
+        ${tok.trait?`<div style="color:#dfaf3a;font-size:0.68rem">${tok.trait.name||''}</div>`:''}
+      </div>
+      <button onclick="closeCharDetail()" style="background:none;border:1px solid #444;color:#666;width:26px;height:26px;cursor:pointer;border-radius:4px;font-size:0.9rem;flex-shrink:0">✕</button>
+    </div>
 
     <div class="cd-section">
-      <h3>Vitals</h3>
-      <div class="cd-stats">
-        <div class="cd-stat"><span class="label">HP</span><span class="val" style="color:#7fb87f">${tok.hp}/${tok.maxHp}</span></div>
-        <div class="cd-stat"><span class="label">MP</span><span class="val" style="color:#9f7fdf">${tok.mana}/${tok.maxMana}</span></div>
-        <div class="cd-stat"><span class="label">ATK</span><span class="val">${tok.atk}</span></div>
-        <div class="cd-stat"><span class="label">DEF</span><span class="val">${tok.def}</span></div>
-        <div class="cd-stat"><span class="label">SPD</span><span class="val">${tok.speed}</span></div>
-        <div class="cd-stat"><span class="label">RNG</span><span class="val">${tok.range}</span></div>
-        <div class="cd-stat"><span class="label">REGEN</span><span class="val" style="color:#9f7fdf">+${tok.manaRegen||0}</span></div>
-        <div class="cd-stat"><span class="label">ACT</span><span class="val">${tok.actions?'✓':'✗'}</span></div>
+      <h3>STATS</h3>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:6px">${statsGrid}</div>
+      <label style="display:flex;align-items:center;gap:5px;font-size:0.75rem;color:#aaa;cursor:pointer;margin-top:4px">
+        <input type="checkbox" ${tok.actions?'checked':''} onchange="cdmSetAction(${tokId},this.checked)" style="cursor:pointer">
+        Action available this turn
+      </label>
+    </div>
+
+    <div class="cd-section">
+      <h3>STATUS</h3>
+      <div style="margin-bottom:6px;min-height:20px">${stsActive}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px">
+        ${stsBtns}
+        <button onclick="cdmClearSts(${tokId})" style="background:#3a1a1a;border:1px solid #6a3a3a;color:#e05555;padding:2px 8px;cursor:pointer;border-radius:10px;font-size:0.65rem">Clear All</button>
       </div>
     </div>
 
+    ${classSk?`<div class="cd-section">
+      <h3>CLASS SKILL</h3>
+      <div style="background:#1a0a28;border:1px solid #5a2a7a;border-radius:4px;padding:8px;font-size:0.8rem">
+        <strong style="color:#dfaf3a">★ ${classSk.name}</strong>
+        ${classSk.manaCost?`<span style="color:#9f7fdf;font-size:0.7rem;margin-left:4px">[${classSk.manaCost}MP]</span>`:''}
+        <div style="color:#888;font-size:0.68rem;margin-top:3px">${classSk.desc}</div>
+      </div>
+    </div>`:''}
+
     <div class="cd-section">
-      <h3>Status Effects</h3>
-      <div style="font-size:0.8rem">${statusInfo}</div>
+      <h3>LEARNED SKILLS</h3>
+      ${skillList}${skPicker}
     </div>
 
     <div class="cd-section">
-      <h3>Skills ${helpBtn('action.skill')}</h3>
-      ${classSkillHtml}
-      ${skillsHtml}
+      <h3>EQUIPMENT</h3>
+      ${eqList}${eqPicker}
     </div>
 
-    <div class="cd-section">
-      <h3>Equipment ${helpBtn('equipment')}</h3>
-      ${eqHtml}
-    </div>
+    ${(tok.potions||[]).length||true?`<div class="cd-section">
+      <h3>POTIONS</h3>
+      ${potRows||'<div style="color:#555;font-size:0.75rem;font-style:italic;padding:4px 0">None</div>'}
+      ${potGive}
+    </div>`:''}
 
-    <div class="cd-section">
-      <h3>Potions ${helpBtn('potion')}</h3>
-      ${potionRows}
-      <details style="margin-top:6px"><summary style="cursor:pointer;font-size:0.75rem;color:#888">+ Give potion (GM)</summary>
-        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">
-          ${Object.keys(POTION_TYPES).map(k=>`<button onclick="givePotion(${tok.id},'${k}')" style="background:#1a1410;border:1px solid #5a3a1a;color:#dfaf3a;padding:4px 8px;cursor:pointer;border-radius:3px;font-size:0.7rem">+ ${POTION_TYPES[k].name}</button>`).join('')}
-        </div>
-      </details>
-    </div>
-
-    <div class="cd-actions">
+    <div class="cd-actions" style="flex-wrap:wrap;gap:6px">
+      <button onclick="cdmQuick(${tokId},'heal')" style="background:#0a2a0a;border:1px solid #4a8f4a;color:#9fdf9f;padding:5px 10px;cursor:pointer;border-radius:4px;font-size:0.72rem">💚 Full Heal</button>
+      <button onclick="cdmQuick(${tokId},'mana')" style="background:#0a0a2a;border:1px solid #4a4a9f;color:#9f9fff;padding:5px 10px;cursor:pointer;border-radius:4px;font-size:0.72rem">💙 Full MP</button>
+      <button onclick="cdmQuick(${tokId},'revive')" style="background:#1a0a2a;border:1px solid #6a2a9f;color:#cf9fff;padding:5px 10px;cursor:pointer;border-radius:4px;font-size:0.72rem">✨ Revive</button>
+      <button onclick="cdmQuick(${tokId},'kill')" style="background:#2a0a0a;border:1px solid #8b2020;color:#e05555;padding:5px 10px;cursor:pointer;border-radius:4px;font-size:0.72rem">☠ Kill</button>
+      <button onclick="cdmQuick(${tokId},'remove')" style="background:#1a0000;border:1px solid #6a0000;color:#ff6060;padding:5px 10px;cursor:pointer;border-radius:4px;font-size:0.72rem">🗑 Remove</button>
       <button class="btn-close" onclick="closeCharDetail()">Close</button>
     </div>
   `;
+}
+
+// ── CDM helper functions ─────────────────────────────────────────────────────
+function cdmAdj(tokId, key, delta) {
+  const tok = tokens.find(t=>t.id===tokId); if(!tok) return;
+  tok[key] = Math.max(0,(tok[key]??0)+delta);
+  if (key==='hp'   && tok.hp   > tok.maxHp)   tok.maxHp   = tok.hp;
+  if (key==='mana' && tok.mana > tok.maxMana)  tok.maxMana = tok.mana;
+  const el = document.getElementById(`cdv-${tokId}-${key}`);
+  if (el) el.textContent = tok[key];
+  renderAll();
+}
+function cdmSetAction(tokId, val) {
+  const tok = tokens.find(t=>t.id===tokId); if(!tok) return;
+  tok.actions = val; renderAll();
+}
+function cdmToggleSts(tokId, s) {
+  const tok = tokens.find(t=>t.id===tokId); if(!tok) return;
+  tok.statuses = tok.statuses||[];
+  if (tok.statuses.includes(s)) tok.statuses = tok.statuses.filter(x=>x!==s);
+  else tok.statuses.push(s);
+  renderCharDetail(tokId); renderAll();
+}
+function cdmClearSts(tokId) {
+  const tok = tokens.find(t=>t.id===tokId); if(!tok) return;
+  tok.statuses = []; renderCharDetail(tokId); renderAll();
+}
+function cdmRemoveEq(tokId, idx) {
+  const tok = tokens.find(t=>t.id===tokId); if(!tok) return;
+  tok.equipment = tok.equipment||[];
+  tok.equipment.splice(idx,1);
+  renderCharDetail(tokId); renderAll();
+}
+function cdmAddEq(tokId, equipId) {
+  const tok = tokens.find(t=>t.id===tokId); if(!tok) return;
+  const item = EQUIPMENT[equipId]; if(!item) return;
+  tok.equipment = tok.equipment||[];
+  // prevent duplicate
+  if (tok.equipment.includes(equipId)||tok.equipment.some(e=>e?.id===equipId)) return;
+  tok.equipment.push(equipId);
+  // apply stat bonuses
+  if (item.stats) Object.entries(item.stats).forEach(([k,v])=>{
+    if      (k==='hp')        { tok.maxHp=(tok.maxHp||0)+v; tok.hp=Math.min(tok.hp+v,tok.maxHp); }
+    else if (k==='maxMana')   { tok.maxMana=(tok.maxMana||0)+v; }
+    else if (k==='manaRegen') { tok.manaRegen=(tok.manaRegen||0)+v; }
+    else if (tok[k]!==undefined) tok[k]+=v;
+  });
+  renderCharDetail(tokId); renderAll();
+}
+function cdmRemoveSk(tokId, idx) {
+  const tok = tokens.find(t=>t.id===tokId); if(!tok) return;
+  tok.skills = tok.skills||[];
+  tok.skills.splice(idx,1);
+  renderCharDetail(tokId); renderAll();
+}
+function cdmAddSk(tokId, skillId) {
+  const tok = tokens.find(t=>t.id===tokId); if(!tok) return;
+  const sk = (skillPool||[]).find(s=>s.id===skillId); if(!sk) return;
+  tok.skills = tok.skills||[];
+  const empty = tok.skills.findIndex(s=>!s);
+  if (empty>=0) tok.skills[empty]=sk; else tok.skills.push(sk);
+  renderCharDetail(tokId); renderAll();
+}
+function cdmQuick(tokId, action) {
+  const tok = tokens.find(t=>t.id===tokId); if(!tok) return;
+  if      (action==='heal')   { tok.hp=tok.maxHp; log(`${tok.name} fully healed (GM).`,'heal'); }
+  else if (action==='mana')   { tok.mana=tok.maxMana; log(`${tok.name} MP restored (GM).`,'skill'); }
+  else if (action==='revive') { tok.dead=false; tok.hp=Math.ceil(tok.maxHp/2); log(`${tok.name} revived (GM).`,'heal'); }
+  else if (action==='kill')   { tok.dead=true; tok.hp=0; log(`${tok.name} killed (GM).`,'miss'); checkDeath(tok); }
+  else if (action==='remove') {
+    if (!confirm(`Remove ${tok.name} from battlefield?`)) return;
+    tokens.splice(tokens.indexOf(tok),1);
+    closeCharDetail(); renderAll(); return;
+  }
+  renderCharDetail(tokId); renderAll();
 }
 // Hook: clicking a char card opens detail
 window.openCharDetailFromCard = function(tokId) { openCharDetail(tokId); };
@@ -6481,33 +6637,7 @@ function wrapSkillPoolPersistence() {
 }
 
 // =============================================================================
-// CARD CLICK -> CHAR DETAIL (sandbox + campaign combat)
-// =============================================================================
-// Find existing cardHTML and wrap it
-const _origRenderCards = (typeof renderCards === 'function') ? renderCards : null;
-if (_origRenderCards) {
-  renderCards = function(...args) {
-    _origRenderCards.apply(this, args);
-    // Add click listeners to char cards
-    document.querySelectorAll('.char-card').forEach(card => {
-      const html = card.innerHTML;
-      const m = html.match(/selectToken\((\d+)\)/);
-      if (!m) return;
-      const tokId = parseInt(m[1]);
-      // Add a small detail button if not present
-      if (!card.querySelector('.cd-open-btn')) {
-        const btn = document.createElement('button');
-        btn.className = 'cd-open-btn';
-        btn.style.cssText = 'position:absolute;top:4px;right:4px;background:#1a1f3c;border:1px solid #4a8fbf;color:#7fb8df;font-size:0.65rem;padding:2px 6px;border-radius:3px;cursor:pointer;z-index:5';
-        btn.textContent = '📋';
-        btn.title = 'Open character details';
-        btn.onclick = (e) => { e.stopPropagation(); openCharDetail(tokId); };
-        card.style.position = 'relative';
-        card.appendChild(btn);
-      }
-    });
-  };
-}
+// Card onclick is now openCharDetail() — no injection needed
 
 // =============================================================================
 // HELP BUTTONS ON SANDBOX UI (inject into existing toolbar)

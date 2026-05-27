@@ -480,9 +480,18 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
 .die-pair-label{font-size:0.6rem;color:#888;letter-spacing:1px;text-align:center;margin-bottom:4px;text-transform:uppercase}
 .die-pair-sum{text-align:center;margin-top:6px;font-size:0.9rem;font-weight:bold;color:#c9a84c}
 .die-pair-sum.mp-stat{color:#7a9aba}
+.die-20 .dface { border-color: #dfaf3a; color: #dfaf3a; background: #1a1410; }
+.large-tok { transform: scale(1.4); z-index: 10; border-width: 3px !important; }
 </style>
 </head>
 <body>
+
+<!-- COMBAT DICE OVERLAY -->
+<div id="combatDiceOverlay" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9500;pointer-events:none;display:none;text-align:center;background:rgba(0,0,0,0.4);padding:40px;border-radius:20px;backdrop-filter:blur(4px)">
+  <div id="combatDiceLabel" style="color:#888;font-size:0.8rem;letter-spacing:2px;margin-bottom:15px;text-transform:uppercase">Attack Roll</div>
+  <div id="combatDiceContainer" style="display:flex;gap:30px;justify-content:center;align-items:center"></div>
+  <div id="combatDiceResult" style="margin-top:20px;font-size:2.5rem;font-weight:bold;color:#c9a84c;text-shadow:0 0 15px rgba(201,168,76,0.5);font-family:serif"></div>
+</div>
 
 <!-- HELP MODAL (shared) -->
 <div id="helpModal" class="help-modal" onclick="if(event.target===this)closeHelp()">
@@ -702,8 +711,8 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
       <button class="tool-btn" onclick="nextRound()">&#9197; Next Round</button>
       <button class="tool-btn" onclick="rollInitiative()">&#127922; Roll Initiative</button>
       <button class="tool-btn purple-tb" onclick="toggleSkillPool()">&#9670; Skill Pool</button>
-      <button class="tool-btn danger-tb" onclick="clearTokens()">&#10005; Clear Tokens</button>
-      <button class="tool-btn danger-tb" onclick="resetAll()">&#9888; Reset All</button>
+      <button class="tool-btn" style="border-color:#7a9aba;color:#7a9aba" onclick="setMode('force-move', this)">📍 Force Move</button>
+      <button class="tool-btn danger-tb" onclick="clearTokens()">&#10005; Clear Tokens</button>      <button class="tool-btn danger-tb" onclick="resetAll()">&#9888; Reset All</button>
       <button id="btnUndo" class="tool-btn" onclick="undoState()" disabled style="border-color:#5a8a5a;color:#7fbf7f">&#8629; Undo</button>
       <button id="btnRedo" class="tool-btn" onclick="redoState()" disabled style="border-color:#5a8a5a;color:#7fbf7f">&#8631; Redo</button>
     </div>
@@ -1225,10 +1234,10 @@ const EQUIPMENT = {
   longBow:      {id:'longBow',      name:'Long Bow',      icon:'🏹',  slot:'weapon',    stats:{atk:2, range:3},                 desc:'Reaches further. +2 ATK, +3 RNG (range 4)',        tier:1, classes:['Ranger']},
   battleStaff:  {id:'battleStaff',  name:'Battle Staff',  icon:'🪄',  slot:'weapon',    stats:{atk:1, range:2, maxMana:3},      desc:'Carved with old runes. +1 ATK, +2 RNG, +3 MP',     tier:1, classes:['Wizard','Mage']},
   warMace:      {id:'warMace',      name:'War Mace',      icon:'⚒️',  slot:'weapon',    stats:{atk:1, manaRegen:1, maxMana:2},  desc:'Channels divine fury. +1 ATK, +1 regen, +2 MP',    tier:1, classes:['Cleric']},
-  greatHammer:  {id:'greatHammer',  name:'Great Hammer',  icon:'🔨',  slot:'weapon',    stats:{atk:3, def:1, speed:-1},         desc:'Two-handed crusher. +3 ATK, +1 DEF, -1 SPD',       tier:1, classes:['Tank','Fighter']},
+  greatHammer:  {id:'greatHammer',  name:'Great Hammer',  icon:'🔨',  slot:'weapon',    stats:{atk:3, def:1, speed:-1},         desc:'Two-handed crusher. +3 ATK, +1 DEF, -1 SPD',       tier:1, classes:['Fighter']},
 
   // ── TIER 2: Rare drops ──────────────────────────────────────────────────
-  flameSword:   {id:'flameSword',   name:'Flame Tongue',  icon:'🔥',  slot:'weapon',    stats:{atk:3, range:0},                 desc:'Burns with old magic. +3 ATK, applies Burning (GM)',tier:2, classes:['Fighter','Tank']},
+  flameSword:   {id:'flameSword',   name:'Flame Tongue',  icon:'🔥',  slot:'weapon',    stats:{atk:3, range:0},                 desc:'Burns with old magic. +3 ATK, applies Burning (GM)',tier:2, classes:['Fighter']},
   voidDagger:   {id:'voidDagger',   name:'Void Fang',     icon:'🗡️',  slot:'weapon',    stats:{atk:3, speed:2},                 desc:'Drinks light. +3 ATK, +2 SPD',                     tier:2, classes:['Rogue']},
   hunterRifle:  {id:'hunterRifle',  name:'Crossbow',      icon:'🎯',  slot:'weapon',    stats:{atk:3, range:4},                 desc:'Pre-war craftsmanship. +3 ATK, +4 RNG (range 5)',  tier:2, classes:['Ranger']},
   archStaff:    {id:'archStaff',    name:'Archmage Staff',icon:'🔮',  slot:'weapon',    stats:{atk:2, range:3, maxMana:5, manaRegen:1}, desc:'+2 ATK, +3 RNG, +5 MP, +1 regen',         tier:2, classes:['Wizard','Mage']},
@@ -1237,7 +1246,7 @@ const EQUIPMENT = {
   // ── ARMOR (universal) ───────────────────────────────────────────────────
   leatherArmor: {id:'leatherArmor', name:'Leather Armor', icon:'🦺',  slot:'armor',     stats:{def:2},                          desc:'+2 DEF',                                            tier:0, classes:'all'},
   chainmail:    {id:'chainmail',    name:'Chainmail',     icon:'⛓️',  slot:'armor',     stats:{def:3, speed:-1},                desc:'+3 DEF, -1 SPD',                                    tier:1, classes:'all'},
-  fullPlate:    {id:'fullPlate',    name:'Full Plate',    icon:'🛡️',  slot:'armor',     stats:{def:5, speed:-2, hp:5},          desc:'+5 DEF, -2 SPD, +5 max HP',                         tier:2, classes:['Fighter','Tank']},
+  fullPlate:    {id:'fullPlate',    name:'Full Plate',    icon:'🛡️',  slot:'armor',     stats:{def:5, speed:-2, hp:5},          desc:'+5 DEF, -2 SPD, +5 max HP',                         tier:2, classes:['Fighter']},
   mysticRobes:  {id:'mysticRobes',  name:'Mystic Robes',  icon:'🥋',  slot:'armor',     stats:{def:1, maxMana:3, manaRegen:1},  desc:'+1 DEF, +3 MP, +1 regen',                           tier:1, classes:['Wizard','Mage','Cleric']},
 
   // ── ACCESSORIES (universal) ─────────────────────────────────────────────
@@ -1296,8 +1305,8 @@ const EQUIPMENT = {
   bow:            {id:'bow',            name:'Bow',               icon:'🏹', slot:'weapon', stats:{range:3},                                       desc:'+3 RNG',                                                        tier:0, classes:['Ranger']},
   heavyBow:       {id:'heavyBow',       name:'Heavy Bow',         icon:'🏹', slot:'weapon', stats:{range:4, atk:1},                                desc:'+4 RNG, +1 ATK',                                                tier:1, classes:['Ranger']},
   moonrendingBow: {id:'moonrendingBow', name:'Moonrending Bow',   icon:'🏹', slot:'weapon', stats:{range:5, atk:2},                                desc:'+5 RNG, +2 ATK, +1 dmg at max range (GM)',                      tier:2, classes:['Ranger']},
-  warHammerD:     {id:'warHammerD',     name:'War Hammer',        icon:'🔨', slot:'weapon', stats:{atk:3},                                         desc:'+3 ATK, knockback 1 on basic atk (GM)',                         tier:1, classes:['Fighter','Tank']},
-  greatAxe:       {id:'greatAxe',       name:'Great Axe',         icon:'🪓', slot:'weapon', stats:{atk:4},                                         desc:'+4 ATK',                                                        tier:1, classes:['Fighter','Tank']},
+  warHammerD:     {id:'warHammerD',     name:'War Hammer',        icon:'🔨', slot:'weapon', stats:{atk:3},                                         desc:'+3 ATK, knockback 1 on basic atk (GM)',                         tier:1, classes:['Fighter']},
+  greatAxe:       {id:'greatAxe',       name:'Great Axe',         icon:'🪓', slot:'weapon', stats:{atk:4},                                         desc:'+4 ATK',                                                        tier:1, classes:['Fighter']},
   titanbreaker:   {id:'titanbreaker',   name:'Titanbreaker Axe',  icon:'🪓', slot:'weapon', stats:{atk:5},                                         desc:'+5 ATK, cleave 1 dmg to adjacent enemy (GM)',                   tier:2, classes:['Fighter']},
   rapidFireBow:   {id:'rapidFireBow',   name:'Rapid Fire Bow',    icon:'🏹', slot:'weapon', stats:{atk:-1, range:3, manaRegen:1},                  desc:'-1 ATK, -1 MP cost, +1 regen, +3 RNG',                          tier:1, classes:['Ranger']},
   stormBow:       {id:'stormBow',       name:'Storm Bow',         icon:'🏹', slot:'weapon', stats:{atk:1, range:4, speed:1},                       desc:'+1 ATK, +4 RNG, +1 SPD',                                        tier:1, classes:['Ranger']},
@@ -1329,9 +1338,9 @@ const EQUIPMENT = {
   leatherCap:     {id:'leatherCap',     name:'Leather Cap',       icon:'🧢', slot:'armor', stats:{def:3},                                          desc:'+3 DEF',                                                        tier:0, classes:'all'},
   shadowHood:     {id:'shadowHood',     name:'Shadow Hood',       icon:'🎩', slot:'armor', stats:{def:3, speed:1},                                 desc:'+3 DEF, +1 SPD',                                                tier:0, classes:['Rogue','Ranger']},
   nightHood:      {id:'nightHood',      name:'Night Assassin Hood',icon:'🎩',slot:'armor', stats:{def:4, speed:2},                                 desc:'+4 DEF, +2 SPD, 1st move/turn -1 MP (GM)',                      tier:2, classes:['Rogue']},
-  ironHelmet:     {id:'ironHelmet',     name:'Iron Helmet',       icon:'⛑️', slot:'armor', stats:{def:6},                                          desc:'+6 DEF',                                                        tier:1, classes:['Fighter','Tank']},
-  steelHelmet:    {id:'steelHelmet',    name:'Steel Helmet',      icon:'⛑️', slot:'armor', stats:{def:7, speed:-1},                                desc:'+7 DEF, -1 SPD',                                                tier:1, classes:['Fighter','Tank']},
-  ironLegion:     {id:'ironLegion',     name:'Iron Legion Helmet',icon:'⛑️', slot:'armor', stats:{def:9, hp:1, speed:-1},                          desc:'+9 DEF, +1 HP, -1 SPD',                                         tier:2, classes:['Fighter','Tank']},
+  ironHelmet:     {id:'ironHelmet',     name:'Iron Helmet',       icon:'⛑️', slot:'armor', stats:{def:6},                                          desc:'+6 DEF',                                                        tier:1, classes:['Fighter']},
+  steelHelmet:    {id:'steelHelmet',    name:'Steel Helmet',      icon:'⛑️', slot:'armor', stats:{def:7, speed:-1},                                desc:'+7 DEF, -1 SPD',                                                tier:1, classes:['Fighter']},
+  ironLegion:     {id:'ironLegion',     name:'Iron Legion Helmet',icon:'⛑️', slot:'armor', stats:{def:9, hp:1, speed:-1},                          desc:'+9 DEF, +1 HP, -1 SPD',                                         tier:2, classes:['Fighter']},
   goggles:        {id:'goggles',        name:'Goggles',           icon:'🥽', slot:'armor', stats:{def:1, range:1},                                 desc:'+1 DEF, +1 RNG',                                                tier:0, classes:['Ranger']},
   hawkeye:        {id:'hawkeye',        name:'Hawkeye Goggles',   icon:'🥽', slot:'armor', stats:{def:2, range:2},                                 desc:'+2 DEF, +2 RNG',                                                tier:1, classes:['Ranger']},
   stormHunter:    {id:'stormHunter',    name:'Storm Hunter Goggles',icon:'🥽',slot:'armor',stats:{def:3, range:3},                                 desc:'+3 DEF, +3 RNG, +1 ATK from 4+ blocks (GM)',                    tier:2, classes:['Ranger']},
@@ -1339,15 +1348,15 @@ const EQUIPMENT = {
   goldenHalo:     {id:'goldenHalo',     name:'Golden Halo Crown', icon:'👑', slot:'armor', stats:{def:3, manaRegen:2},                             desc:'+3 DEF, +2 regen, +1 heal/shield (GM)',                         tier:2, classes:['Cleric']},
   apprenticeHat:  {id:'apprenticeHat',  name:'Apprentice Hat',    icon:'🎩', slot:'armor', stats:{def:1, maxMana:2},                               desc:'+1 DEF, +2 MP',                                                 tier:0, classes:['Wizard','Mage']},
   arcaneHat:      {id:'arcaneHat',      name:'Arcane Hat',        icon:'🎩', slot:'armor', stats:{def:2, maxMana:3, manaRegen:1},                  desc:'+2 DEF, +3 MP, +1 regen',                                       tier:1, classes:['Wizard','Mage']},
-  celestialHat:   {id:'celestialHat',   name:'Celestial Library Hat',icon:'🎩',slot:'armor',stats:{def:3, maxMana:5, manaRegen:2, range:1},        desc:'+3 DEF, +5 MP, +2 regen, +1 spell RNG',                         tier:2, classes:['Wizard']},
+  celestialHat:   {id:'celestialHat',   name:'Celestial Library Hat',icon:'🎩',slot:'armor',stats:{def:3, maxMana:5, manaRegen:2, range:1},        desc:'+3 DEF, +5 MP, +2 regen, +1 spell RNG',                         tier:2, classes:['Wizard','Mage']},
 
   // Boots
   swiftBoots:     {id:'swiftBoots',     name:'Swift Boots',       icon:'👢', slot:'accessory', stats:{def:2, speed:2},                             desc:'+2 DEF, +2 SPD, split your movement (GM)',                      tier:0, classes:'all'},
   shadowBoots:    {id:'shadowBoots',    name:'Shadow Boots',      icon:'👢', slot:'accessory', stats:{def:3, speed:2},                             desc:'+3 DEF, +2 SPD',                                                tier:1, classes:['Rogue','Ranger']},
   phantomStep:    {id:'phantomStep',    name:'Phantom Step Boots',icon:'👢', slot:'accessory', stats:{def:4, speed:3},                             desc:'+4 DEF, +3 SPD, free movement through enemies (GM)',            tier:2, classes:['Rogue']},
-  ironBoots:      {id:'ironBoots',      name:'Iron Boots',        icon:'🥾', slot:'accessory', stats:{def:4, speed:-1},                            desc:'+4 DEF, -1 SPD',                                                tier:0, classes:['Fighter','Tank']},
-  warBoots:       {id:'warBoots',       name:'War Boots',         icon:'🥾', slot:'accessory', stats:{def:6},                                      desc:'+6 DEF',                                                        tier:1, classes:['Fighter','Tank']},
-  ironGiant:      {id:'ironGiant',      name:'Iron Giant Boots',  icon:'🥾', slot:'accessory', stats:{def:8, atk:1},                               desc:'+8 DEF, +1 ATK, cannot be pushed (GM)',                         tier:2, classes:['Tank']},
+  ironBoots:      {id:'ironBoots',      name:'Iron Boots',        icon:'🥾', slot:'accessory', stats:{def:4, speed:-1},                            desc:'+4 DEF, -1 SPD',                                                tier:0, classes:['Fighter']},
+  warBoots:       {id:'warBoots',       name:'War Boots',         icon:'🥾', slot:'accessory', stats:{def:6},                                      desc:'+6 DEF',                                                        tier:1, classes:['Fighter']},
+  ironGiant:      {id:'ironGiant',      name:'Iron Giant Boots',  icon:'🥾', slot:'accessory', stats:{def:8, atk:1},                               desc:'+8 DEF, +1 ATK, cannot be pushed (GM)',                         tier:2, classes:['Fighter']},
 };
 
 const STARTER_WEAPONS = {
@@ -1387,6 +1396,15 @@ function recalcHeroStats(h) {
   h.range     = b.range;
   h.maxMana   = b.maxMana;
   h.manaRegen = b.manaRegen;
+  
+  // Large passive: add status for logic/UI
+  h.statuses = h.statuses || [];
+  if (h.skills && h.skills.some(s=>s&&s.name==='Large')) {
+    if (!h.statuses.includes('large')) h.statuses.push('large');
+  } else {
+    h.statuses = h.statuses.filter(s=>s!=='large');
+  }
+
   // Apply trait (if has one)
   if (h.traitName) {
     const tr = TRAITS.find(t => t.name === h.traitName);
@@ -2169,11 +2187,11 @@ const CLASS_SKILL_POOLS = {
     {name:'Iron Guard',   manaCost:3, cooldown:2, range:0, targetType:'self',       effectType:'buff-def',   effectValue:3, desc:'3MP 2cd — Gain +3 DEF until start of your next turn. Any melee attacker takes 1 damage back.'},
   ],
   Ranger: [
-    {name:'Heavy Shot',   manaCost:5, cooldown:0, range:6, targetType:'enemy-range',effectType:'damage',     effectValue:5, desc:'5MP 0cd — Hit enemy up to 6 blocks away for 2× your ATK.'},
-    {name:'Mana Arrow',   manaCost:1, cooldown:0, range:5, targetType:'enemy-range',effectType:'flavor',     desc:'1MP 0cd — Gain 1 Mana Arrow (max 5). Spend before a ranged attack: Power (+30% dmg), Split (20% splash), or Guided (+1 range).'},
-    {name:"Quick Shot",   manaCost:2, cooldown:1, range:4, targetType:'enemy-range',effectType:'damage',     effectValue:-1,desc:'2MP 1cd — Ranged attack at −1 ATK, then move 1 block.'},
-    {name:"Hunter's Mark",manaCost:3, cooldown:2, range:5, targetType:'enemy-range',effectType:'status-add', effectStatus:'rattled', desc:"3MP 2cd — Mark enemy in 5 blocks. Your attacks vs marked target gain +1 ATK until end of your next turn."},
-    {name:'Rain of Arrows',manaCost:5,cooldown:3, range:5, targetType:'enemy-range',effectType:'damage',     effectValue:0, desc:'5MP 3cd — Choose a 2×2 area in 5 blocks. All enemies take your ATK in damage. Cannot hit adjacent squares.'},
+    {name:'Heavy Shot',   manaCost:5, cooldown:0, range:'weapon',targetType:'enemy-range',effectType:'damage',     effectValue:5, desc:'5MP 0cd — Hit enemy at weapon range for 2× your ATK.'},
+    {name:'Mana Arrow',   manaCost:1, cooldown:0, range:5,        targetType:'enemy-range',effectType:'flavor',     desc:'1MP 0cd — Gain 1 Mana Arrow (max 5). Spend before a ranged attack: Power (+30% dmg), Split (20% splash), or Guided (+1 range).'},
+    {name:"Quick Shot",   manaCost:2, cooldown:1, range:'weapon',targetType:'enemy-range',effectType:'damage',     effectValue:-1,desc:'2MP 1cd — Ranged attack at −1 ATK, then move 1 block.'},
+    {name:"Hunter's Mark",manaCost:3, cooldown:2, range:5,        targetType:'enemy-range',effectType:'status-add', effectStatus:'rattled', desc:"3MP 2cd — Mark enemy in 5 blocks. Your attacks vs marked target gain +1 ATK until end of your next turn."},
+    {name:'Rain of Arrows',manaCost:5,cooldown:3, range:'weapon',targetType:'enemy-range',effectType:'damage',     effectValue:0, desc:'5MP 3cd — Choose a 2×2 area at weapon range. All enemies take your ATK in damage.'},
   ],
   Cleric: [
     {name:'Healing Touch',manaCost:2, cooldown:0, range:1, targetType:'ally-adj',   effectType:'heal',       effectValue:1, desc:'2MP 0cd — Heal 1 HP to self or adjacent ally. Melee range only.'},
@@ -2472,11 +2490,14 @@ function enterSkillTargetMode(skillId, tokenId) {
   if (tok.mana < (skill.manaCost||0)) { log(`${tok.name} needs ${skill.manaCost} MP (has ${tok.mana}).`,'miss'); return; }
   const cdKey = 'pool_' + skillId;
   if ((tok.cooldowns[cdKey]||0) > 0) { log(`${skill.name} on cooldown (${tok.cooldowns[cdKey]} rounds).`,'miss'); return; }
+  
+  const resolvedRange = skill.range === 'weapon' ? tok.range : (skill.range || 1);
+  
   if (skill.targetType === 'self') { applySkillEffect(skill, tok, tok); return; }
   skillTargetMode = {skillId, tokenId};
   mode = 'skill';
-  document.getElementById('modeLabel').textContent = `[${skill.name}] Click a target — ESC to cancel`;
-  showSkillRange(tok, skill.range);
+  document.getElementById('modeLabel').textContent = `[${skill.name}] Click target (RNG ${resolvedRange}) — ESC to cancel`;
+  showSkillRange(tok, resolvedRange);
   renderCards();
 }
 
@@ -2491,14 +2512,17 @@ function enterClassSkillMode(tokenId) {
   if (sk.targetType === 'passive') { log(`${tok.name}: ${sk.name} is a passive.`,'skill'); return; }
   if (tok.cooldowns[cdKey] > 0) { log(`${tok.name}: ${sk.name} on cooldown (${tok.cooldowns[cdKey]} rounds left).`,'miss'); return; }
   if (tok.mana < (sk.manaCost||0)) { log(`${tok.name} needs ${sk.manaCost} MP (has ${tok.mana}).`,'miss'); return; }
+  
+  const resolvedRange = sk.range === 'weapon' ? tok.range : (sk.range || 1);
+
   if (sk.targetType === 'self') {
     applyClassSkillEffect(sk, tok, tok);
     return;
   }
   skillTargetMode = {classSkill: sk, tokenId};
   mode = 'skill';
-  document.getElementById('modeLabel').textContent = `[${sk.name}] Click target -- ESC to cancel`;
-  showSkillRange(tok, sk.range||1, sk.name==='Revive Light');
+  document.getElementById('modeLabel').textContent = `[${sk.name}] Click target (RNG ${resolvedRange}) -- ESC to cancel`;
+  showSkillRange(tok, resolvedRange, sk.name==='Revive Light');
   renderCards();
 }
 
@@ -2614,6 +2638,83 @@ function _executeEffect_override(sk, user, target) {
     checkDeath(target);
     return true;
   }
+  if (sk.name === 'Shadow Strike') {
+    if (!target) return;
+    let bonus = 2;
+    if (target.hp < target.maxHp / 2) { bonus += 1; user.speed += 1; log(`[Shadow Strike] Blood in the water! +1 bonus SPD.`, 'skill'); }
+    const dmg = user.atk + bonus;
+    target.hp = Math.max(0, target.hp - dmg);
+    statsRecordDamage(user, target, dmg);
+    spawnFloat(target.row, target.col, `-${dmg}`, 'fdmg-hit');
+    animCell(target.row, target.col, 'anim-hit'); animToken(target.id, 'anim-shake');
+    log(`[Shadow Strike] ${user.name} strikes ${target.name} for ${dmg} damage.`, 'hit');
+    checkDeath(target);
+    return true;
+  }
+  if (sk.name === 'Quick Shot') {
+    if (!target) return;
+    const dmg = Math.max(1, user.atk - 1);
+    target.hp = Math.max(0, target.hp - dmg);
+    statsRecordDamage(user, target, dmg);
+    spawnFloat(target.row, target.col, `-${dmg}`, 'fdmg-hit');
+    log(`[Quick Shot] ${user.name} shoots ${target.name} for ${dmg} damage.`, 'hit');
+    user.moved = false; // allow reposition
+    checkDeath(target);
+    return true;
+  }
+  if (sk.name === 'Rain of Arrows') {
+    if (!target) return;
+    // Area 2x2 around target
+    tokens.filter(t=>!t.dead && t.side!==user.side && Math.abs(t.row-target.row)<=1 && Math.abs(t.col-target.col)<=1).forEach(t=>{
+      const d = user.atk;
+      t.hp = Math.max(0, t.hp - d);
+      spawnFloat(t.row, t.col, `-${d}`, 'fdmg-hit');
+      checkDeath(t);
+    });
+    log(`[Rain of Arrows] ${user.name} volleys into the area!`, 'skill');
+    return true;
+  }
+  if (sk.name === 'Blessing') {
+    if (!target) return;
+    target.atk += 1;
+    target.mana = Math.min(target.maxMana, target.mana + 1);
+    log(`[Blessing] ${target.name} ATK +1, MP +1.`, 'skill');
+    animCell(target.row, target.col, 'anim-heal');
+    return true;
+  }
+  if (sk.name === 'Divine Shield') {
+    if (!target) return;
+    target.def += 3;
+    log(`[Divine Shield] ${target.name} +3 DEF until start of ${user.name}'s next turn.`, 'skill');
+    animCell(target.row, target.col, 'anim-heal');
+    // Track for cleanup
+    user._shieldedTarget = target.id;
+    return true;
+  }
+  if (sk.name === 'Cultivate') {
+    const plants = tokens.filter(t=>!t.dead && t.side===user.side && ['Seed','Seedling','Sapling','Tree'].includes(t.class) && Math.abs(t.row-user.row)<=1 && Math.abs(t.col-user.col)<=1);
+    if (plants.length > 0) {
+      plants.forEach(p => {
+        if (p.growthTimer !== undefined) p.growthTimer = Math.max(0, p.growthTimer - 1);
+      });
+      log(`${user.name} cultivates the forest. Growth speed increased.`, 'skill');
+      fxBlast(user.row, user.col, '🌱');
+    } else {
+      log(`No adjacent plants to cultivate.`, 'miss');
+    }
+    return true;
+  }
+  if (sk.name === 'Ancient Wrath') {
+    tokens.filter(t=>!t.dead && t.side!==user.side && Math.abs(t.row-user.row)<=1 && Math.abs(t.col-user.col)<=1).forEach(t=>{
+      const d = user.atk + 5;
+      t.hp = Math.max(0, t.hp - d);
+      spawnFloat(t.row, t.col, `-${d}`, 'fdmg-crit');
+      checkDeath(t);
+    });
+    log(`🌳 [Ancient Wrath] The Ancient Tree strikes all nearby enemies!`, 'crit');
+    fxBlast(user.row, user.col, '💥');
+    return true;
+  }
   if (sk.name === 'Revive Light') {
     const dead = target && target.hp <= 0 ? target : null;
     if (!dead) { log(`No dead ally targeted.`, 'miss'); return true; }
@@ -2641,6 +2742,22 @@ function cellClick(r, c) {
   if (mode === 'place' && placeMode) {
     if (tokens.find(t=>t.row===r&&t.col===c&&!t.dead)) return;
     placeToken(placeMode.cls, placeMode.side, r, c);
+    return;
+  }
+  if (mode === 'force-move') {
+    const targetTok = tokens.find(t=>t.row===r&&t.col===c&&!t.dead);
+    if (targetTok) {
+      selectedId = targetTok.id;
+      log(`GM: Selected ${targetTok.name} for Force Move. Click any cell to teleport.`, 'sys');
+      renderAll();
+    } else if (selectedId !== null) {
+      const tok = tokens.find(t=>t.id===selectedId);
+      if (tok) {
+        tok.row = r; tok.col = c;
+        log(`GM: Force moved ${tok.name} to ${String.fromCharCode(65+c)}${r+1}.`, 'sys');
+        renderAll();
+      }
+    }
     return;
   }
   // Turret line-fire mode
@@ -2736,7 +2853,11 @@ function cellClick(r, c) {
     return;
   }
   // SELECT / MOVE
-  const tok = tokens.find(t=>t.row===r&&t.col===c&&!t.dead);
+  const tok = tokens.find(t=>!t.dead && !t._home && (
+    (t.row===r && t.col===c) ||
+    (t.skills.some(s=>s&&s.name==='Large') && !t.moved && Math.abs(t.row-r)<=1 && Math.abs(t.col-c)<=1)
+  ));
+  
   if (tok) {
     selectedId = tok.id; renderAll(); showMoveRange(tok);
     const moveInfo = tok.moved ? ' · [moved already]' : ` · can move ${tok.speed}`;
@@ -2744,35 +2865,50 @@ function cellClick(r, c) {
   } else if (selectedId !== null) {
     const sel = tokens.find(t=>t.id===selectedId);
     if (sel && !sel.dead) {
-      // Enforce turn order
       if (!enforceTurn(sel)) return;
-      // Enforce: only one move action per turn
       if (sel.moved) { log(`${sel.name} has already moved this turn.`, 'miss'); return; }
+      
       const dist = Math.abs(sel.row-r)+Math.abs(sel.col-c);
       if (terrain[r][c]==='wall') { log(`${sel.name} can't enter wall.`,'miss'); return; }
-      // Dead bodies block movement
+      
+      const hasSwift = sel.equipment && sel.equipment.includes('swiftBoots');
+      const maxDist = hasSwift ? (sel._remainingSpd ?? sel.speed) : sel.speed;
+      
       const corpseBlock = tokens.find(t=>t.row===r&&t.col===c&&t.dead);
-      if (corpseBlock) { log(`${sel.name} can't move there — ${corpseBlock.name}'s body blocks the path. Use Attack mode and click the body to clear it.`,'miss'); return; }
-      if (dist <= sel.speed) {
+      if (corpseBlock) { log(`${sel.name} can't move there — blocks the path.`,'miss'); return; }
+      
+      const occ = tokens.find(t=>!t.dead && !t._home && t.id!==sel.id && (
+        (t.row===r && t.col===c) ||
+        (t.skills.some(s=>s&&s.name==='Large') && !t.moved && Math.abs(t.row-r)<=1 && Math.abs(t.col-c)<=1)
+      ));
+      if (occ) { log(`${occ.name} blocks the path.`,'miss'); return; }
+
+      if (dist <= maxDist) {
         pushUndoState();
         log(`${sel.name} moves ${coord(sel.row,sel.col)} -> ${coord(r,c)} (${dist}/${sel.speed})`,'sys');
         sel.facing = getFacing(sel.row, sel.col, r, c);
         const oldR = sel.row, oldC = sel.col;
         sel.row = r; sel.col = c;
-        sel.moved = true; // lock further movement
-        // Remove wet if leaving water
+        
+        if (hasSwift) {
+          sel._remainingSpd = (sel._remainingSpd ?? sel.speed) - dist;
+          if (sel._remainingSpd <= 0) sel.moved = true;
+          log(`${sel.name} has ${sel._remainingSpd} movement left.`, 'sys');
+        } else {
+          sel.moved = true;
+        }
+
         if (terrain[oldR][oldC]==='water' && terrain[r][c]!=='water') {
           sel.statuses = sel.statuses.filter(s=>s!=='wet');
           log(`${sel.name} leaves the water.`, 'sys');
         }
         triggerTerrainEffect(sel, r, c);
         detectFlanking(); renderAll(); clearHighlights();
-        // Re-show range to display current state (movement hidden, attack range only)
         showMoveRange(sel);
         const label = sel.actions ? `${sel.name} moved (${dist}/${sel.speed}). Has action remaining — Attack/Skill or End Turn.` : `${sel.name} moved. No action left. Click End Turn.`;
         document.getElementById('modeLabel').textContent = label;
         maybeAutoEndTurn(sel);
-      } else { log(`${sel.name} can't reach ${coord(r,c)} (${dist} > ${sel.speed})`,'miss'); }
+      } else { log(`${sel.name} can't reach ${coord(r,c)} (${dist} > ${maxDist})`,'miss'); }
     }
   }
 }
@@ -3054,7 +3190,7 @@ function resolveAttack(attacker, target) {
   if (attacker.statuses.includes('distrust')) dis = true;
   if (attacker.statuses.includes('rattled')) dis = true;
 
-  // Roll d20 — only determines CRIT; all attacks hit
+  // Roll d20 — determines HIT and CRIT
   let r1 = Math.floor(Math.random()*20)+1;
   let r2 = Math.floor(Math.random()*20)+1;
   let raw;
@@ -3063,90 +3199,161 @@ function resolveAttack(attacker, target) {
   else raw = r1;
 
   const isCrit = raw === 20;
+  const totalHit = raw + attacker.atk;
+  const isHit = isCrit || (totalHit >= target.def);
   const advStr = adv&&!dis?' [Adv]':dis&&!adv?' [Dis]':'';
 
-  let atk = attacker.atk;
-  if (attacker.berserker && attacker.hp < attacker.maxHp/2) atk += 3;
-
-  // Damage — attacks always hit; nat 20 = double
-  let dmg = isCrit ? atk * 2 : atk;
-  // Rogue sneak attack bonus
-  if (attacker.class==='Rogue' && target.statuses.includes('flanked')) {
-    const bonus = Math.floor(Math.random()*6)+1;
-    dmg += bonus;
-    log(`${attacker.name} Sneak Attack! +${bonus} bonus damage.`, 'skill');
-  }
-  // Sneak attacker bonus: +10% damage (round up)
-  if (attacker.sneaking) dmg = Math.ceil(dmg * 1.1);
-
-  target.hp = Math.max(0, target.hp - dmg);
-  statsRecordDamage(attacker, target, dmg);
-  const resultType = isCrit ? 'crit' : 'hit';
-
-  if (isCrit) {
-    spawnFloat(target.row, target.col, `CRIT! -${dmg}`, 'fdmg-crit');
-    log(`${attacker.name} CRITICAL HIT on ${target.name}! (${raw}${advStr}) Deals ${dmg} damage.`, 'crit');
-    animCell(target.row, target.col, 'anim-crit');
-    animToken(target.id, 'anim-shake');
-    fxCritFlash();
-    fxBlast(target.row, target.col, '💥');
-    if (attacker.loyal) changeTrust(1);
-  } else {
-    spawnFloat(target.row, target.col, `-${dmg}`, 'fdmg-hit');
-    log(`${attacker.name} hits ${target.name}!${advStr?' '+advStr:''} (${raw}) Deals ${dmg} damage. HP ${target.hp}/${target.maxHp}.`, 'hit');
-    animCell(target.row, target.col, 'anim-hit');
-    animToken(target.id, 'anim-shake');
-    if (target.hp <= 0) trustEvent(2, `${attacker.name} killed ${target.name}`);
-    if (attacker.loyal && target.hp <= 0) changeTrust(1);
-  }
-
-  // Clear attacker sneak after attacking
-  if (attacker.sneaking) attacker.sneaking = false;
-
-  // Mark action used
-  attacker.actions = false;
-  // Set facing direction toward target
-  attacker.facing = getFacing(attacker.row, attacker.col, target.row, target.col);
-
-  // Goblin Pack Attack
-  const packClasses = ['Goblin','Ranged Goblin','Spear Goblin','Mage Goblin','Goblin King','Orc'];
-  if (packClasses.includes(attacker.class) && (resultType==='hit' || resultType==='crit')) {
-    window._roundPackAttacks = window._roundPackAttacks || {};
-    window._roundPackAttacks[target.id] = (window._roundPackAttacks[target.id]||0)+1;
-    const count = window._roundPackAttacks[target.id];
-    if (count > 1) {
-      const extraDmg = count - 1;
-      target.hp = Math.max(0, target.hp - extraDmg);
-      spawnFloat(target.row, target.col, `+${extraDmg}(pack)`, 'fdmg-crit');
-      log(`Pack Attack! ${count} goblins — +${extraDmg} damage on ${target.name}!`, 'skill');
+  // Trigger visual dice roll
+  showCombatDice(r1, r2, adv, dis, raw, () => {
+    // Continue with damage resolution after animation
+    
+    // Weapon/projectile fx
+    if (attacker.range > 1 && sprAtt.projectile) {
+      fxFlyingWeapon(attacker.id, target.id, sprAtt.projectile, 'projectile');
+    } else if (sprAtt.attackFx) {
+      fxFlyingWeapon(attacker.id, target.id, sprAtt.attackFx, 'weapon');
     }
-  }
 
-  // Orc Knockback
-  if (attacker.class === 'Orc' && (resultType==='hit' || resultType==='crit')) {
-    const dr = Math.sign(target.row - attacker.row);
-    const dc = Math.sign(target.col - attacker.col);
-    const nr = target.row + dr;
-    const nc = target.col + dc;
-    if (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE &&
-        terrain[nr][nc] !== 'wall' &&
-        !tokens.find(t=>!t.dead && t.row===nr && t.col===nc)) {
-      target.row = nr; target.col = nc;
-      log(`${target.name} is knocked back by ${attacker.name}!`, 'skill');
-      spawnFloat(target.row, target.col, '← KNOCKBACK', 'fdmg-miss');
+    let atk = attacker.atk;
+    if (attacker.berserker && attacker.hp < attacker.maxHp/2) atk += 3;
+    
+    // Storm Hunter Goggles: +1 ATK from 4+ blocks
+    if (attacker.equipment && attacker.equipment.includes('stormHunter')) {
+      const dist = Math.abs(attacker.row - target.row) + Math.abs(attacker.col - target.col);
+      if (dist >= 4) {
+        atk += 1;
+        log(`${attacker.name} snipes! +1 ATK from Storm Hunter Goggles.`, 'skill');
+      }
     }
-  }
 
-  // Hunter Pinning Shot
-  if (attacker.class==='Hunter' && resultType==='hit' && !target.statuses.includes('pinned')) {
-    target.statuses.push('pinned');
-    log(`${target.name} is PINNED by Hunter shot.`, 'skill');
-  }
+    // Sharpen stacks: +1 per stack
+    if (attacker._sharpenStacks > 0) {
+      atk += attacker._sharpenStacks;
+      log(`${attacker.name} uses Sharpen stacks! +${attacker._sharpenStacks} damage.`, 'skill');
+      if (attacker._sharpenStacks === 3 && target.def <= 10) {
+        atk += 1; // +1 vs unarmoured at max stacks
+        log(`CRUSHING BLOW! +1 bonus vs unarmoured target.`, 'crit');
+      }
+      attacker._sharpenStacks = 0; // consumed
+    }
 
-  checkDeath(target);
-  detectFlanking();
-  renderAll();
-  maybeAutoEndTurn(attacker);
+    // Mana Arrows (Ranger): +30% damage
+    if (attacker._manaArrows > 0 && attacker.range > 1) {
+      atk = Math.ceil(atk * 1.3);
+      attacker._manaArrows--;
+      log(`${attacker.name} spends a Mana Arrow! +30% damage (${attacker._manaArrows} left).`, 'skill');
+    }
+
+    // Damage — Option B: Miss if below DEF (except Nat 20)
+    let dmg = 0;
+    let resultType = 'miss';
+
+    if (isHit) {
+      dmg = isCrit ? atk * 2 : atk;
+      
+      // Dragonslayer: +1 vs large
+      const isTargetLarge = target.skills && target.skills.some(s=>s&&s.name==='Large') && !target.moved;
+      if (attacker.equipment && attacker.equipment.includes('dragonslayer') && isTargetLarge) {
+        dmg += 1;
+        log(`${attacker.name}'s Dragonslayer bites deep! +1 bonus damage.`, 'skill');
+      }
+
+      // Rogue sneak attack bonus
+      if (attacker.class==='Rogue' && target.statuses.includes('flanked')) {
+        const bonus = Math.floor(Math.random()*6)+1;
+        dmg += bonus;
+        log(`${attacker.name} Sneak Attack! +${bonus} bonus damage.`, 'skill');
+      }
+      // Sneak attacker bonus: +10% damage (round up)
+      if (attacker.sneaking) dmg = Math.ceil(dmg * 1.1);
+      
+      target.hp = Math.max(0, target.hp - dmg);
+      statsRecordDamage(attacker, target, dmg);
+      resultType = isCrit ? 'crit' : 'hit';
+      
+      // Titanbreaker Cleave: 1 dmg to adj
+      if (attacker.equipment && attacker.equipment.includes('titanbreaker')) {
+        tokens.filter(o=>!o.dead && o.side!==attacker.side && o.id!==target.id && Math.abs(o.row-target.row)<=1 && Math.abs(o.col-target.col)<=1).forEach(o=>{
+          o.hp = Math.max(0, o.hp - 1);
+          spawnFloat(o.row, o.col, '-1', 'fdmg-hit');
+          checkDeath(o);
+        });
+      }
+    }
+
+    if (resultType === 'miss') {
+      spawnFloat(target.row, target.col, `MISS`, 'fdmg-miss');
+      log(`${attacker.name} misses ${target.name}! (${raw}+${attacker.atk} vs ${target.def}${advStr})`, 'miss');
+      animToken(target.id, 'anim-shake');
+    } else if (isCrit) {
+      spawnFloat(target.row, target.col, `CRIT! -${dmg}`, 'fdmg-crit');
+      log(`${attacker.name} CRITICAL HIT on ${target.name}! (${raw}${advStr}) Deals ${dmg} damage.`, 'crit');
+      animCell(target.row, target.col, 'anim-crit');
+      animToken(target.id, 'anim-shake');
+      fxBlast(target.row, target.col, '💥');
+      if (attacker.loyal) changeTrust(1);
+    } else {
+      spawnFloat(target.row, target.col, `-${dmg}`, 'fdmg-hit');
+      log(`${attacker.name} hits ${target.name}!${advStr?' '+advStr:''} (${raw}+${attacker.atk} vs ${target.def}) Deals ${dmg} damage. HP ${target.hp}/${target.maxHp}.`, 'hit');
+      animCell(target.row, target.col, 'anim-hit');
+      animToken(target.id, 'anim-shake');
+      if (target.hp <= 0) trustEvent(2, `${attacker.name} killed ${target.name}`);
+      if (attacker.loyal && target.hp <= 0) changeTrust(1);
+    }
+
+    // Clear attacker sneak after attacking
+    if (attacker.sneaking) attacker.sneaking = false;
+
+    // Mark action used
+    attacker.actions = false;
+    // Set facing direction toward target
+    attacker.facing = getFacing(attacker.row, attacker.col, target.row, target.col);
+
+    // Goblin Pack Attack
+    const packClasses = ['Goblin','Ranged Goblin','Spear Goblin','Mage Goblin','Goblin King','Orc'];
+    if (packClasses.includes(attacker.class) && (resultType==='hit' || resultType==='crit')) {
+      window._roundPackAttacks = window._roundPackAttacks || {};
+      window._roundPackAttacks[target.id] = (window._roundPackAttacks[target.id]||0)+1;
+      const count = window._roundPackAttacks[target.id];
+      if (count > 1) {
+        const extraDmg = count - 1;
+        target.hp = Math.max(0, target.hp - extraDmg);
+        spawnFloat(target.row, target.col, `+${extraDmg}(pack)`, 'fdmg-crit');
+        log(`Pack Attack! ${count} goblins — +${extraDmg} damage on ${target.name}!`, 'skill');
+      }
+    }
+    
+    // Orc Knockback
+    if (attacker.class === 'Orc' && (resultType==='hit' || resultType==='crit')) {
+      // Iron Giant Boots: cannot be pushed
+      if (target.equipment && target.equipment.includes('ironGiant')) {
+        log(`${target.name} stands firm! Iron Giant Boots prevent knockback.`, 'sys');
+      } else {
+        const dr = Math.sign(target.row - attacker.row);
+        const dc = Math.sign(target.col - attacker.col);
+        const nr = target.row + dr;
+        const nc = target.col + dc;
+        if (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE &&
+            terrain[nr][nc] !== 'wall' &&
+            !tokens.find(t=>!t.dead && t.row===nr && t.col===nc)) {
+          target.row = nr; target.col = nc;
+          log(`${target.name} is knocked back by ${attacker.name}!`, 'skill');
+          spawnFloat(target.row, target.col, '← KNOCKBACK', 'fdmg-miss');
+        }
+      }
+    }
+
+    // Hunter Pinning Shot
+    if (attacker.class==='Hunter' && resultType==='hit' && !target.statuses.includes('pinned')) {
+      target.statuses.push('pinned');
+      log(`${target.name} is PINNED by Hunter shot.`, 'skill');
+    }
+
+    checkDeath(target);
+    detectFlanking();
+    renderAll();
+    maybeAutoEndTurn(attacker);
+  });
 }
 
 function getFacing(r1, c1, r2, c2) {
@@ -3348,9 +3555,26 @@ function applySkillEffect(skill, user, target) {
 }
 
 function applyClassSkillEffect(sk, user, target) {
-  const cost = sk.manaCost || 0;
+  let cost = sk.manaCost || 0;
   const cd = sk.cooldown || 0;
   const cdKey = 'cls_' + sk.name;
+  
+  // MP Reduction Bonuses
+  if (cost > 0 && user.equipment) {
+    // Night Hood: 1st skill/turn -1 MP
+    if (user.equipment.includes('nightHood') && !user._skillUsedThisTurn) {
+      cost = Math.max(0, cost - 1);
+      user._skillUsedThisTurn = true;
+      log(`[Night Hood] -1 MP cost for first skill!`, 'skill');
+    }
+    // Stormfeather: first ranged atk/skill -1 MP
+    else if (user.equipment.includes('stormfeather') && sk.range > 1 && !user._rangedSkillUsedThisTurn) {
+      cost = Math.max(0, cost - 1);
+      user._rangedSkillUsedThisTurn = true;
+      log(`[Stormfeather] -1 MP cost for first ranged skill!`, 'skill');
+    }
+  }
+
   if (user.mana < cost) { log(`${user.name} needs ${cost} MP (has ${user.mana}).`,'miss'); return; }
   user.mana = Math.max(0, user.mana - cost);
   if (cd > 0) user.cooldowns[cdKey] = cd;
@@ -3409,7 +3633,23 @@ function _executeEffect(sk, user, target) {
     case 'heal': {
       const t = target || user;
       const healVal = user.class === 'Healer' ? user.atk : (v || 1);
-      const h = Math.floor(Math.random()*healVal)+1;
+      let h = Math.floor(Math.random()*healVal)+1;
+      
+      // Golden Halo Crown: +1 heal
+      if (user.equipment && user.equipment.includes('goldenHalo')) {
+        h += 1;
+        log(`${user.name}'s Golden Halo glows! +1 Healing.`, 'heal');
+      }
+      
+      // Holy Fire: if user has passive, deal damage instead of healing enemies
+      if (user.skills.some(s=>s&&s.name==='Holy Fire') && t.side !== user.side) {
+        t.hp = Math.max(0, t.hp - h);
+        spawnFloat(t.row, t.col, `-${h}`, 'fdmg-hit');
+        log(`[Holy Fire] ${user.name} burns ${t.name} for ${h} damage.`, 'hit');
+        checkDeath(t);
+        break;
+      }
+      
       const actualHeal = Math.min(t.maxHp - t.hp, h);
       t.hp = Math.min(t.maxHp, t.hp + h);
       statsRecordHeal(user, actualHeal);
@@ -3427,7 +3667,8 @@ function _executeEffect(sk, user, target) {
       if (target.stoic) { log(`${target.name} is Stoic -- ignores status.`,'sys'); break; }
       const s = sk.effectStatus || 'rattled';
       const ccEffects = ['stunned','pinned','rattled','distrust'];
-      if (ccEffects.includes(s) && (target.def||0) > 0) { log(`${target.name} resists CC — DEF ${target.def} > 0!`,'miss'); break; }
+      // CC resistance loosened: now requires 15+ DEF to block
+      if (ccEffects.includes(s) && (target.def||0) >= 15) { log(`${target.name} resists CC — heavy armor (DEF ${target.def})!`,'miss'); break; }
       if (!target.statuses.includes(s)) target.statuses.push(s);
       log(`${target.name} gains [${s}].`, 'skill');
       break;
@@ -3439,11 +3680,43 @@ function _executeEffect(sk, user, target) {
       log(`${target.name} loses [${s}].`, 'skill');
       break;
     }
-    case 'buff-atk': { user.atk += v; log(`${user.name} ATK +${v} this round.`, 'skill'); break; }
-    case 'buff-def': { user.def += v; log(`${user.name} DEF +${v} this round.`, 'skill'); break; }
+    case 'buff-atk': { 
+      if (sk.name === 'Sharpen') {
+        user._sharpenStacks = Math.min(3, (user._sharpenStacks||0)+1);
+        log(`${user.name} sharpens their blade (Stacks: ${user._sharpenStacks}/3).`, 'skill');
+      } else {
+        user.atk += v; 
+        log(`${user.name} ATK +${v} this round.`, 'skill'); 
+      }
+      break; 
+    }
+    case 'buff-def': { 
+      let defVal = v;
+      if (user.equipment && user.equipment.includes('goldenHalo') && sk.effectType==='buff-def') {
+        defVal += 1;
+        log(`${user.name}'s Golden Halo glows! +1 DEF buff.`, 'heal');
+      }
+      user.def += defVal; 
+      log(`${user.name} DEF +${defVal} this round.`, 'skill'); 
+      break; 
+    }
     case 'soul': { changeSouls(v); log(`Soul track +${v}.`, 'vision'); break; }
     case 'trust': { changeTrust(v); log(`Trust ${v>=0?'+':''}${v}.`, 'sys'); break; }
-    case 'flavor': { log(`${sk.desc || sk.name + ' activates.'}`, 'skill'); break; }
+    case 'flavor': { 
+      if (sk.name === 'Sidestep') {
+        user.moved = false; // allow one more move
+        log(`${user.name} sidesteps — can move again!`, 'skill');
+      } else if (sk.name === 'Teleport') {
+        user.moved = false;
+        log(`${user.name} prepares to teleport...`, 'skill');
+      } else if (sk.name === 'Mana Arrow') {
+        user._manaArrows = Math.min(5, (user._manaArrows||0)+1);
+        log(`${user.name} infuses an arrow with mana (${user._manaArrows}/5).`, 'skill');
+      } else {
+        log(`${sk.desc || sk.name + ' activates.'}`, 'skill'); 
+      }
+      break; 
+    }
   }
   detectFlanking();
 }
@@ -3502,19 +3775,25 @@ function renderGrid() {
       let content = `<span class="coord">${String.fromCharCode(65+c)}${r+1}</span>`;
       if (emoji) content += `<span class="terrain-emoji">${emoji}</span>`;
       if (t !== 'normal') content += `<span class="terrain-tip"><strong>${tinfo.name}</strong> &mdash; ${tinfo.short}</span>`;
+
+      // Large passive visual check
+      const largeTok = tokens.find(tk=>!tk.dead && !tk._home && tk.skills.some(s=>s&&s.name==='Large') && !tk.moved && Math.abs(tk.row-r)<=1 && Math.abs(tk.col-c)<=1);
+
       if (tok) {
         const sel = tok.id===selectedId;
         const pct = tok.hp/tok.maxHp;
         const flk = tok.statuses.includes('flanked')?'<span class="flanked-icon">!</span>':'';
         const sprite = spriteFor(tok.class);
         const hpClass = pct>0.5?'':pct>0.25?'low':'crit';
-        // Action status indicators (move + action remaining)
         const isCurrentTurn = turnOrder.length > 0 && currentTurnTokenId() === tok.id;
         const movedMark = tok.moved ? '<span title="Moved" style="position:absolute;bottom:-1px;left:-2px;font-size:0.55rem;background:#1a1a1a;color:#666;border-radius:3px;padding:0 2px;line-height:1">✓M</span>' : '';
         const actedMark = !tok.actions ? '<span title="Used Action" style="position:absolute;bottom:-1px;left:18px;font-size:0.55rem;background:#1a1a1a;color:#666;border-radius:3px;padding:0 2px;line-height:1">✓A</span>' : '';
         const turnMark = isCurrentTurn ? '<span title="Current Turn" style="position:absolute;top:-6px;left:-4px;font-size:0.8rem;line-height:1">⏵</span>' : '';
         const facingMark = tok.facing ? `<span title="Facing" style="position:absolute;top:0;right:0;font-size:0.75rem;line-height:1;background:#0a0f1c99;border-radius:2px;padding:0 1px">${tok.facing}</span>` : '';
-        content += `<div class="token ${tok.side==='ally'?'ally':'enemy-tok'}${sel?' selected-tok':''}" id="tok-${tok.id}"
+
+        const isLarge = tok.skills.some(s=>s&&s.name==='Large') && !tok.moved;
+
+        content += `<div class="token ${tok.side==='ally'?'ally':'enemy-tok'}${sel?' selected-tok':''}${isLarge?' large-tok':''}" id="tok-${tok.id}"
           style="border-color:${mode==='attack'&&tok.side!==tokens.find(t=>t.id===attackingId)?.side?'#c04040':sel?'#c9a84c':isCurrentTurn?'#c9a84c':tok.bcolor};background:${tok.color}${tok.moved&&!tok.actions?';filter:grayscale(0.5)':''}"
           onclick="event.stopPropagation();selectToken(${tok.id})"
           ondblclick="event.stopPropagation();openGMTokenModal(${tok.id})">
@@ -3525,8 +3804,10 @@ function renderGrid() {
           <div class="tok-hpbar"><div class="tok-hpbar-fill" style="width:${Math.max(0,pct*100)}%"></div></div>
           <span class="tok-hp ${hpClass}" style="font-size:0.55rem">${tok.hp}/${tok.maxHp}</span>
         </div>`;
-      } else if (dead) {
-        const sprite = spriteFor(dead.class);
+      } else if (largeTok) {
+        // Show "ghost" fill for large token body
+        content += `<div style="position:absolute;inset:0;background:rgba(201,168,76,0.05);border:1px dashed rgba(201,168,76,0.2);pointer-events:none;display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:rgba(201,168,76,0.2)">LARGE</div>`;
+      } else if (dead) {        const sprite = spriteFor(dead.class);
         const recruitable = CAMPAIGN.active && dead.side === 'enemy' && canRecruit(dead).ok;
         const recruitHint = recruitable ? `<span style="position:absolute;top:-4px;right:-4px;font-size:0.7rem;background:#4a1a8b;color:#ccaaff;border-radius:50%;padding:1px 3px;animation:spriteIdle 1.6s ease-in-out infinite" title="Click to recruit">&#9876;</span>` : '';
         const click = recruitable ? `onclick="event.stopPropagation();showRecruitModal(tokens.find(t=>t.id===${dead.id}))"` : '';
@@ -3586,6 +3867,73 @@ function animateDie(stat, dieIdx, newVal, delay=0) {
   }, delay);
 }
 
+function showCombatDice(r1, r2, adv, dis, finalVal, callback) {
+  const overlay = document.getElementById('combatDiceOverlay');
+  const container = document.getElementById('combatDiceContainer');
+  const result = document.getElementById('combatDiceResult');
+  const label = document.getElementById('combatDiceLabel');
+  
+  overlay.style.display = 'block';
+  result.textContent = '';
+  label.textContent = adv ? 'Attack Roll [Advantage]' : dis ? 'Attack Roll [Disadvantage]' : 'Attack Roll';
+  
+  const diceCount = (adv || dis) ? 2 : 1;
+  container.innerHTML = diceCount === 1 
+    ? renderDie20('combat', 0, 1) 
+    : renderDie20('combat', 0, 1) + renderDie20('combat', 1, 1);
+
+  // Small delay then roll
+  setTimeout(() => {
+    animateDie20('combat', 0, r1);
+    if (diceCount === 2) animateDie20('combat', 1, r2, 100);
+    
+    setTimeout(() => {
+      result.textContent = finalVal === 20 ? 'CRITICAL!' : finalVal === 1 ? 'FUMBLE!' : finalVal;
+      if (finalVal === 20) fxCritFlash();
+      
+      setTimeout(() => {
+        overlay.style.display = 'none';
+        if (callback) callback();
+      }, 800);
+    }, 1000);
+  }, 100);
+}
+
+function renderDie20(stat, idx, val) {
+  const f = [val, (val%20)+1, ((val+1)%20)+1, ((val+2)%20)+1];
+  return `<div class="dice-scene die-20">
+    <div class="die-3d" id="die-${stat}-${idx}" style="transform:rotateX(-20deg) rotateY(${30+idx*15}deg)">
+      <div class="dface dfront">${val}</div>
+      <div class="dface dback">${f[1]}</div>
+      <div class="dface dright">${f[2]}</div>
+      <div class="dface dleft">${f[3]}</div>
+      <div class="dface dtop">✦</div>
+      <div class="dface dbottom">✦</div>
+    </div>
+  </div>`;
+}
+
+function animateDie20(stat, dieIdx, newVal, delay=0) {
+  const el = document.getElementById(`die-${stat}-${dieIdx}`);
+  if (!el) return;
+  const rx = 360 * (3 + Math.floor(Math.random()*2));
+  const ry = 360 * (3 + Math.floor(Math.random()*2));
+  setTimeout(() => {
+    el.style.transition = 'transform 0.7s cubic-bezier(.15,.5,.25,1)';
+    el.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
+    setTimeout(() => {
+      el.style.transition = 'transform 0.2s ease-out';
+      el.style.transform = `rotateX(-20deg) rotateY(${30+dieIdx*15}deg)`;
+      const faces = el.querySelectorAll('.dface');
+      const f = [newVal, (newVal%20)+1, ((newVal+1)%20)+1, ((newVal+2)%20)+1];
+      if (faces[0]) faces[0].textContent = f[0];
+      if (faces[1]) faces[1].textContent = f[1];
+      if (faces[2]) faces[2].textContent = f[2];
+      if (faces[3]) faces[3].textContent = f[3];
+    }, 720);
+  }, delay);
+}
+
 function rollD4() { return Math.floor(Math.random()*4)+1; }
 
 function rerollOneDie(stat, dieIdx) {
@@ -3602,7 +3950,17 @@ function rerollDiePair(stat) {
   window._diceState[stat] = [rollD4(), rollD4()];
   animateDie(stat, 0, window._diceState[stat][0]);
   animateDie(stat, 1, window._diceState[stat][1], 80);
-  setTimeout(() => syncDiceToRollState(), 900);
+  setTimeout(() => {
+    syncDiceToRollState();
+    const btn = document.getElementById('btnConfirmSlotRoll');
+    if (btn) {
+      btn.disabled = false;
+      btn.style.background = '#1a3a1a';
+      btn.style.borderColor = '#7fb87f';
+      btn.style.color = '#9fdf9f';
+      btn.style.cursor = 'pointer';
+    }
+  }, 900);
 }
 
 function rollAllDice3D() {
@@ -3612,7 +3970,17 @@ function rollAllDice3D() {
     animateDie(st, 0, window._diceState[st][0], i * 120);
     animateDie(st, 1, window._diceState[st][1], i * 120 + 80);
   });
-  setTimeout(() => syncDiceToRollState(), 1200);
+  setTimeout(() => {
+    syncDiceToRollState();
+    const btn = document.getElementById('btnConfirmSlotRoll');
+    if (btn) {
+      btn.disabled = false;
+      btn.style.background = '#1a3a1a';
+      btn.style.borderColor = '#7fb87f';
+      btn.style.color = '#9fdf9f';
+      btn.style.cursor = 'pointer';
+    }
+  }, 1200);
 }
 
 function updateDiceSum(stat) {
@@ -3774,16 +4142,34 @@ function selectToken(id) {
 
 function showMoveRange(tok) {
   clearHighlights();
-  // If token has already moved this turn, don't show movement highlights
   const canMove = !tok.moved;
+  const hasPhantomStep = tok.equipment && tok.equipment.includes('phantomStep');
+  const hasSwiftBoots = tok.equipment && tok.equipment.includes('swiftBoots');
+  
   for (let r=0;r<GRID_SIZE;r++) for (let c=0;c<GRID_SIZE;c++) {
     if (terrain[r][c]==='wall') continue;
     const dist = Math.abs(tok.row-r)+Math.abs(tok.col-c);
     const cell = document.getElementById(`cell-${r}-${c}`);
-    const occ = tokens.find(t=>t.row===r&&t.col===c&&!t.dead&&!t._home&&t.id!==tok.id);
+    
+    // Check occupancy (Large passive blocks adjacent)
+    const occ = tokens.find(t=>!t.dead && !t._home && t.id!==tok.id && (
+      (t.row===r && t.col===c) ||
+      (t.skills.some(s=>s&&s.name==='Large') && !t.moved && Math.abs(t.row-r)<=1 && Math.abs(t.col-c)<=1)
+    ));
+    
     const hasCorpse = tokens.find(t=>t.row===r&&t.col===c&&t.dead);
-    if (canMove && dist>0 && dist<=tok.speed && !occ && !hasCorpse) cell.classList.add('in-range');
-    if (tok.range>1 && dist>0 && dist<=tok.range && occ && occ.side!==tok.side) cell.classList.add('target-range');
+    
+    // Phantom Step: ignores enemies for movement
+    const effectivelyOcc = (occ && occ.side !== tok.side && !hasPhantomStep) ? occ : null;
+    
+    if (canMove && dist>0 && dist<=tok.speed && !effectivelyOcc && !hasCorpse) {
+      // If actually occupied by ally, can't END there but can pass through
+      if (!occ) cell.classList.add('in-range');
+    }
+    
+    if (tok.range>1 && dist>0 && dist<=tok.range && occ && occ.side!==tok.side) {
+      cell.classList.add('target-range');
+    }
   }
 }
 
@@ -3801,9 +4187,10 @@ function showAttackRange(tok) {
 
 function showSkillRange(tok, range, includesDead=false) {
   clearHighlights();
+  const resolvedRange = range === 'weapon' ? tok.range : (range || 1);
   for (let r=0;r<GRID_SIZE;r++) for (let c=0;c<GRID_SIZE;c++) {
     const dist = Math.abs(tok.row-r)+Math.abs(tok.col-c);
-    if (dist > range || dist === 0) continue;
+    if (dist > resolvedRange || dist === 0) continue;
     const alive = tokens.find(t=>t.row===r&&t.col===c&&!t.dead&&!t._home);
     const dead  = tokens.find(t=>t.row===r&&t.col===c&&t.dead&&!t._home);
     const cell = document.getElementById(`cell-${r}-${c}`);
@@ -4020,8 +4407,29 @@ function checkDeath(tok) {
       log(`💀 Soul Stealer absorbs ${tok.name}'s essence — ATK ${ss.atk}, DEF ${ss.def}, HP ${ss.hp}/${ss.maxHp}.`, 'vision');
     }
     animToken(tok.id, 'anim-die');
+    
+    // Self Destruct: 15 dmg to enemies in 2 blocks
+    if (tok.skills.some(s=>s&&s.name==='Self Destruct')) {
+      log(`💣 [Self Destruct] ${tok.name} explodes!`, 'crit');
+      fxBlast(tok.row, tok.col, '💥');
+      tokens.filter(t=>!t.dead && t.side!==tok.side && Math.abs(t.row-tok.row)<=2 && Math.abs(t.col-tok.col)<=2).forEach(t=>{
+        t.hp = Math.max(0, t.hp - 15);
+        spawnFloat(t.row, t.col, `-15`, 'fdmg-crit');
+        checkDeath(t);
+      });
+    }
+
     // Stats: track death + attempt to attribute kill to last attacker
-    statsRecordKill(window._lastAttacker, tok);
+    const killer = window._lastAttacker;
+    statsRecordKill(killer, tok);
+    
+    // Angelborn: heal 1 on kill
+    if (killer && killer.equipment && killer.equipment.includes('angelborn')) {
+      killer.hp = Math.min(killer.maxHp, killer.hp + 1);
+      spawnFloat(killer.row, killer.col, '+1', 'fdmg-heal');
+      log(`🕊️ [Angelborn] ${killer.name} heals 1 HP from the kill.`, 'heal');
+    }
+
     log(`&#9760; ${tok.name} has fallen! Soul fed to the Sword.`, 'death');
     changeSouls(1);
     if(tok.side==='ally') trustEvent(-8, `${tok.name} died`);
@@ -4333,8 +4741,26 @@ function renderTurnOrder(){
     ${t.init?`<span style="color:#666;font-size:0.6rem;margin-left:auto">${t.init}</span>`:''}
   </div>`).join('');
 }
-function nextTurn(){
+function nextTurn() {
   if(!turnOrder.length)return;
+  
+  // Perseverance: End of turn heal
+  const prevTok = tokens.find(t => t.id === currentTurnTokenId());
+  if (prevTok && !prevTok.dead && prevTok.skills.some(s=>s&&s.name==='Perseverance')) {
+    prevTok.hp = Math.min(prevTok.maxHp, prevTok.hp + 1);
+    spawnFloat(prevTok.row, prevTok.col, '+1', 'fdmg-heal');
+    log(`[Perseverance] ${prevTok.name} regains 1 HP.`, 'heal');
+  }
+  
+  // Clear temporary buffs from start of turn
+  if (prevTok && prevTok._arcaneArmourActive) {
+    prevTok.def = Math.max(0, prevTok.def - 2);
+    prevTok._arcaneArmourActive = false;
+  }
+  
+  // Divine Shield cleanup: happens at start of caster's turn
+  // (We'll do it at the end of their previous turn or start of new one)
+
   // Skip dead tokens
   let attempts = 0;
   do {
@@ -4342,14 +4768,40 @@ function nextTurn(){
     attempts++;
     if (attempts > turnOrder.length) break;
   } while (tokens.find(t=>t.id===turnOrder[turnIndex].id)?.dead);
+  
   // If we wrapped around to start, new round
   if (turnIndex === 0) { nextRound(); return; }
+  
   const cur=turnOrder[turnIndex];
   const tok=tokens.find(t=>t.id===cur.id);
   if (tok) {
-    tok.moved = false;       // reset move flag for new turn
+    tok.moved = false;
     tok.actions = true;
+    
+    // Equipment reset flags
+    tok._skillUsedThisTurn = false;
+    tok._rangedSkillUsedThisTurn = false;
+    
+    // Divine Shield cleanup
+    if (tok._shieldedTarget) {
+      const target = tokens.find(t=>t.id===tok._shieldedTarget);
+      if (target) {
+        target.def = Math.max(0, target.def - 3);
+        log(`[Divine Shield] Effect expired on ${target.name}.`, 'sys');
+      }
+      tok._shieldedTarget = null;
+    }
+
+    // Arcane Armour: +2 DEF if 5+ MP at start of turn
+    if (tok.skills.some(s=>s&&s.name==='Arcane Armour')) {
+      if (tok.mana >= 5) {
+        tok.def += 2;
+        tok._arcaneArmourActive = true;
+        log(`[Arcane Armour] ${tok.name} gains +2 DEF.`, 'skill');
+      }
+    }
   }
+  
   log(`-> ${cur.name}'s turn (SPD ${tok?.speed||'?'}, can move ${tok?.speed||0})`,'sys');
   selectedId=cur.id;
   if(tok&&!tok.dead) showMoveRange(tok);
@@ -4361,8 +4813,10 @@ function nextRound(){
   // Reset pack attack tracker each round
   window._roundPackAttacks = {};
   tokens.filter(t=>!t.dead&&!t._home).forEach(t=>{
-    // Bleed / burn tick
-    if(t.statuses.includes('bleeding')){t.hp=Math.max(0,t.hp-1);spawnFloat(t.row,t.col,'-1(bleed)','fdmg-hit');log(`${t.name} bleeds. -1 HP.`,'hit');checkDeath(t);}
+    // Swift Boots: reset remaining SPD
+    t._remainingSpd = t.speed;
+
+    // Bleed / burn tick    if(t.statuses.includes('bleeding')){t.hp=Math.max(0,t.hp-1);spawnFloat(t.row,t.col,'-1(bleed)','fdmg-hit');log(`${t.name} bleeds. -1 HP.`,'hit');checkDeath(t);}
     if(t.statuses.includes('burning')){const d=Math.floor(Math.random()*4)+1;t.hp=Math.max(0,t.hp-d);spawnFloat(t.row,t.col,`-${d}(burn)`,'fdmg-hit');log(`${t.name} burns. -${d} HP.`,'hit');checkDeath(t);}
     // Mana regen — 20% max MP per round, round up
     const prev=t.mana;
@@ -4382,13 +4836,38 @@ function nextRound(){
       log(`🌱 ${t.name} (${t.class}) grows... ${t.growthTimer} rounds left.`, 'sys');
       if (t.growthTimer <= 0) {
         const nextClass = plantChain[plantChain.indexOf(t.class)+1];
-        const tmpl = ENEMY_CLASSES.find(e=>e.name===nextClass);
+        const tmpl = ENEMY_CLASSES.find(e=>e.name===nextClass) || ALLY_CLASSES.find(a=>a.name===nextClass);
         if (tmpl) {
           const old = t.class;
           Object.assign(t, {class:nextClass, maxHp:tmpl.hp, hp:tmpl.hp, atk:tmpl.atk, def:tmpl.def, speed:tmpl.speed, range:tmpl.range, classSkill:tmpl.classSkill, growthTimer: growthTurns[nextClass]||undefined});
           log(`🌳 ${t.name} grew from ${old} into ${nextClass}!`, 'skill');
           fxBlast(t.row, t.col, '🌿');
         }
+      }
+    }
+
+    // Hydra Cycle: Ice -> Electric -> Water
+    if (t.class === 'Hydra') {
+      t._cycle = (t._cycle || 0) + 1;
+      const step = t._cycle % 3;
+      if (step === 1) { // Ice
+        log(`❄️ Hydra Cycle: ICE! Freezing radius 2.`, 'skill');
+        tokens.filter(o=>!o.dead && o.side!==t.side && Math.abs(t.row-o.row)<=2 && Math.abs(t.col-o.col)<=2).forEach(o=> {
+          if (!o.statuses.includes('pinned')) o.statuses.push('pinned');
+        });
+      } else if (step === 2) { // Electric
+        log(`⚡ Hydra Cycle: ELECTRIC! Zapping radius 2.`, 'skill');
+        tokens.filter(o=>!o.dead && o.side!==t.side && Math.abs(t.row-o.row)<=2 && Math.abs(t.col-o.col)<=2).forEach(o=> {
+          o.hp = Math.max(0, o.hp - 3);
+          spawnFloat(o.row, o.col, '-3', 'fdmg-crit');
+          checkDeath(o);
+        });
+      } else { // Water Flood
+        log(`🌊 Hydra Cycle: WATER FLOOD! Creating water around.`, 'skill');
+        [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dr,dc]) => {
+          const nr = t.row+dr, nc = t.col+dc;
+          if (nr>=0 && nr<GRID_SIZE && nc>=0 && nc<GRID_SIZE) terrain[nr][nc] = 'water';
+        });
       }
     }
   });
@@ -5357,19 +5836,56 @@ const CLASS_STAT_BONUSES = {
   'Wizard':  { hp: -4,  atk: -1, speed: -1, mana: +8 },  // Mana powerhouse
 };
 
-let _heroSlots = [null, null, null, null]; // {class, name, trait}
-let _preRoll = null; // null until player clicks "Roll Stats"; then {hp:[d1,d2], atk:[d1,d2], speed:[d1,d2], mana:[d1,d2]}
+let _heroSlots = [null, null, null, null]; // {class, name, startingSkill, rolled, collar}
+let _slotRolls = [null, null, null, null]; // {hp:[d1,d2], atk:[d1,d2], speed:[d1,d2], mana:[d1,d2]}
+let _activeSlot = null; // index of slot currently being configured (0-3)
 
 function renderHeroSelect() {
   _heroSlots = [null, null, null, null];
-  _preRoll = null;
+  _slotRolls = [null, null, null, null];
+  _activeSlot = null;
   renderHeroSelectUI();
 }
+
 function renderHeroSelectUI() {
   const grid = document.getElementById('heroSelectGrid');
+  const info = document.getElementById('heroSelectInfo');
+  
+  if (_activeSlot === null) {
+    grid.innerHTML = `
+      <div style="grid-column:1/-1;padding:24px 20px;text-align:center">
+        <h2 style="color:#c9a84c;letter-spacing:2px;font-size:1.2rem;margin:0 0 10px 0">⚔ Assemble Your Party</h2>
+        <p style="color:#888;font-size:0.8rem;margin-bottom:24px">Each hero rolls their own stats and chooses their path.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:16px;max-width:900px;margin:0 auto">
+          ${[0,1,2,3].map(i => renderSlotCard(i)).join('')}
+        </div>
+      </div>`;
+    info.innerHTML = `
+      <div style="display:flex;justify-content:center;margin-top:20px">
+        <button id="btnConfirmParty" onclick="confirmParty()" 
+          style="background:#2a4a2a;border:2px solid #4a8f4a;color:#7fb87f;padding:12px 40px;font-size:1rem;cursor:pointer;border-radius:5px;letter-spacing:1px">
+          ⚔ Enter the Ruins
+        </button>
+      </div>`;
+    
+    const pickedCount = _heroSlots.filter(s=>s).length;
+    const btn = document.getElementById('btnConfirmParty');
+    if (btn) {
+      btn.disabled = pickedCount === 0;
+      if (pickedCount === 0) {
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+        btn.textContent = 'Add at least 1 Hero';
+      } else {
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        btn.textContent = pickedCount === 4 ? '⚔ Enter the Ruins' : `⚔ Enter with ${pickedCount} Hero${pickedCount===1?'':'es'}`;
+      }
+    }
+    return;
+  }
 
-  if (!_preRoll) {
-    // === PHASE 1: Dice rolling — happens on the hero select screen itself ===
+  if (_slotRolls[_activeSlot] === null) {
     const diceGrid = ['hp','atk','speed','mana'].map(k => {
       const label = k==='hp'?'HP':k==='atk'?'ATK':k==='speed'?'SPD':'MP';
       const isDouble = k==='hp'||k==='mana';
@@ -5386,50 +5902,49 @@ function renderHeroSelectUI() {
     grid.innerHTML = `
       <div style="grid-column:1/-1;padding:24px 20px">
         <div style="text-align:center;margin-bottom:20px">
-          <h2 style="color:#c9a84c;letter-spacing:2px;font-size:1.1rem;margin:0 0 6px 0">🎲 Roll Your Party Stats</h2>
-          <p style="color:#888;font-size:0.78rem;margin:0">Every player rolls once. Confirm to lock in, then choose your class.</p>
+          <h2 style="color:#c9a84c;letter-spacing:2px;font-size:1.1rem;margin:0 0 6px 0">🎲 Player ${_activeSlot+1}: Roll Your Stats</h2>
+          <p style="color:#888;font-size:0.78rem;margin:0">Roll the dice to determine your base power.</p>
         </div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:520px;margin:0 auto 20px auto">
           ${diceGrid}
         </div>
         <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-          <button onclick="doPreRoll(false)" style="background:#2a4a2a;border:2px solid #4a8f4a;color:#7fb87f;padding:10px 28px;font-size:0.9rem;cursor:pointer;border-radius:5px;letter-spacing:1px">
-            🎲 Roll All
+          <button onclick="doSlotRoll()" style="background:#2a4a2a;border:2px solid #4a8f4a;color:#7fb87f;padding:10px 28px;font-size:0.9rem;cursor:pointer;border-radius:5px;letter-spacing:1px">
+            🎲 Roll Dice
           </button>
-          <button id="btnPickClass" onclick="confirmPreRoll()" disabled
+          <button id="btnConfirmSlotRoll" onclick="confirmSlotRoll()" disabled
             style="background:#1a1f3c;border:2px solid #2a3050;color:#444;padding:10px 28px;font-size:0.9rem;cursor:not-allowed;border-radius:5px;letter-spacing:1px">
             ✓ Confirm Stats — Pick Class →
           </button>
+          <button onclick="_activeSlot=null;renderHeroSelectUI()" style="background:#1a1f3c;border:1px solid #5a1a1a;color:#e05555;padding:10px 20px;font-size:0.9rem;cursor:pointer;border-radius:5px">
+            Cancel
+          </button>
         </div>
       </div>`;
-    document.getElementById('heroSelectInfo').innerHTML = renderSlotPanel();
-    const picked = _heroSlots.filter(s=>s).length;
-    document.getElementById('btnConfirmParty').disabled = picked !== 4;
-    document.getElementById('btnConfirmParty').textContent = picked === 4 ? '⚔ Enter the Ruins' : `Pick ${4-picked} more hero${picked===3?'':'es'}`;
+    info.innerHTML = '';
     return;
   }
 
-  // === PHASE 2: Stats rolled — show class cards with bonus preview ===
-  const pr = _preRoll;
+  const pr = _slotRolls[_activeSlot];
   const baseHp    = (pr.hp[0]+pr.hp[1]) * 2;
   const baseAtk   = pr.atk[0]+pr.atk[1];
   const baseSpd   = pr.speed[0]+pr.speed[1];
   const baseMana  = (pr.mana[0]+pr.mana[1]) * 2;
 
   const statSummary = `<div style="grid-column:1/-1;background:#0a0f1c;border:1px solid #2a5a2a;border-radius:6px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-    <span style="color:#7fb87f;font-size:0.7rem;letter-spacing:1px">🎲 ROLLED STATS</span>
+    <span style="color:#7fb87f;font-size:0.7rem;letter-spacing:1px">🎲 PLAYER ${_activeSlot+1} ROLLED</span>
     <span style="color:#c9a84c;font-size:0.85rem">HP <strong>${baseHp}</strong></span>
     <span style="color:#e05555;font-size:0.85rem">ATK <strong>${baseAtk}</strong></span>
     <span style="color:#4a8fbf;font-size:0.85rem">SPD <strong>${baseSpd}</strong></span>
     <span style="color:#9f5abf;font-size:0.85rem">MP <strong>${baseMana}</strong></span>
-    <button onclick="doPreRoll(true)" style="margin-left:auto;background:#1a1f3c;border:1px solid #4a8fbf;color:#4a8fbf;padding:3px 10px;cursor:pointer;border-radius:3px;font-size:0.65rem">↻ Reroll</button>
+    <button onclick="_slotRolls[_activeSlot]=null;renderHeroSelectUI()" style="margin-left:auto;background:#1a1f3c;border:1px solid #4a8fbf;color:#4a8fbf;padding:3px 10px;cursor:pointer;border-radius:3px;font-size:0.65rem">↻ Reroll</button>
+    <button onclick="_activeSlot=null;renderHeroSelectUI()" style="background:#1a1f3c;border:1px solid #e05555;color:#e05555;padding:3px 10px;cursor:pointer;border-radius:3px;font-size:0.65rem">Cancel</button>
   </div>`;
 
-  // Show 5 class cards with base+bonus stats
   const classCards = PLAYABLE_CLASSES.map(clsName => {
     const cls = ALLY_CLASSES.find(c => c.name === clsName);
     const spr = spriteFor(clsName);
-    const alreadyPicked = _heroSlots.some(s => s && s.class === clsName);
+    const alreadyPicked = _heroSlots.some((s, idx) => s && s.class === clsName && idx !== _activeSlot);
     const starter = EQUIPMENT[STARTER_WEAPONS[clsName]];
     const bon = CLASS_STAT_BONUSES[clsName] || {};
     const fHp   = Math.max(1, baseHp   + (bon.hp   || 0));
@@ -5442,8 +5957,9 @@ function renderHeroSelectUI() {
       bon.speed? `${bon.speed>0?'+':''}${bon.speed} SPD`: null,
       bon.mana ? `${bon.mana>0?'+':''}${bon.mana} MP`  : null,
     ].filter(Boolean).join(' · ');
-    return `<div class="hero-card${alreadyPicked?' selected':''}" onclick="rollHero('${clsName}')">
-      ${alreadyPicked?'<div class="check">&#10003;</div>':''}
+    
+    return `<div class="hero-card${alreadyPicked?' selected':''}" onclick="${alreadyPicked?'':'rollHero(\''+clsName+'\')'}">
+      ${alreadyPicked?'<div class="check" style="color:#e05555;font-size:0.7rem">PICKED</div>':''}
       <div class="icon">${spr.portrait}</div>
       <h3>${cls.name}</h3>
       <div style="font-size:0.6rem;color:#7fb87f;background:#0a1a0a;border:1px solid #2a5a2a;border-radius:3px;padding:2px 6px;margin-bottom:4px;text-align:center">${bonStr}</div>
@@ -5457,91 +5973,74 @@ function renderHeroSelectUI() {
     </div>`;
   }).join('');
   grid.innerHTML = statSummary + classCards;
-  // Slot display
-  document.getElementById('heroSelectInfo').innerHTML = renderSlotPanel();
-  const picked = _heroSlots.filter(s=>s).length;
-  document.getElementById('btnConfirmParty').disabled = picked !== 4;
-  document.getElementById('btnConfirmParty').textContent = picked === 4 ? '⚔ Enter the Ruins' : `Pick ${4-picked} more hero${picked===3?'':'es'}`;
 }
-function renderSlotPanel() {
-  return `<div style="display:flex;gap:10px;margin:10px 0;flex-wrap:wrap;justify-content:center">
-    ${_heroSlots.map((s,i)=>{
-      const spr = s ? spriteFor(s.class) : null;
-      const r = s?.rolled;
-      return `<div style="background:#0d1420;border:2px solid ${s?'#c9a84c':'#2a3050'};border-radius:6px;padding:10px;min-width:200px;text-align:left">
-        <div style="color:#888;font-size:0.7rem;letter-spacing:1px">SLOT ${i+1}</div>
-        ${s ? `
-          <div style="display:flex;align-items:center;gap:8px;margin:4px 0">
-            <span style="font-size:1.5rem">${spr.portrait}</span>
-            <div>
-              <div style="color:#c9a84c;font-weight:bold;font-size:0.95rem">${s.name}</div>
-              <div style="color:#aaa;font-size:0.7rem">${s.class}${s.collar?` · <em style="color:#7fb87f">🔱 ${s.collar.name}</em>`:''}${s.startingSkill?` · <em style="color:#c9a84c">✨ ${s.startingSkill.name}</em>`:''}</div>
-            </div>
-          </div>
-          ${r ? `<div style="font-size:0.65rem;color:#7a8a9a;background:#0a0f1c;padding:4px 6px;border-radius:3px;margin-top:4px">HP ${r.hp} · ATK ${r.atk} · DEF ${r.def} · SPD ${r.speed} · MP ${r.mana}</div>` : ''}
-          <div style="display:flex;gap:4px;margin-top:6px">
-            <button onclick="event.stopPropagation();editSlot(${i})" style="flex:1;background:#1a1f3c;border:1px solid #4a8fbf;color:#7fb8df;font-size:0.65rem;padding:3px 6px;cursor:pointer;border-radius:3px">✎ Edit</button>
-            <button onclick="event.stopPropagation();clearSlot(${i})" style="flex:1;background:#5a1a1a;border:1px solid #8b3030;color:#e05555;font-size:0.65rem;padding:3px 6px;cursor:pointer;border-radius:3px">&times; Remove</button>
-          </div>
-        ` : `<div style="color:#444;font-style:italic;font-size:0.8rem;margin-top:8px">Click a class card →</div>`}
-      </div>`}).join('')}
+
+function renderSlotCard(idx) {
+  const s = _heroSlots[idx];
+  const spr = s ? spriteFor(s.class) : null;
+  const r = s?.rolled;
+  
+  return `<div style="background:#0d1420;border:2px solid ${s?'#c9a84c':'#2a3050'};border-radius:8px;padding:16px;text-align:left;position:relative;display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="color:#5a6a8a;font-size:0.7rem;font-weight:bold;letter-spacing:1px">PLAYER ${idx+1}</div>
+      ${s ? `<button onclick="clearSlot(${idx})" style="background:none;border:none;color:#e05555;cursor:pointer;font-size:1.1rem">&times;</button>` : ''}
+    </div>
+    
+    ${s ? `
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:2rem">${spr.portrait}</span>
+        <div>
+          <div style="color:#c9a84c;font-weight:bold;font-size:1.1rem">${s.name}</div>
+          <div style="color:#aaa;font-size:0.75rem">${s.class}</div>
+        </div>
+      </div>
+      <div style="background:#0a0f1c;border-radius:4px;padding:8px;font-size:0.7rem">
+        <div style="color:#7fb87f;margin-bottom:2px">🔱 ${s.collar?.name || 'No Collar'}</div>
+        <div style="color:#c9a84c">✨ ${s.startingSkill?.name || 'No Skill'}</div>
+      </div>
+      ${r ? `<div style="font-size:0.65rem;color:#7a8a9a">HP ${r.hp} · ATK ${r.atk} · SPD ${r.speed} · MP ${r.mana}</div>` : ''}
+      <button onclick="editSlot(${idx})" style="margin-top:auto;background:#1a1f3c;border:1px solid #4a8fbf;color:#7fb8df;font-size:0.75rem;padding:6px;cursor:pointer;border-radius:4px">✎ Edit Hero</button>
+    ` : `
+      <div style="height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px dashed #2a3050;border-radius:6px;gap:10px">
+        <span style="font-size:2rem;opacity:0.2">👤</span>
+        <button onclick="startSlotConfig(${idx})" style="background:#1a3a1a;border:1px solid #4a8f4a;color:#7fb87f;padding:8px 16px;font-size:0.8rem;cursor:pointer;border-radius:4px">Add Hero</button>
+      </div>
+    `}
   </div>`;
 }
-function editSlot(idx) {
-  const s = _heroSlots[idx];
-  if (!s) return;
-  openHeroRollModal(s.class, idx);
-  // Restore previous values
-  if (s.rolled) Object.assign(window._rollState, s.rolled);
-  window._rollState.name = s.name;
-  if (s.startingSkill) {
-    const si = window._rollState.skillChoices.findIndex(sk=>sk.name===s.startingSkill.name);
-    if (si < 0) window._rollState.skillChoices.unshift(s.startingSkill);
-    window._rollState.skillIdx = window._rollState.skillChoices.findIndex(sk=>sk.name===s.startingSkill.name);
-  }
-  renderHeroRollModal();
-}
-function clearSlot(idx) {
+
+function startSlotConfig(idx) {
+  _activeSlot = idx;
+  _slotRolls[idx] = null;
   _heroSlots[idx] = null;
   renderHeroSelectUI();
 }
-function doPreRoll(isReroll) {
-  // Roll the dice on-screen with animation; "Pick Class" button unlocks after
-  if (isReroll) {
-    if (!confirm('Reroll stats? All picked hero slots will be cleared.')) return;
-    _heroSlots = [null, null, null, null];
-    _preRoll = null;
-    renderHeroSelectUI(); // back to dice screen
-    setTimeout(() => _rollAllOnScreen(), 100); // slight delay so DOM exists
-    return;
-  }
-  _rollAllOnScreen();
-}
-function _rollAllOnScreen() {
-  // Animate all 4 stat pairs on the hero-select dice grid
+
+function doSlotRoll() {
   const stats = ['hp','atk','speed','mana'];
   stats.forEach((st, i) => {
     window._diceState[st] = [rollD4(), rollD4()];
     animateDie(st, 0, window._diceState[st][0], i * 120);
     animateDie(st, 1, window._diceState[st][1], i * 120 + 80);
   });
-  // After animation settles, enable "Pick Class" button
+  
   setTimeout(() => {
     ['hp','atk','speed','mana'].forEach(st => updateDiceSum(st));
-    const btn = document.getElementById('btnPickClass');
+    const btn = document.getElementById('btnConfirmSlotRoll');
     if (btn) {
       btn.disabled = false;
       btn.textContent = '✓ Confirm Stats — Pick Class →';
       btn.style.background = '#1a3a1a';
       btn.style.borderColor = '#7fb87f';
       btn.style.color = '#9fdf9f';
+      btn.style.cursor = 'pointer';
     }
   }, 1300);
 }
-function confirmPreRoll() {
-  // Freeze dice values into _preRoll, then show class cards
+
+function confirmSlotRoll() {
   const d = window._diceState;
-  _preRoll = {
+  _slotRolls[_activeSlot] = {
     hp:    [...(d.hp    || [1,1])],
     atk:   [...(d.atk   || [1,1])],
     speed: [...(d.speed || [1,1])],
@@ -5550,16 +6049,20 @@ function confirmPreRoll() {
   renderHeroSelectUI();
 }
 
+function clearSlot(idx) {
+  _heroSlots[idx] = null;
+  _slotRolls[idx] = null;
+  renderHeroSelectUI();
+}
+
+function editSlot(idx) {
+  _activeSlot = idx;
+  renderHeroSelectUI();
+}
+
 function rollHero(clsName) {
-  // If already picked, do nothing
-  if (_heroSlots.some(s => s && s.class === clsName)) return;
-  // Must have rolled stats first
-  if (!_preRoll) { doPreRoll(false); return; }
-  // Find empty slot
-  const slotIdx = _heroSlots.findIndex(s => !s);
-  if (slotIdx === -1) { alert('All 4 slots filled. Remove one first.'); return; }
-  // Open roll modal with pre-rolled dice
-  openHeroRollModal(clsName, slotIdx);
+  if (_activeSlot === null || !_slotRolls[_activeSlot]) return;
+  openHeroRollModal(clsName, _activeSlot);
 }
 
 // Roll a single core stat (3d6 drop lowest, range 1-5)
@@ -5576,21 +6079,10 @@ function openHeroRollModal(clsName, slotIdx) {
   // Pick 2 random skills from class skill pool for player to choose from
   const classSkills = CLASS_SKILL_POOLS[clsName] || [];
   const shuffledSkills = [...classSkills].sort(()=>Math.random()-0.5);
+  // Ensure uniqueness
   const skillChoices = shuffledSkills.slice(0, 2);
-  // Use pre-rolled dice if available, otherwise roll fresh
-  const pr = _preRoll;
-  window._diceState = pr ? {
-    hp:    [...pr.hp],
-    atk:   [...pr.atk],
-    speed: [...pr.speed],
-    mana:  [...pr.mana],
-  } : {
-    hp:    [rollD4(), rollD4()],
-    atk:   [rollD4(), rollD4()],
-    speed: [rollD4(), rollD4()],
-    mana:  [rollD4(), rollD4()],
-  };
-  const d = window._diceState;
+  
+  const d = _slotRolls[slotIdx];
   const bon = CLASS_STAT_BONUSES[clsName] || {};
   window._rollState = {
     clsName, slotIdx,
@@ -5730,13 +6222,22 @@ function confirmHeroRoll2() {
   const collar = CLASS_COLLARS[s.clsName] || null;
   _heroSlots[s.slotIdx] = {
     class: s.clsName, name: s.name.trim(),
-    collar,         // class collar (auto-applied at party confirm)
-    startingSkill,  // chosen from 2 options
+    collar,
+    startingSkill,
     rolled: { hp:s.hp, atk:s.atk, def:s.def, speed:s.speed, mana:s.mana, manaRegen:s.manaRegen,
               str:s.str, vit:s.vit, int:s.int, dex:s.dex }
   };
+  
   closeHeroRollModal();
-  renderHeroSelectUI();
+  
+  // Find next empty slot automatically
+  const nextEmpty = _heroSlots.findIndex(slot => !slot);
+  if (nextEmpty !== -1) {
+    startSlotConfig(nextEmpty);
+  } else {
+    _activeSlot = null; // All filled, back to overview
+    renderHeroSelectUI();
+  }
 }
 function closeHeroRollModal() {
   const m = document.getElementById('heroRollModal');
@@ -5746,8 +6247,8 @@ function closeHeroRollModal() {
 
 function confirmParty() {
   const picked = _heroSlots.filter(s => s);
-  if (picked.length !== 4) {
-    alert(`Pick 4 heroes (currently ${picked.length}).`);
+  if (picked.length === 0) {
+    alert(`Add at least 1 hero.`);
     return;
   }
   CAMPAIGN.heroes = picked.map(slot => {
@@ -5758,7 +6259,7 @@ function confirmParty() {
       atk:       r.atk       ?? tpl.atk,
       def:       r.def       ?? tpl.def,
       speed:     r.speed     ?? tpl.speed,
-      range:     0,  // weapons define range; 0 base so weapon stat is absolute
+      range:     tpl.range   ?? 1,
       maxMana:   r.mana      ?? tpl.maxMana,
       manaRegen: r.manaRegen ?? tpl.manaRegen,
     };

@@ -2971,6 +2971,14 @@ function resolveAttack(attacker, target) {
   if (!attacker.actions) { log(`${attacker.name} has no Action left.`, 'miss'); return; }
   window._lastAttacker = attacker;
 
+  // Range check (Chebyshev distance — diagonals count as 1)
+  const chebDist = Math.max(Math.abs(attacker.row - target.row), Math.abs(attacker.col - target.col));
+  if (chebDist > attacker.range) {
+    log(`${attacker.name} cannot reach ${target.name} — out of range (dist ${chebDist}, range ${attacker.range}).`, 'miss');
+    spawnFloat(target.row, target.col, 'OUT OF RANGE', 'fdmg-miss');
+    return;
+  }
+
   // Sneak: target dodge check (25% dodge if target is sneaking)
   if (target.sneaking) {
     if (Math.random() < 0.25) {
@@ -3739,6 +3747,11 @@ function selectToken(id) {
     const attacker = tokens.find(t=>t.id===attackingId);
     const target = tokens.find(t=>t.id===id);
     if (attacker && target && target.side!==attacker.side && !target.dead) {
+      const chebDist = Math.max(Math.abs(attacker.row-target.row), Math.abs(attacker.col-target.col));
+      if (chebDist > attacker.range) {
+        log(`${attacker.name} can't reach that target — out of range (dist ${chebDist}, range ${attacker.range}).`, 'miss');
+        return; // stay in attack mode so player can pick a closer target
+      }
       resolveAttack(attacker, target);
       cancelTargetMode(); setMode('select', document.getElementById('selectModeBtn'));
     }
@@ -3770,7 +3783,8 @@ function showMoveRange(tok) {
 function showAttackRange(tok) {
   clearHighlights();
   for (let r=0;r<GRID_SIZE;r++) for (let c=0;c<GRID_SIZE;c++) {
-    const dist = Math.abs(tok.row-r)+Math.abs(tok.col-c);
+    // Chebyshev distance (same metric used in resolveAttack enforcement)
+    const dist = Math.max(Math.abs(tok.row-r), Math.abs(tok.col-c));
     const occ = tokens.find(t=>t.row===r&&t.col===c&&!t.dead&&!t._home);
     if (dist>0&&dist<=tok.range&&occ&&occ.side!==tok.side) {
       document.getElementById(`cell-${r}-${c}`).classList.add('atk-range');
@@ -5326,34 +5340,100 @@ function startNewRun() {
 
 // ----- Hero Select with Trait Roll -----
 const PLAYABLE_CLASSES = ['Fighter','Rogue','Ranger','Cleric','Wizard'];
+
+// Flat bonuses applied to rolled stats when a class is chosen
+const CLASS_STAT_BONUSES = {
+  'Fighter': { hp: +8,  atk: +3, speed:  0, mana: -2 },  // Sturdy melee brawler
+  'Rogue':   { hp: -2,  atk: +4, speed: +2, mana: -2 },  // Fast glass cannon
+  'Ranger':  { hp: +2,  atk: +2, speed: +1, mana: +2 },  // Balanced skirmisher
+  'Cleric':  { hp: +4,  atk: -1, speed:  0, mana: +6 },  // Support & healing
+  'Wizard':  { hp: -4,  atk: -1, speed: -1, mana: +8 },  // Mana powerhouse
+};
+
 let _heroSlots = [null, null, null, null]; // {class, name, trait}
+let _preRoll = null; // null until player clicks "Roll Stats"; then {hp:[d1,d2], atk:[d1,d2], speed:[d1,d2], mana:[d1,d2]}
 
 function renderHeroSelect() {
   _heroSlots = [null, null, null, null];
+  _preRoll = null;
   renderHeroSelectUI();
 }
 function renderHeroSelectUI() {
   const grid = document.getElementById('heroSelectGrid');
-  // Show 5 class cards + 4 slot panels
+
+  if (!_preRoll) {
+    // === PHASE 1: Roll stats first ===
+    grid.innerHTML = `
+      <div style="grid-column:1/-1;text-align:center;padding:40px 20px">
+        <div style="font-size:2.5rem;margin-bottom:12px">🎲</div>
+        <h2 style="color:#c9a84c;letter-spacing:2px;margin-bottom:8px">Roll Your Stats First</h2>
+        <p style="color:#aaa;font-size:0.85rem;max-width:400px;margin:0 auto 24px auto">
+          Roll the dice to determine your base stats, then choose a class to apply its bonuses.
+        </p>
+        <div id="preRollDiceDisplay" style="display:none;background:#0a0f1c;border:1px solid #2a3050;border-radius:6px;padding:14px;max-width:420px;margin:0 auto 20px auto">
+          <div style="color:#dfaf3a;font-size:0.7rem;letter-spacing:1px;margin-bottom:10px">🎲 BASE STATS ROLLED</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px" id="preRollStatGrid"></div>
+        </div>
+        <button onclick="doPreRoll(false)" style="background:#2a4a2a;border:2px solid #7fb87f;color:#9fdf9f;padding:12px 32px;font-size:1rem;cursor:pointer;border-radius:5px;letter-spacing:1px">
+          🎲 Roll Stats
+        </button>
+        <div id="preRollHint" style="color:#555;font-size:0.75rem;margin-top:12px">Roll to reveal your stats, then pick a class.</div>
+      </div>`;
+    document.getElementById('heroSelectInfo').innerHTML = renderSlotPanel();
+    const picked = _heroSlots.filter(s=>s).length;
+    document.getElementById('btnConfirmParty').disabled = picked !== 4;
+    document.getElementById('btnConfirmParty').textContent = picked === 4 ? '⚔ Enter the Ruins' : `Pick ${4-picked} more hero${picked===3?'':'es'}`;
+    return;
+  }
+
+  // === PHASE 2: Stats rolled — show class cards with bonus preview ===
+  const pr = _preRoll;
+  const baseHp    = (pr.hp[0]+pr.hp[1]) * 2;
+  const baseAtk   = pr.atk[0]+pr.atk[1];
+  const baseSpd   = pr.speed[0]+pr.speed[1];
+  const baseMana  = (pr.mana[0]+pr.mana[1]) * 2;
+
+  const statSummary = `<div style="grid-column:1/-1;background:#0a0f1c;border:1px solid #2a5a2a;border-radius:6px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <span style="color:#7fb87f;font-size:0.7rem;letter-spacing:1px">🎲 ROLLED STATS</span>
+    <span style="color:#c9a84c;font-size:0.85rem">HP <strong>${baseHp}</strong></span>
+    <span style="color:#e05555;font-size:0.85rem">ATK <strong>${baseAtk}</strong></span>
+    <span style="color:#4a8fbf;font-size:0.85rem">SPD <strong>${baseSpd}</strong></span>
+    <span style="color:#9f5abf;font-size:0.85rem">MP <strong>${baseMana}</strong></span>
+    <button onclick="doPreRoll(true)" style="margin-left:auto;background:#1a1f3c;border:1px solid #4a8fbf;color:#4a8fbf;padding:3px 10px;cursor:pointer;border-radius:3px;font-size:0.65rem">↻ Reroll</button>
+  </div>`;
+
+  // Show 5 class cards with base+bonus stats
   const classCards = PLAYABLE_CLASSES.map(clsName => {
     const cls = ALLY_CLASSES.find(c => c.name === clsName);
     const spr = spriteFor(clsName);
     const alreadyPicked = _heroSlots.some(s => s && s.class === clsName);
     const starter = EQUIPMENT[STARTER_WEAPONS[clsName]];
+    const bon = CLASS_STAT_BONUSES[clsName] || {};
+    const fHp   = Math.max(1, baseHp   + (bon.hp   || 0));
+    const fAtk  = Math.max(1, baseAtk  + (bon.atk  || 0));
+    const fSpd  = Math.max(1, baseSpd  + (bon.speed || 0));
+    const fMana = Math.max(0, baseMana + (bon.mana  || 0));
+    const bonStr = [
+      bon.hp   ? `${bon.hp>0?'+':''}${bon.hp} HP`     : null,
+      bon.atk  ? `${bon.atk>0?'+':''}${bon.atk} ATK`  : null,
+      bon.speed? `${bon.speed>0?'+':''}${bon.speed} SPD`: null,
+      bon.mana ? `${bon.mana>0?'+':''}${bon.mana} MP`  : null,
+    ].filter(Boolean).join(' · ');
     return `<div class="hero-card${alreadyPicked?' selected':''}" onclick="rollHero('${clsName}')">
       ${alreadyPicked?'<div class="check">&#10003;</div>':''}
       <div class="icon">${spr.portrait}</div>
       <h3>${cls.name}</h3>
+      <div style="font-size:0.6rem;color:#7fb87f;background:#0a1a0a;border:1px solid #2a5a2a;border-radius:3px;padding:2px 6px;margin-bottom:4px;text-align:center">${bonStr}</div>
       <div class="stats">
-        <span>HP ${cls.hp}</span><span>DEF ${cls.def}</span>
-        <span>ATK ${cls.atk}</span><span>SPD ${cls.speed}</span>
-        <span>RNG 1</span><span>MP ${cls.maxMana}</span>
+        <span>HP <strong style="color:#c9a84c">${fHp}</strong></span><span>DEF from gear</span>
+        <span>ATK <strong style="color:#e05555">${fAtk}</strong></span><span>SPD <strong style="color:#4a8fbf">${fSpd}</strong></span>
+        <span>RNG ${cls.range||1}</span><span>MP <strong style="color:#9f5abf">${fMana}</strong></span>
       </div>
       ${starter ? `<div style="font-size:0.7rem;color:#dfaf3a;background:#1a1410;border:1px solid #5a3a1a;padding:4px 6px;border-radius:3px;margin:6px 0;text-align:center">${starter.icon} ${starter.name}<br><span style="color:#aaa;font-size:0.65rem">${starter.desc}</span></div>` : ''}
       <div class="skill-info"><strong style="color:#c9a84c">${cls.classSkill.name}</strong><br>${cls.classSkill.desc}</div>
     </div>`;
   }).join('');
-  grid.innerHTML = classCards;
+  grid.innerHTML = statSummary + classCards;
   // Slot display
   document.getElementById('heroSelectInfo').innerHTML = renderSlotPanel();
   const picked = _heroSlots.filter(s=>s).length;
@@ -5402,13 +5482,27 @@ function clearSlot(idx) {
   _heroSlots[idx] = null;
   renderHeroSelectUI();
 }
+function doPreRoll(isReroll) {
+  if (isReroll && !confirm('Reroll base stats? Existing hero slots will be cleared.')) return;
+  if (isReroll) _heroSlots = [null, null, null, null];
+  _preRoll = {
+    hp:    [rollD4(), rollD4()],
+    atk:   [rollD4(), rollD4()],
+    speed: [rollD4(), rollD4()],
+    mana:  [rollD4(), rollD4()],
+  };
+  renderHeroSelectUI();
+}
+
 function rollHero(clsName) {
   // If already picked, do nothing
   if (_heroSlots.some(s => s && s.class === clsName)) return;
+  // Must have rolled stats first
+  if (!_preRoll) { doPreRoll(false); return; }
   // Find empty slot
   const slotIdx = _heroSlots.findIndex(s => !s);
   if (slotIdx === -1) { alert('All 4 slots filled. Remove one first.'); return; }
-  // Open roll modal
+  // Open roll modal with pre-rolled dice
   openHeroRollModal(clsName, slotIdx);
 }
 
@@ -5427,23 +5521,30 @@ function openHeroRollModal(clsName, slotIdx) {
   const classSkills = CLASS_SKILL_POOLS[clsName] || [];
   const shuffledSkills = [...classSkills].sort(()=>Math.random()-0.5);
   const skillChoices = shuffledSkills.slice(0, 2);
-  // Init dice state with random rolls (DEF not rolled — comes from equipment)
-  window._diceState = {
+  // Use pre-rolled dice if available, otherwise roll fresh
+  const pr = _preRoll;
+  window._diceState = pr ? {
+    hp:    [...pr.hp],
+    atk:   [...pr.atk],
+    speed: [...pr.speed],
+    mana:  [...pr.mana],
+  } : {
     hp:    [rollD4(), rollD4()],
     atk:   [rollD4(), rollD4()],
     speed: [rollD4(), rollD4()],
     mana:  [rollD4(), rollD4()],
   };
   const d = window._diceState;
+  const bon = CLASS_STAT_BONUSES[clsName] || {};
   window._rollState = {
     clsName, slotIdx,
     name: rolledName,
     str: cls.str, vit: cls.vit, int: cls.int, dex: cls.dex,
-    hp:    (d.hp[0]+d.hp[1]) * 2,
-    atk:   d.atk[0]+d.atk[1],
+    hp:    Math.max(1, (d.hp[0]+d.hp[1]) * 2    + (bon.hp    || 0)),
+    atk:   Math.max(1, d.atk[0]+d.atk[1]        + (bon.atk   || 0)),
     def:   0,
-    speed: d.speed[0]+d.speed[1],
-    mana:  (d.mana[0]+d.mana[1]) * 2,
+    speed: Math.max(1, d.speed[0]+d.speed[1]     + (bon.speed || 0)),
+    mana:  Math.max(0, (d.mana[0]+d.mana[1]) * 2 + (bon.mana  || 0)),
     manaRegen: cls.manaRegen,
     skillIdx: null,
     skillChoices

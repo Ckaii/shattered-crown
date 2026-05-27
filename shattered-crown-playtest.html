@@ -5786,9 +5786,8 @@ function levelUpHeroes() {
     const pick = choices[Math.floor(Math.random()*choices.length)];
     pick.apply();
     recalcHeroStats(h);
-    // Heal a bit on level up
-    h.hp = Math.min(h.maxHp, h.hp + 2);
-    h.mana = Math.min(h.maxMana, h.mana + 1);
+    // No auto-heal on level up — HP persists from previous combat
+    h.mana = Math.min(h.maxMana, h.mana + 1); // small MP top-up only
     // Learn a new skill from class pool if slot empty
     const pool = CLASS_SKILL_POOLS[h.class] || [];
     const knownNames = (h.skills||[]).filter(Boolean).map(s=>s.name);

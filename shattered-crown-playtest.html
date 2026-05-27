@@ -4867,24 +4867,79 @@ const SAVE_KEY = 'shatteredCrownSave_v1';
 const CAMPAIGN = new CampaignManager();
 
 const MAP_NODES = [
-  {id:0, type:'camp',   x: 60, y:160, name:'Camp',                connects:[1]},
-  {id:1, type:'combat', x:180, y:160, name:'Goblin Skirmish',     encounter:'goblins',   connects:[2,3]},
-  {id:2, type:'combat', x:320, y: 90, name:'Bandit Ambush',       encounter:'bandits',   connects:[4]},
-  {id:3, type:'combat', x:320, y:230, name:'Skeleton Patrol',     encounter:'skeletons', connects:[4]},
-  {id:4, type:'shop',   x:460, y:160, name:'Wandering Trader',    connects:[5]},
-  {id:5, type:'combat', x:600, y:160, name:'Necromancer Elite',   encounter:'elite',     connects:[6]},
-  {id:6, type:'shop',   x:740, y:160, name:'Last Camp',           connects:[7]},
-  {id:7, type:'boss',   x:880, y:160, name:'Aldric',              encounter:'aldric',    connects:[]}
+  // ── Start ──────────────────────────────────────────────────────────────
+  {id: 0, type:'camp',   x: 50,  y:165, name:'Camp',               connects:[1]},
+  {id: 1, type:'combat', x:140,  y:165, name:'Goblin Scouts',       encounter:'intro_goblins',  connects:[2]},
+  {id: 2, type:'combat', x:230,  y:165, name:'Goblin War Band',     encounter:'goblin_warband', connects:[3,6]},
+
+  // ── Upper Path: Goblin → Water ─────────────────────────────────────────
+  {id: 3, type:'shop',   x:320,  y: 75, name:'Field Armory',        connects:[4]},
+  {id: 4, type:'combat', x:420,  y: 75, name:'Goblin Archers',      encounter:'goblin_archers', connects:[5]},
+  {id: 5, type:'combat', x:520,  y: 75, name:'The Flooded Valley',  encounter:'water_ambush',   connects:[10]},
+
+  // ── Lower Path: Tree → Undead ──────────────────────────────────────────
+  {id: 6, type:'combat', x:320,  y:258, name:'The Rotwood',         encounter:'tree_encounter', connects:[7]},
+  {id: 7, type:'shop',   x:420,  y:258, name:"Scavenger's Post",    connects:[8]},
+  {id: 8, type:'combat', x:520,  y:258, name:'Undead Patrol',       encounter:'undead_patrol',  connects:[9]},
+  {id: 9, type:'combat', x:620,  y:258, name:"Necromancer's Horde", encounter:'undead_horde',   connects:[11]},
+
+  // ── Convergence ────────────────────────────────────────────────────────
+  {id:10, type:'shop',   x:630,  y: 75, name:'Upper Camp',          connects:[11]},
+  {id:11, type:'shop',   x:730,  y:165, name:'Wandering Trader',    connects:[12]},
+
+  // ── Final Stretch: Vanguard → King → Boss ─────────────────────────────
+  {id:12, type:'combat', x:815,  y: 75, name:"King's Vanguard",     encounter:'king_vanguard',  connects:[13]},
+  {id:13, type:'combat', x:885,  y: 75, name:'Goblin King',         encounter:'goblin_king',    connects:[14]},
+  {id:14, type:'boss',   x:950,  y:165, name:'Aldric',              encounter:'aldric',         connects:[]}
 ];
 // OOP: GameMap instance over MAP_NODES — new code can use GAME_MAP.availableFrom() etc.
 const GAME_MAP = new GameMap(MAP_NODES);
 
 const ENCOUNTERS = {
-  goblins:   [{cls:'Goblin', r:2, c:7}, {cls:'Goblin', r:4, c:7}, {cls:'Ranged Goblin', r:6, c:8}],
-  bandits:   [{cls:'Spear Goblin', r:3, c:7}, {cls:'Mage Goblin', r:5, c:8}, {cls:'Orc', r:4, c:6}],
-  skeletons: [{cls:'Skeleton', r:1, c:7}, {cls:'Skeleton', r:3, c:7}, {cls:'Zombie', r:5, c:7}, {cls:'Skeleton', r:7, c:7}],
-  elite:     [{cls:'Soul Eater', r:4, c:8}, {cls:'Skeleton', r:3, c:6}, {cls:'Skeleton', r:5, c:6}, {cls:'Zombie', r:4, c:5}],
-  aldric:    [{cls:'Aldric', r:4, c:8}, {cls:'Royal Guard', r:3, c:7}, {cls:'Royal Guard', r:5, c:7}, {cls:'Shield Bearer', r:4, c:9}]
+  // Node 1 — easy intro
+  intro_goblins:  [{cls:'Goblin', r:2, c:8}, {cls:'Goblin', r:6, c:8}, {cls:'Ranged Goblin', r:4, c:9}],
+
+  // Node 2 — bigger goblin brawl (branch point)
+  goblin_warband: [{cls:'Goblin', r:1, c:8}, {cls:'Goblin', r:4, c:8}, {cls:'Goblin', r:7, c:8},
+                   {cls:'Spear Goblin', r:3, c:7}, {cls:'Orc', r:5, c:7}],
+
+  // Node 4 — archers on high ground
+  goblin_archers: [{cls:'Ranged Goblin', r:1, c:8}, {cls:'Ranged Goblin', r:4, c:8}, {cls:'Ranged Goblin', r:7, c:8},
+                   {cls:'Mage Goblin', r:4, c:9}],
+
+  // Node 5 — water: aquatic enemies + straggler goblins
+  water_ambush:   [{cls:'Icefish', r:2, c:7}, {cls:'Icefish', r:6, c:7},
+                   {cls:'Electric Eel', r:4, c:8},
+                   {cls:'Goblin', r:1, c:9}, {cls:'Goblin', r:7, c:9}],
+
+  // Node 6 — tree: elf rangers + growing plants
+  tree_encounter: [{cls:'Elf', r:2, c:8}, {cls:'Elf', r:6, c:8},
+                   {cls:'Sapling', r:4, c:7},
+                   {cls:'Seedling', r:2, c:6}, {cls:'Seedling', r:6, c:6}],
+
+  // Node 8 — small undead patrol
+  undead_patrol:  [{cls:'Zombie', r:2, c:8}, {cls:'Zombie', r:6, c:8}, {cls:'Skeleton', r:4, c:9}],
+
+  // Node 9 — necromancer horde
+  undead_horde:   [{cls:'Necromancer', r:4, c:9},
+                   {cls:'Zombie', r:2, c:7}, {cls:'Zombie', r:6, c:7},
+                   {cls:'Skeleton', r:1, c:8}, {cls:'Skeleton', r:7, c:8},
+                   {cls:'Soul Stealer', r:4, c:6}],
+
+  // Node 12 — fortress gate guards
+  king_vanguard:  [{cls:'Shield Bearer', r:2, c:8}, {cls:'Shield Bearer', r:6, c:8},
+                   {cls:'Knight', r:4, c:7}, {cls:'Turret', r:4, c:9}],
+
+  // Node 13 — Goblin King + warband
+  goblin_king:    [{cls:'Goblin King', r:4, c:8},
+                   {cls:'Orc', r:2, c:7}, {cls:'Orc', r:6, c:7},
+                   {cls:'Spear Goblin', r:3, c:9}, {cls:'Spear Goblin', r:5, c:9},
+                   {cls:'Mage Goblin', r:4, c:6}],
+
+  // Node 14 — Aldric boss fight
+  aldric:         [{cls:'Aldric', r:4, c:8},
+                   {cls:'Shield Bearer', r:3, c:7}, {cls:'Shield Bearer', r:5, c:7},
+                   {cls:'Healer', r:2, c:9}, {cls:'Turret', r:6, c:9}]
 };
 
 // =============================================================================
@@ -4893,59 +4948,116 @@ const ENCOUNTERS = {
 // Each level: {terrain: 10x10 (or sparse {r,c,t}), heroSpawns: [[r,c],...]}
 // If sparse, only listed cells are non-normal terrain.
 const LEVEL_DESIGNS = {
-  // Node 1 — Goblin Skirmish: simple intro, scattered cover
+  // Node 1 — Goblin Scouts: open field, light cover
   1: {
-    name: 'Goblin Skirmish',
+    name: 'Goblin Scouts',
     terrainSparse: [
-      {r:3, c:3, t:'high-ground'},
-      {r:6, c:4, t:'high-ground'},
-      {r:5, c:5, t:'fire'},
+      {r:3, c:4, t:'high-ground'}, {r:6, c:4, t:'high-ground'},
+      {r:5, c:6, t:'fire'},
     ],
-    heroSpawns: [[1,1], [3,1], [5,1], [7,1]]
+    heroSpawns: [[1,1],[3,1],[5,1],[7,1]]
   },
-  // Node 2a — Bandit Ambush: tight corridor with walls and cracks
+  // Node 2 — Goblin War Band: village outskirts, walls + fire
   2: {
-    name: 'Bandit Ambush',
+    name: 'Goblin War Band',
     terrainSparse: [
-      {r:0, c:5, t:'wall'}, {r:1, c:5, t:'wall'}, {r:2, c:5, t:'wall'},
-      {r:8, c:5, t:'wall'}, {r:9, c:5, t:'wall'},
-      {r:4, c:5, t:'crack'}, {r:5, c:5, t:'crack'},
-      {r:6, c:3, t:'high-ground'},
+      {r:2, c:4, t:'wall'}, {r:2, c:5, t:'wall'},
+      {r:7, c:4, t:'wall'}, {r:7, c:5, t:'wall'},
+      {r:4, c:6, t:'high-ground'},
+      {r:0, c:7, t:'wall'}, {r:9, c:7, t:'wall'},
+      {r:5, c:3, t:'fire'},
     ],
-    heroSpawns: [[2,1], [4,1], [6,1], [8,1]]
+    heroSpawns: [[1,1],[3,1],[5,1],[7,1]]
   },
-  // Node 2b — Skeleton Patrol: open arena with fire barrels
-  3: {
-    name: 'Skeleton Patrol',
+  // Node 4 — Goblin Archers: high-ground ledges for archers
+  4: {
+    name: 'Goblin Archers',
     terrainSparse: [
-      {r:2, c:4, t:'fire'}, {r:7, c:4, t:'fire'},
-      {r:4, c:6, t:'fire'},
-      {r:0, c:9, t:'ledge'}, {r:9, c:9, t:'ledge'},
+      {r:0, c:7, t:'high-ground'}, {r:1, c:7, t:'high-ground'},
+      {r:8, c:7, t:'high-ground'}, {r:9, c:7, t:'high-ground'},
+      {r:4, c:8, t:'high-ground'},
+      {r:3, c:4, t:'wall'}, {r:6, c:4, t:'wall'},
     ],
-    heroSpawns: [[2,1], [4,1], [6,1], [8,1]]
+    heroSpawns: [[1,1],[3,1],[5,1],[7,1]]
   },
-  // Node 5 — Necromancer Elite: high ground for boss, walls protecting it
+  // Node 5 — The Flooded Valley: water fills the centre
   5: {
-    name: 'Necromancer Elite',
+    name: 'The Flooded Valley',
+    terrainSparse: [
+      {r:2, c:4, t:'water'}, {r:2, c:5, t:'water'}, {r:2, c:6, t:'water'},
+      {r:3, c:3, t:'water'}, {r:3, c:4, t:'water'}, {r:3, c:5, t:'water'}, {r:3, c:6, t:'water'}, {r:3, c:7, t:'water'},
+      {r:4, c:3, t:'water'}, {r:4, c:4, t:'water'}, {r:4, c:5, t:'water'}, {r:4, c:6, t:'water'}, {r:4, c:7, t:'water'}, {r:4, c:8, t:'water'},
+      {r:5, c:3, t:'water'}, {r:5, c:4, t:'water'}, {r:5, c:5, t:'water'}, {r:5, c:6, t:'water'}, {r:5, c:7, t:'water'},
+      {r:6, c:4, t:'water'}, {r:6, c:5, t:'water'}, {r:6, c:6, t:'water'},
+    ],
+    heroSpawns: [[1,1],[3,1],[5,1],[7,1]]
+  },
+  // Node 6 — The Rotwood: forested terrain, high-ground trees
+  6: {
+    name: 'The Rotwood',
+    terrainSparse: [
+      {r:1, c:3, t:'high-ground'}, {r:1, c:4, t:'high-ground'},
+      {r:4, c:5, t:'high-ground'}, {r:5, c:6, t:'high-ground'},
+      {r:7, c:3, t:'high-ground'}, {r:8, c:4, t:'high-ground'},
+      {r:2, c:7, t:'wall'}, {r:3, c:7, t:'wall'},
+      {r:6, c:7, t:'wall'}, {r:7, c:7, t:'wall'},
+    ],
+    heroSpawns: [[1,1],[3,1],[5,1],[7,1]]
+  },
+  // Node 8 — Undead Patrol: graveyard with cracked floor
+  8: {
+    name: 'Undead Patrol',
+    terrainSparse: [
+      {r:2, c:4, t:'wall'}, {r:7, c:4, t:'wall'},
+      {r:4, c:6, t:'crack'}, {r:5, c:7, t:'crack'},
+      {r:1, c:8, t:'ledge'}, {r:8, c:8, t:'ledge'},
+    ],
+    heroSpawns: [[2,1],[4,1],[6,1],[8,1]]
+  },
+  // Node 9 — Necromancer's Horde: crypt, raised platform for necromancer
+  9: {
+    name: "Necromancer's Horde",
     terrainSparse: [
       {r:4, c:8, t:'high-ground'},
       {r:3, c:7, t:'wall'}, {r:5, c:7, t:'wall'},
-      {r:2, c:5, t:'crack'}, {r:7, c:5, t:'crack'},
-      {r:0, c:4, t:'wall'}, {r:9, c:4, t:'wall'},
+      {r:1, c:5, t:'wall'}, {r:8, c:5, t:'wall'},
+      {r:2, c:6, t:'crack'}, {r:7, c:6, t:'crack'},
     ],
-    heroSpawns: [[2,1], [4,1], [6,1], [8,1]]
+    heroSpawns: [[2,1],[4,1],[6,1],[8,1]]
   },
-  // Node 7 — Aldric Boss: throne room with central dais + flanking pillars
-  7: {
+  // Node 12 — King's Vanguard: fortress gate, walls flanking
+  12: {
+    name: "King's Vanguard",
+    terrainSparse: [
+      {r:0, c:5, t:'wall'}, {r:1, c:5, t:'wall'}, {r:2, c:5, t:'wall'},
+      {r:7, c:5, t:'wall'}, {r:8, c:5, t:'wall'}, {r:9, c:5, t:'wall'},
+      {r:3, c:7, t:'high-ground'}, {r:5, c:7, t:'high-ground'},
+      {r:4, c:8, t:'high-ground'},
+    ],
+    heroSpawns: [[2,1],[4,1],[6,1],[8,1]]
+  },
+  // Node 13 — Goblin King: throne of goblins, raised dais
+  13: {
+    name: 'Goblin King',
+    terrainSparse: [
+      {r:4, c:7, t:'high-ground'}, {r:3, c:7, t:'high-ground'}, {r:5, c:7, t:'high-ground'},
+      {r:2, c:5, t:'wall'}, {r:7, c:5, t:'wall'},
+      {r:1, c:4, t:'high-ground'}, {r:8, c:4, t:'high-ground'},
+      {r:4, c:9, t:'fire'},
+    ],
+    heroSpawns: [[2,1],[4,1],[6,1],[8,1]]
+  },
+  // Node 14 — Aldric: throne room, central dais + flanking pillars
+  14: {
     name: 'Aldric — Throne Room',
     terrainSparse: [
-      {r:4, c:8, t:'high-ground'},        // throne dais
+      {r:4, c:8, t:'high-ground'},
       {r:3, c:8, t:'high-ground'}, {r:5, c:8, t:'high-ground'},
-      {r:2, c:6, t:'wall'}, {r:7, c:6, t:'wall'},  // pillars
-      {r:4, c:4, t:'fire'},                // ceremonial brazier
-      {r:0, c:0, t:'wall'}, {r:9, c:0, t:'wall'},  // entrance pillars
+      {r:2, c:6, t:'wall'}, {r:7, c:6, t:'wall'},
+      {r:4, c:4, t:'fire'},
+      {r:0, c:0, t:'wall'}, {r:9, c:0, t:'wall'},
     ],
-    heroSpawns: [[3,1], [4,1], [5,1], [6,1]]
+    heroSpawns: [[3,1],[4,1],[5,1],[6,1]]
   }
 };
 
@@ -4973,24 +5085,42 @@ function heroSpawnsFor(nodeId) {
 }
 
 const SHOP_INVENTORIES = {
-  4: { // Wandering Trader (mid)
-    flavor: 'A hooded figure crouches by a small fire. "I don\'t recognise that sword," they say, eyes lingering on Varn\'s blade. "But I know what it does. The whispers — I can hear them too. From here." They tap their temple. "I\'ll sell you what I have. Don\'t come back."',
+  3: { // Field Armory — upper path, post-goblin-warband
+    flavor: 'A soldier\'s kit, abandoned mid-retreat. Straps still buckled, blood not yet dry. You take what you need.',
     items: [
-      {id:'heal',  name:'Healing Salve',  desc:'Restore 5 HP to one hero.',           cost:15, type:'heal',     value:5,  target:'hero'},
-      {id:'mana',  name:'Mana Crystal',   desc:'Restore 3 MP to one hero.',           cost:10, type:'mana',     value:3,  target:'hero'},
-      {id:'atk',   name:'Whetstone',      desc:'+1 ATK permanently to one hero.',     cost:30, type:'buff-atk', value:1,  target:'hero'},
-      {id:'def',   name:'Leather Plate',  desc:'+2 DEF permanently to one hero.',     cost:25, type:'buff-def', value:2,  target:'hero'},
-      {id:'full',  name:'Stew Pot',       desc:'Heal entire party to full HP.',       cost:40, type:'full-heal',value:0,  target:'all'}
+      {id:'heal',  name:'Healing Salve',  desc:'Restore 5 HP to one hero.',       cost:12, type:'heal',     value:5,  target:'hero'},
+      {id:'mana',  name:'Mana Crystal',   desc:'Restore 3 MP to one hero.',       cost:10, type:'mana',     value:3,  target:'hero'},
+      {id:'def',   name:'Leather Plate',  desc:'+2 DEF permanently to one hero.', cost:22, type:'buff-def', value:2,  target:'hero'},
+      {id:'full',  name:'Stew Pot',       desc:'Heal entire party to full HP.',   cost:35, type:'full-heal',value:0,  target:'all'}
     ]
   },
-  6: { // Last Camp (pre-boss)
-    flavor: 'The trader from before sits by a different fire. They look at Varn\'s sword for a long time. "I won\'t see you again, will I?" They push everything they have across the dirt. "Take it. I have nowhere left to go either."',
+  7: { // Scavenger's Post — lower path, post-tree
+    flavor: 'A hunched figure picks through wreckage. "Goblins got the others. Me? I got lucky." They spread their wares on a stump. "Gold or nothing."',
     items: [
-      {id:'heal2', name:'Greater Salve',  desc:'Restore 10 HP to one hero.',          cost:25, type:'heal',     value:10, target:'hero'},
-      {id:'mana2', name:'Pure Mana Stone',desc:'Restore full MP to one hero.',        cost:20, type:'full-mana',value:0,  target:'hero'},
-      {id:'atk2',  name:'Demon-Iron Edge',desc:'+2 ATK permanently to one hero.',     cost:50, type:'buff-atk', value:2,  target:'hero'},
-      {id:'rev',   name:'Holy Ash',       desc:'Revive a dead hero at half HP.',      cost:60, type:'revive',   value:0,  target:'dead'},
-      {id:'crown', name:'Aldric\'s Crest',desc:'+1 to all stats, party-wide. One-time.',cost:80,type:'all-buff',value:1, target:'all'}
+      {id:'heal',  name:'Healing Salve',  desc:'Restore 5 HP to one hero.',       cost:12, type:'heal',     value:5,  target:'hero'},
+      {id:'mana',  name:'Mana Crystal',   desc:'Restore 3 MP to one hero.',       cost:10, type:'mana',     value:3,  target:'hero'},
+      {id:'atk',   name:'Whetstone',      desc:'+1 ATK permanently to one hero.', cost:28, type:'buff-atk', value:1,  target:'hero'},
+      {id:'full',  name:'Stew Pot',       desc:'Heal entire party to full HP.',   cost:35, type:'full-heal',value:0,  target:'all'}
+    ]
+  },
+  10: { // Upper Camp — after the flooded valley
+    flavor: 'The air smells of salt and old blood. A merchant sits on a crate, watching the water recede. "Ugly road ahead. But you already knew that."',
+    items: [
+      {id:'heal2', name:'Greater Salve',  desc:'Restore 10 HP to one hero.',          cost:22, type:'heal',     value:10, target:'hero'},
+      {id:'mana2', name:'Pure Mana Stone',desc:'Restore full MP to one hero.',        cost:18, type:'full-mana',value:0,  target:'hero'},
+      {id:'atk',   name:'Whetstone',      desc:'+1 ATK permanently to one hero.',     cost:28, type:'buff-atk', value:1,  target:'hero'},
+      {id:'def2',  name:'Chain Mail',     desc:'+3 DEF permanently to one hero.',     cost:38, type:'buff-def', value:3,  target:'hero'},
+      {id:'rev',   name:'Holy Ash',       desc:'Revive a dead hero at half HP.',      cost:55, type:'revive',   value:0,  target:'dead'}
+    ]
+  },
+  11: { // Wandering Trader — convergence before the king
+    flavor: 'A hooded figure crouches by a small fire. "I don\'t recognise that sword," they say, eyes lingering on Varn\'s blade. "But I know what it does. The whispers — I can hear them too. From here." They tap their temple. "I\'ll sell you what I have. Don\'t come back."',
+    items: [
+      {id:'heal2', name:'Greater Salve',  desc:'Restore 10 HP to one hero.',               cost:25, type:'heal',     value:10, target:'hero'},
+      {id:'mana2', name:'Pure Mana Stone',desc:'Restore full MP to one hero.',              cost:20, type:'full-mana',value:0,  target:'hero'},
+      {id:'atk2',  name:'Demon-Iron Edge',desc:'+2 ATK permanently to one hero.',           cost:50, type:'buff-atk', value:2,  target:'hero'},
+      {id:'rev',   name:'Holy Ash',       desc:'Revive a dead hero at half HP.',            cost:60, type:'revive',   value:0,  target:'dead'},
+      {id:'crown', name:"Aldric's Crest", desc:'+1 to all stats, party-wide. One-time.',    cost:80, type:'all-buff', value:1,  target:'all'}
     ]
   }
 };

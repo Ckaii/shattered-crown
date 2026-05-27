@@ -704,6 +704,8 @@ select,input[type=number]{background:#060a10;border:1px solid #2a2f5c;color:#e8e
       <button class="tool-btn purple-tb" onclick="toggleSkillPool()">&#9670; Skill Pool</button>
       <button class="tool-btn danger-tb" onclick="clearTokens()">&#10005; Clear Tokens</button>
       <button class="tool-btn danger-tb" onclick="resetAll()">&#9888; Reset All</button>
+      <button id="btnUndo" class="tool-btn" onclick="undoState()" disabled style="border-color:#5a8a5a;color:#7fbf7f">&#8629; Undo</button>
+      <button id="btnRedo" class="tool-btn" onclick="redoState()" disabled style="border-color:#5a8a5a;color:#7fbf7f">&#8631; Redo</button>
     </div>
     <div class="btoolbar" style="margin-top:4px;border-top:1px solid #1e2540;padding-top:6px">
       <span style="font-size:0.65rem;color:#4a6a4a;margin-right:4px">&#128249; Map:</span>
@@ -1210,11 +1212,11 @@ function equipmentItem(id) {
 // =============================================================================
 const EQUIPMENT = {
   // ── TIER 0: Starting weapons (one per class, fixed) ─────────────────────
-  ironSword:    {id:'ironSword',    name:'Iron Sword',    icon:'⚔️',  slot:'weapon',    stats:{atk:1},                          desc:'A simple soldier\'s blade. +1 ATK',                tier:0, classes:['Fighter']},
-  rustyDagger:  {id:'rustyDagger',  name:'Rusty Dagger',  icon:'🗡️',  slot:'weapon',    stats:{atk:0, speed:1},                 desc:'Light and quick. +1 SPD',                          tier:0, classes:['Rogue']},
-  shortBow:     {id:'shortBow',     name:'Short Bow',     icon:'🏹',  slot:'weapon',    stats:{atk:1, range:2},                 desc:'A hunter\'s tool. +1 ATK, +2 RNG (range 3)',       tier:0, classes:['Ranger']},
-  woodMace:     {id:'woodMace',     name:'Wooden Mace',   icon:'🔨',  slot:'weapon',    stats:{atk:0, manaRegen:1},             desc:'Blessed wood. +1 MP regen',                        tier:0, classes:['Cleric']},
-  apprenticeStaff:{id:'apprenticeStaff',name:'Apprentice Staff',icon:'🪄',slot:'weapon',stats:{atk:0, range:1, maxMana:2},      desc:'A novice\'s focus. +1 RNG, +2 max MP',             tier:0, classes:['Wizard','Mage']},
+  ironSword:    {id:'ironSword',    name:'Iron Sword',    icon:'⚔️',  slot:'weapon',    stats:{atk:1, range:1},                 desc:'A simple soldier\'s blade. +1 ATK, RNG 1',         tier:0, classes:['Fighter']},
+  rustyDagger:  {id:'rustyDagger',  name:'Rusty Dagger',  icon:'🗡️',  slot:'weapon',    stats:{atk:0, speed:1, range:1},        desc:'Light and quick. +1 SPD, RNG 1',                   tier:0, classes:['Rogue']},
+  shortBow:     {id:'shortBow',     name:'Short Bow',     icon:'🏹',  slot:'weapon',    stats:{atk:1, range:3},                 desc:'A hunter\'s tool. +1 ATK, RNG 3',                  tier:0, classes:['Ranger']},
+  woodMace:     {id:'woodMace',     name:'Wooden Mace',   icon:'🔨',  slot:'weapon',    stats:{atk:0, manaRegen:1, range:1},    desc:'Blessed wood. +1 MP regen, RNG 1',                 tier:0, classes:['Cleric']},
+  apprenticeStaff:{id:'apprenticeStaff',name:'Apprentice Staff',icon:'🪄',slot:'weapon',stats:{atk:0, range:2, maxMana:2},      desc:'A novice\'s focus. RNG 2, +2 max MP',              tier:0, classes:['Wizard','Mage']},
   warHammer:    {id:'warHammer',    name:'War Hammer',    icon:'🔨',  slot:'weapon',    stats:{atk:2, speed:-1},                desc:'Heavy and brutal. +2 ATK, -1 SPD',                 tier:0, classes:['Tank']},
 
   // ── TIER 1: Common loot ─────────────────────────────────────────────────
@@ -2247,6 +2249,36 @@ let selectedId = null;
 let terrainMode = 'normal';
 let placeMode = null;
 let mode = 'select';
+
+// ── Undo / Redo ──────────────────────────────────────────────────────────────
+let _undoStack = [];
+let _redoStack = [];
+function pushUndoState() {
+  _undoStack.push(JSON.stringify(tokens));
+  if (_undoStack.length > 30) _undoStack.shift();
+  _redoStack = [];
+  _updateUndoUI();
+}
+function undoState() {
+  if (!_undoStack.length) return;
+  _redoStack.push(JSON.stringify(tokens));
+  tokens = JSON.parse(_undoStack.pop()).map(t => makeToken(t));
+  renderAll(); _updateUndoUI();
+  log('↩ Reverted.', 'sys');
+}
+function redoState() {
+  if (!_redoStack.length) return;
+  _undoStack.push(JSON.stringify(tokens));
+  tokens = JSON.parse(_redoStack.pop()).map(t => makeToken(t));
+  renderAll(); _updateUndoUI();
+  log('↪ Redone.', 'sys');
+}
+function _updateUndoUI() {
+  const u = document.getElementById('btnUndo');
+  const r = document.getElementById('btnRedo');
+  if (u) u.disabled = !_undoStack.length;
+  if (r) r.disabled = !_redoStack.length;
+}
 let souls = 0;
 let trust = 50;   // 0–100; d100 roll determines NPC behaviour
 let gold = 200;   // starting gold
@@ -2727,6 +2759,7 @@ function cellClick(r, c) {
       const corpseBlock = tokens.find(t=>t.row===r&&t.col===c&&t.dead);
       if (corpseBlock) { log(`${sel.name} can't move there — ${corpseBlock.name}'s body blocks the path. Use Attack mode and click the body to clear it.`,'miss'); return; }
       if (dist <= sel.speed) {
+        pushUndoState();
         log(`${sel.name} moves ${coord(sel.row,sel.col)} -> ${coord(r,c)} (${dist}/${sel.speed})`,'sys');
         sel.facing = getFacing(sel.row, sel.col, r, c);
         const oldR = sel.row, oldC = sel.col;
@@ -2969,6 +3002,7 @@ function renderBarracks() {
 // =============================================================================
 function resolveAttack(attacker, target) {
   if (!attacker.actions) { log(`${attacker.name} has no Action left.`, 'miss'); return; }
+  pushUndoState();
   window._lastAttacker = attacker;
 
   // Range check (Chebyshev distance — diagonals count as 1)
@@ -3018,14 +3052,14 @@ function resolveAttack(attacker, target) {
   } else if (sprAtt.attackFx) {
     fxFlyingWeapon(attacker.id, target.id, sprAtt.attackFx, 'weapon');
   }
-  // Advantage/Disadvantage detection
+  // Advantage/Disadvantage detection (affects crit probability)
   let adv = false, dis = false;
-  if (isFlankedBy(target, attacker)) adv = true; // attacker is flanking
+  if (isFlankedBy(target, attacker)) adv = true;
   if (terrain[attacker.row][attacker.col]==='high-ground' && attacker.range>1) adv = true;
   if (attacker.statuses.includes('distrust')) dis = true;
   if (attacker.statuses.includes('rattled')) dis = true;
 
-  // Roll d20
+  // Roll d20 — only determines CRIT; all attacks hit
   let r1 = Math.floor(Math.random()*20)+1;
   let r2 = Math.floor(Math.random()*20)+1;
   let raw;
@@ -3033,69 +3067,42 @@ function resolveAttack(attacker, target) {
   else if (dis && !adv) raw = Math.min(r1,r2);
   else raw = r1;
 
-  // Lucky: reroll 1
-  if (attacker.lucky && raw === 1) {
-    raw = Math.floor(Math.random()*20)+1;
-    log(`${attacker.name} Lucky trait -- rerolled 1, got ${raw}.`,'sys');
-  }
-
   const isCrit = raw === 20;
-  const isFumble = raw === 1;
-  const total = raw + attacker.atk;
+  const advStr = adv&&!dis?' [Adv]':dis&&!adv?' [Dis]':'';
 
   let atk = attacker.atk;
-  // Berserker trait
   if (attacker.berserker && attacker.hp < attacker.maxHp/2) atk += 3;
 
-  let dmg = 0;
-  let resultType = '';
+  // Damage — attacks always hit; nat 20 = double
+  let dmg = isCrit ? atk * 2 : atk;
+  // Rogue sneak attack bonus
+  if (attacker.class==='Rogue' && target.statuses.includes('flanked')) {
+    const bonus = Math.floor(Math.random()*6)+1;
+    dmg += bonus;
+    log(`${attacker.name} Sneak Attack! +${bonus} bonus damage.`, 'skill');
+  }
+  // Sneak attacker bonus: +10% damage (round up)
+  if (attacker.sneaking) dmg = Math.ceil(dmg * 1.1);
 
-  if (isFumble) {
-    resultType = 'fumble';
-    attacker.bonusAction = false;
-    log(`${attacker.name} FUMBLES! (rolled 1) Loses Bonus Action.`, 'death');
-    spawnFloat(target.row, target.col, 'MISS!', 'fdmg-miss');
-    animCell(target.row, target.col, 'anim-hit');
-  } else if (isCrit) {
-    dmg = atk * 2;
-    // Rogue sneak attack on crit flanked
-    if (attacker.class==='Rogue' && target.statuses.includes('flanked')) dmg += Math.floor(Math.random()*6)+1;
-    // Sneak attacker bonus: +10% damage (round up)
-    if (attacker.sneaking) dmg = Math.ceil(dmg * 1.1);
-    target.hp = Math.max(0, target.hp - dmg);
-    statsRecordDamage(attacker, target, dmg);
-    resultType = 'crit';
+  target.hp = Math.max(0, target.hp - dmg);
+  statsRecordDamage(attacker, target, dmg);
+  const resultType = isCrit ? 'crit' : 'hit';
+
+  if (isCrit) {
     spawnFloat(target.row, target.col, `CRIT! -${dmg}`, 'fdmg-crit');
-    log(`${attacker.name} CRITICAL HIT on ${target.name}! Rolls ${raw}+${atk}=${total} vs DEF${target.def}. Deals ${dmg} damage.`, 'crit');
+    log(`${attacker.name} CRITICAL HIT on ${target.name}! (${raw}${advStr}) Deals ${dmg} damage.`, 'crit');
     animCell(target.row, target.col, 'anim-crit');
     animToken(target.id, 'anim-shake');
     fxCritFlash();
     fxBlast(target.row, target.col, '💥');
-    if (attacker.loyal) { changeTrust(1); }
-  } else if (total >= target.def) {
-    dmg = atk;
-    if (attacker.class==='Rogue' && target.statuses.includes('flanked')) {
-      const bonus = Math.floor(Math.random()*6)+1;
-      dmg += bonus;
-      log(`${attacker.name} Sneak Attack! +${bonus} bonus damage.`,'skill');
-    }
-    // Sneak attacker bonus: +10% damage (round up)
-    if (attacker.sneaking) dmg = Math.ceil(dmg * 1.1);
-    target.hp = Math.max(0, target.hp - dmg);
-    statsRecordDamage(attacker, target, dmg);
-    resultType = 'hit';
+    if (attacker.loyal) changeTrust(1);
+  } else {
     spawnFloat(target.row, target.col, `-${dmg}`, 'fdmg-hit');
-    const advStr = adv&&!dis?' [Adv]':dis&&!adv?' [Dis]':'';
-    log(`${attacker.name} hits ${target.name}! Roll ${raw}${advStr}+${atk}=${total} vs DEF${target.def}. Deals ${dmg} damage. HP ${target.hp}/${target.maxHp}.`, 'hit');
+    log(`${attacker.name} hits ${target.name}!${advStr?' '+advStr:''} (${raw}) Deals ${dmg} damage. HP ${target.hp}/${target.maxHp}.`, 'hit');
     animCell(target.row, target.col, 'anim-hit');
     animToken(target.id, 'anim-shake');
-    if (target.hp <= 0) { trustEvent(2, `${attacker.name} killed ${target.name}`); }
-    else if (attacker.loyal && target.hp <= 0) { changeTrust(1); }
-  } else {
-    resultType = 'miss';
-    spawnFloat(target.row, target.col, 'MISS', 'fdmg-miss');
-    const advStr = adv&&!dis?' [Adv]':dis&&!adv?' [Dis]':'';
-    log(`${attacker.name} misses ${target.name}. Roll ${raw}${advStr}+${atk}=${total} vs DEF${target.def}.`, 'miss');
+    if (target.hp <= 0) trustEvent(2, `${attacker.name} killed ${target.name}`);
+    if (attacker.loyal && target.hp <= 0) changeTrust(1);
   }
 
   // Clear attacker sneak after attacking
@@ -5711,7 +5718,7 @@ function confirmParty() {
       atk:       r.atk       ?? tpl.atk,
       def:       r.def       ?? tpl.def,
       speed:     r.speed     ?? tpl.speed,
-      range:     1,
+      range:     0,  // weapons define range; 0 base so weapon stat is absolute
       maxMana:   r.mana      ?? tpl.maxMana,
       manaRegen: r.manaRegen ?? tpl.manaRegen,
     };
@@ -6470,7 +6477,7 @@ function renderCharDetail(tokId) {
       <div style="color:#555;font-size:0.58rem;letter-spacing:1px;margin-bottom:2px">${label}</div>
       <div style="display:flex;align-items:center;justify-content:center;gap:2px">
         <button onclick="cdmAdj(${tokId},'${k}',-1)" style="background:#2a0a0a;border:1px solid #6a2a2a;color:#e05555;width:17px;height:17px;cursor:pointer;border-radius:3px;font-size:0.75rem;padding:0;line-height:1">−</button>
-        <span id="cdv-${tokId}-${k}" style="color:${col};font-weight:bold;font-size:0.9rem;min-width:24px;text-align:center">${tok[k]??0}</span>
+        <span id="cdv-${tokId}-${k}" onclick="cdmInlineEdit(${tokId},'${k}')" title="Click to edit directly" style="color:${col};font-weight:bold;font-size:0.9rem;min-width:28px;text-align:center;cursor:text;padding:1px 2px;border-radius:2px;border:1px solid transparent" onmouseover="this.style.borderColor='#c9a84c'" onmouseout="this.style.borderColor='transparent'">${tok[k]??0}</span>
         <button onclick="cdmAdj(${tokId},'${k}',1)" style="background:#0a2a0a;border:1px solid #2a6a2a;color:#7fb87f;width:17px;height:17px;cursor:pointer;border-radius:3px;font-size:0.75rem;padding:0;line-height:1">+</button>
       </div>
     </div>`).join('');
@@ -6539,7 +6546,10 @@ function renderCharDetail(tokId) {
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #2a3050">
       <span style="font-size:2.2rem;line-height:1">${spr.portrait}</span>
       <div style="flex:1">
-        <div style="color:#c9a84c;font-size:1.15rem;font-weight:bold">${tok.name}</div>
+        <input id="cdm-name-${tokId}" value="${tok.name.replace(/"/g,'&quot;')}"
+          onchange="cdmSetName(${tokId},this.value)"
+          style="background:transparent;border:none;border-bottom:1px solid #4a3a1a;color:#c9a84c;font-size:1.15rem;font-weight:bold;width:100%;padding:0 0 2px 0;cursor:text"
+          title="Edit name">
         <div style="color:#888;font-size:0.78rem">${tok.class} · ${tok.side==='ally'?'🔵 Ally':'🔴 Enemy'}${tok.dead?' · ☠ Dead':''}</div>
         ${tok.trait?`<div style="color:#dfaf3a;font-size:0.68rem">${tok.trait.name||''}</div>`:''}
       </div>
@@ -6610,6 +6620,33 @@ function cdmAdj(tokId, key, delta) {
   if (el) el.textContent = tok[key];
   renderAll();
 }
+function cdmInlineEdit(tokId, key) {
+  const el = document.getElementById(`cdv-${tokId}-${key}`);
+  if (!el || el.querySelector('input')) return; // already editing
+  const cur = el.textContent.trim();
+  el.innerHTML = `<input type="number" value="${cur}"
+    style="width:42px;background:#0a0a1e;border:1px solid #c9a84c;color:#c9a84c;text-align:center;font-size:0.85rem;padding:1px 3px;border-radius:3px"
+    onblur="cdmInlineCommit(${tokId},'${key}',this)"
+    onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}if(event.key==='Escape'){this.dataset.cancel='1';this.blur();}">`;
+  const inp = el.querySelector('input');
+  inp.focus(); inp.select();
+}
+function cdmInlineCommit(tokId, key, input) {
+  if (input.dataset.cancel) { renderCharDetail(tokId); return; }
+  const tok = tokens.find(t=>t.id===tokId); if(!tok) return;
+  const val = parseFloat(input.value);
+  if (!isNaN(val)) {
+    tok[key] = Math.max(0, Math.round(val));
+    if (key==='hp'   && tok.hp   > tok.maxHp)   tok.maxHp   = tok.hp;
+    if (key==='mana' && tok.mana > tok.maxMana)  tok.maxMana = tok.mana;
+  }
+  renderCharDetail(tokId); renderAll();
+}
+function cdmSetName(tokId, val) {
+  const tok = tokens.find(t=>t.id===tokId); if(!tok) return;
+  tok.name = val.trim() || tok.name;
+  renderAll();
+}
 function cdmSetAction(tokId, val) {
   const tok = tokens.find(t=>t.id===tokId); if(!tok) return;
   tok.actions = val; renderAll();
@@ -6663,6 +6700,7 @@ function cdmAddSk(tokId, skillId) {
 }
 function cdmQuick(tokId, action) {
   const tok = tokens.find(t=>t.id===tokId); if(!tok) return;
+  pushUndoState();
   if      (action==='heal')   { tok.hp=tok.maxHp; log(`${tok.name} fully healed (GM).`,'heal'); }
   else if (action==='mana')   { tok.mana=tok.maxMana; log(`${tok.name} MP restored (GM).`,'skill'); }
   else if (action==='revive') { tok.dead=false; tok.hp=Math.ceil(tok.maxHp/2); log(`${tok.name} revived (GM).`,'heal'); }

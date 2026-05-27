@@ -20,9 +20,9 @@ header h1{color:#c9a84c;font-size:1.2rem;letter-spacing:1px}
 /* GRID */
 .grid-container{position:relative}
 .grid{display:grid;grid-template-columns:repeat(10,60px);grid-template-rows:repeat(10,60px);border:2px solid #c9a84c;gap:1px;background:#c9a84c44}
-.cell{width:60px;height:60px;background:#12192a;position:relative;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.1s}
-.cell:hover{background:#1a2540}
-.cell.high-ground{background:#0e1e10}.cell.fire{background:#1f1008}.cell.crack{background:#1a1510}.cell.ledge{background:#080d18}.cell.wall{background:#050508;cursor:not-allowed}.cell.water{background:#081828;outline:1px solid #2a5a8a}.cell.grass{background:#0a1e08;outline:1px solid #2a6a2a}
+.cell{width:60px;height:60px;background:#ffffff;position:relative;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.1s}
+.cell:hover{background:#e8e8e8}
+.cell.high-ground{background:#eef5ee}.cell.fire{background:#ffeeee}.cell.crack{background:#f5f0ea}.cell.ledge{background:#f0f2f5}.cell.wall{background:#cccccc;cursor:not-allowed}.cell.water{background:#e8f0ff;outline:1px solid #4a7aaa}.cell.grass{background:#eeffee;outline:1px solid #5a9a5a}
 .cell.in-range{background:#142414;outline:1px solid #2d6a2d}
 .cell.target-range{background:#241414;outline:1px solid #6a2d2d}
 .cell.atk-range{background:#2a0e0e;outline:2px solid #c04040;cursor:crosshair}
@@ -57,6 +57,10 @@ header h1{color:#c9a84c;font-size:1.2rem;letter-spacing:1px}
 .hp-bar-fill{height:100%;border-radius:3px;background:#2d7a2d;transition:width 0.3s}
 .hp-bar-fill.low{background:#c9a84c}.hp-bar-fill.crit{background:#8b1a1a}
 .hp-nums{font-size:0.65rem;color:#888;white-space:nowrap}
+.def-bar-bg{flex:1;background:#060a10;height:4px;border-radius:2px;overflow:hidden;margin-top:1px}
+.def-bar-fill{height:100%;border-radius:2px;background:#7a6ab0;transition:width 0.3s}
+.def-nums{font-size:0.6rem;color:#9a8acf;white-space:nowrap}
+.def-row{display:flex;align-items:center;gap:4px;margin-top:1px}
 .ctrl-row{display:flex;gap:3px;margin-top:3px}
 .mini-btn{flex:1;background:#1a1f3c;border:1px solid #2a2f5c;color:#e8e0d0;padding:2px 0;border-radius:3px;cursor:pointer;font-size:0.65rem}
 .mini-btn:hover{border-color:#c9a84c;color:#c9a84c}
@@ -1388,10 +1392,10 @@ function itemClassBadge(item) {
 function recalcHeroStats(h) {
   if (!h.baseStats) return;
   const b = h.baseStats;
-  // Reset to base
+  // Reset to base — def becomes shield capacity (maxDef)
   h.maxHp     = b.hp;
   h.atk       = b.atk;
-  h.def       = b.def;
+  h.maxDef    = b.def;
   h.speed     = b.speed;
   h.range     = b.range;
   h.maxMana   = b.maxMana;
@@ -1417,9 +1421,12 @@ function recalcHeroStats(h) {
     if (!item) return;
     Object.entries(item.stats).forEach(([k,v]) => {
       if (k === 'hp') h.maxHp += v;
+      else if (k === 'def') h.maxDef += v;
       else if (h[k] !== undefined) h[k] += v;
     });
   });
+  // Fill current def to maxDef (regen each recalc — e.g. after equipment change)
+  h.def = h.maxDef;
   // Clamp current values
   if (h.hp > h.maxHp) h.hp = h.maxHp;
   if (h.mana > h.maxMana) h.mana = h.maxMana;
@@ -2219,7 +2226,7 @@ const CLASS_COLLARS = {
 };
 
 const TRAITS = [
-  {name:'Brave',     stats:'+1 ATK',            desc:'Immune to morale breaks. Attacks never suffer Disadvantage from low Trust.', apply:t=>{t.atk+=1; t.moralImmune=true;}},
+  {name:'Brave',     stats:'+1 ATK',            desc:'Immune to morale breaks. Never hesitates — always reliable.', apply:t=>{t.atk+=1; t.moralImmune=true;}},
   {name:'Reckless',  stats:'+2 ATK, -2 DEF',    desc:'Hits hard, guards poorly. High-risk striker.', apply:t=>{t.atk+=2; t.def-=2;}},
   {name:'Cautious',  stats:'+2 DEF, -1 Speed',  desc:'Careful and measured. Hard to kill but slow.', apply:t=>{t.def+=2; t.speed-=1;}},
   {name:'Swift',     stats:'+1 Speed',           desc:'Always moves first in a tie. Covers ground quickly.', apply:t=>{t.speed+=1;}},
@@ -2982,7 +2989,7 @@ function placeToken(cls, side, r, c, name, trait) {
     side, row: r, col: c,
     actions: true,                          // 1 action per turn (no bonus/reaction)
     statuses: [], dead: false,
-    speed: template.speed, atk: template.atk, def: template.def, range: template.range,
+    speed: template.speed, atk: template.atk, def: template.def, maxDef: template.def, range: template.range,
     color: template.color, bcolor: template.bcolor,
     // Base RPG stats
     str: template.str||2, vit: template.vit||2, int: template.int||1, dex: template.dex||2,
@@ -2996,6 +3003,7 @@ function placeToken(cls, side, r, c, name, trait) {
     equipment: [],
     trait: trait || null,
     skills: [null, null],
+    classSkill: template.classSkill || null,
     moralImmune: false, lucky: false, loyal: false, haunted: false, stoic: false, berserker: false,
   };
   if (trait) trait.apply(tok);
@@ -3100,6 +3108,7 @@ function returnFromBarracks(id) {
   const tok = entry.tok;
   // Heal to full + rested bonus
   tok.hp = tok.maxHp;
+  tok.def = tok.maxDef;
   tok.atk += 1;
   tok._home = false;
   barracks = barracks.filter(b=>b.tok.id!==id);
@@ -3144,30 +3153,12 @@ function resolveAttack(attacker, target) {
     return;
   }
 
-  // Sneak: target dodge check (25% dodge if target is sneaking)
-  if (target.sneaking) {
-    if (Math.random() < 0.25) {
-      log(`${target.name} DODGES from stealth!`, 'miss');
-      spawnFloat(target.row, target.col, 'DODGE!', 'fdmg-miss');
-      target.sneaking = false;
-      return;
-    }
-    target.sneaking = false;
-  }
-
-  // Tall grass: 50% dodge chance when target is in grass terrain
-  if (terrain[target.row]?.[target.col] === 'grass') {
-    if (Math.random() < 0.5) {
-      log(`${target.name} hides in the tall grass — DODGE!`, 'miss');
-      spawnFloat(target.row, target.col, 'DODGE!', 'fdmg-miss');
-      return;
-    }
-  }
+  // Consume target sneak (no more dodge)
+  if (target.sneaking) target.sneaking = false;
 
   // Sprite animation: lunge toward target
   const sprAtt = spriteFor(attacker.class);
   spriteAnim(attacker.id, 'attacking');
-  // Set lunge direction CSS var
   setTimeout(()=>{
     const att = document.getElementById('tok-'+attacker.id);
     if (att) {
@@ -3177,183 +3168,145 @@ function resolveAttack(attacker, target) {
       att.querySelector('.sprite-portrait')?.style.setProperty('--ly', dy+'px');
     }
   }, 0);
-  // Weapon/projectile fx
   if (attacker.range > 1 && sprAtt.projectile) {
     fxFlyingWeapon(attacker.id, target.id, sprAtt.projectile, 'projectile');
   } else if (sprAtt.attackFx) {
     fxFlyingWeapon(attacker.id, target.id, sprAtt.attackFx, 'weapon');
   }
-  // Advantage/Disadvantage detection (affects crit probability)
-  let adv = false, dis = false;
-  if (isFlankedBy(target, attacker)) adv = true;
-  if (terrain[attacker.row][attacker.col]==='high-ground' && attacker.range>1) adv = true;
-  if (attacker.statuses.includes('distrust')) dis = true;
-  if (attacker.statuses.includes('rattled')) dis = true;
 
-  // Roll d20 — determines HIT and CRIT
-  let r1 = Math.floor(Math.random()*20)+1;
-  let r2 = Math.floor(Math.random()*20)+1;
-  let raw;
-  if (adv && !dis) raw = Math.max(r1,r2);
-  else if (dis && !adv) raw = Math.min(r1,r2);
-  else raw = r1;
+  // Calculate final ATK with modifiers
+  let atk = attacker.atk;
+  if (terrain[attacker.row][attacker.col]==='high-ground' && attacker.range>1) atk += 1;
+  if (attacker.berserker && attacker.hp < attacker.maxHp/2) atk += 3;
+  if (attacker.equipment && attacker.equipment.includes('stormHunter')) {
+    const dist = Math.abs(attacker.row - target.row) + Math.abs(attacker.col - target.col);
+    if (dist >= 4) { atk += 1; log(`${attacker.name} snipes! +1 ATK from Storm Hunter Goggles.`, 'skill'); }
+  }
+  if (attacker._sharpenStacks > 0) {
+    atk += attacker._sharpenStacks;
+    log(`${attacker.name} uses Sharpen stacks! +${attacker._sharpenStacks} damage.`, 'skill');
+    if (attacker._sharpenStacks === 3 && target.def <= 10) { atk += 1; log(`CRUSHING BLOW! +1 bonus vs low shield.`, 'crit'); }
+    attacker._sharpenStacks = 0;
+  }
+  if (attacker._manaArrows > 0 && attacker.range > 1) {
+    atk = Math.ceil(atk * 1.3);
+    attacker._manaArrows--;
+    log(`${attacker.name} spends a Mana Arrow! +30% damage (${attacker._manaArrows} left).`, 'skill');
+  }
 
-  const isCrit = raw === 20;
-  const totalHit = raw + attacker.atk;
-  const isHit = isCrit || (totalHit >= target.def);
-  const advStr = adv&&!dis?' [Adv]':dis&&!adv?' [Dis]':'';
+  // Crit check (10% chance)
+  const isCrit = Math.random() < 0.1;
+  let dmg = isCrit ? atk * 2 : atk;
 
-  // Trigger visual dice roll
-  showCombatDice(r1, r2, adv, dis, raw, () => {
-    // Continue with damage resolution after animation
-    
-    // Weapon/projectile fx
-    if (attacker.range > 1 && sprAtt.projectile) {
-      fxFlyingWeapon(attacker.id, target.id, sprAtt.projectile, 'projectile');
-    } else if (sprAtt.attackFx) {
-      fxFlyingWeapon(attacker.id, target.id, sprAtt.attackFx, 'weapon');
+  // Dragonslayer: +1 vs large
+  const isTargetLarge = target.skills && target.skills.some(s=>s&&s.name==='Large') && !target.moved;
+  if (attacker.equipment && attacker.equipment.includes('dragonslayer') && isTargetLarge) {
+    dmg += 1;
+    log(`${attacker.name}'s Dragonslayer bites deep! +1 bonus damage.`, 'skill');
+  }
+
+  // Rogue sneak attack bonus
+  if (attacker.class==='Rogue' && target.statuses.includes('flanked')) {
+    const bonus = Math.floor(Math.random()*6)+1;
+    dmg += bonus;
+    log(`${attacker.name} Sneak Attack! +${bonus} bonus damage.`, 'skill');
+  }
+  if (attacker.sneaking) dmg = Math.ceil(dmg * 1.1);
+
+  // Terrain bonus DEF (grass grants +2)
+  const terrainDef = terrain[target.row]?.[target.col] === 'grass' ? 2 : 0;
+  const effectiveDef = (target.def || 0) + terrainDef;
+  const defDmg = Math.min(effectiveDef, dmg);
+  const hpDmg = dmg - defDmg;
+  if (defDmg > 0) {
+    const fromShield = Math.min(target.def || 0, defDmg);
+    target.def = (target.def || 0) - fromShield;
+    // remaining defDmg absorbed by terrain bonus (doesn't deplete token def)
+  }
+  target.hp = Math.max(0, target.hp - hpDmg);
+  statsRecordDamage(attacker, target, dmg);
+
+  // Visual feedback
+  if (isCrit) {
+    spawnFloat(target.row, target.col, `CRIT! -${dmg}`, 'fdmg-crit');
+    log(`${attacker.name} CRITICAL HIT on ${target.name}! Deals ${dmg} damage (${defDmg} shield, ${hpDmg} HP).`, 'crit');
+    animCell(target.row, target.col, 'anim-crit');
+    animToken(target.id, 'anim-shake');
+    fxBlast(target.row, target.col, '💥');
+    if (attacker.loyal) changeTrust(1);
+  } else {
+    const shieldPct = target.maxDef > 0 ? (target.def / target.maxDef) : 0;
+    const shieldStr = defDmg > 0 ? ` (${defDmg} shield)` : '';
+    spawnFloat(target.row, target.col, `-${dmg}${shieldStr}`, 'fdmg-hit');
+    log(`${attacker.name} hits ${target.name} for ${dmg} damage (${defDmg} shield → ${hpDmg} HP). HP ${target.hp}/${target.maxHp}`, 'hit');
+    animCell(target.row, target.col, 'anim-hit');
+    animToken(target.id, 'anim-shake');
+    if (target.hp <= 0) trustEvent(2, `${attacker.name} killed ${target.name}`);
+    if (attacker.loyal && target.hp <= 0) changeTrust(1);
+  }
+
+  // Clear attacker sneak after attacking
+  if (attacker.sneaking) attacker.sneaking = false;
+
+  // Mark action used
+  attacker.actions = false;
+  attacker.facing = getFacing(attacker.row, attacker.col, target.row, target.col);
+
+  // Titanbreaker Cleave: 1 dmg to adj (DEF applies)
+  if (attacker.equipment && attacker.equipment.includes('titanbreaker')) {
+    tokens.filter(o=>!o.dead && o.side!==attacker.side && o.id!==target.id && Math.abs(o.row-target.row)<=1 && Math.abs(o.col-target.col)<=1).forEach(o=>{
+      const cd = Math.min(o.def||0, 1);
+      o.def = (o.def||0) - cd;
+      o.hp = Math.max(0, o.hp - (1-cd));
+      spawnFloat(o.row, o.col, '-1', 'fdmg-hit');
+      checkDeath(o);
+    });
+  }
+
+  // Goblin Pack Attack (always applies if class matches)
+  const packClasses = ['Goblin','Ranged Goblin','Spear Goblin','Mage Goblin','Goblin King','Orc'];
+  if (packClasses.includes(attacker.class)) {
+    window._roundPackAttacks = window._roundPackAttacks || {};
+    window._roundPackAttacks[target.id] = (window._roundPackAttacks[target.id]||0)+1;
+    const count = window._roundPackAttacks[target.id];
+    if (count > 1) {
+      const extraDmg = count - 1;
+      const exDef = Math.min(target.def||0, extraDmg);
+      target.def = (target.def||0) - exDef;
+      target.hp = Math.max(0, target.hp - (extraDmg-exDef));
+      spawnFloat(target.row, target.col, `+${extraDmg}(pack)`, 'fdmg-crit');
+      log(`Pack Attack! ${count} goblins — +${extraDmg} damage on ${target.name}!`, 'skill');
     }
-
-    let atk = attacker.atk;
-    if (attacker.berserker && attacker.hp < attacker.maxHp/2) atk += 3;
-    
-    // Storm Hunter Goggles: +1 ATK from 4+ blocks
-    if (attacker.equipment && attacker.equipment.includes('stormHunter')) {
-      const dist = Math.abs(attacker.row - target.row) + Math.abs(attacker.col - target.col);
-      if (dist >= 4) {
-        atk += 1;
-        log(`${attacker.name} snipes! +1 ATK from Storm Hunter Goggles.`, 'skill');
-      }
-    }
-
-    // Sharpen stacks: +1 per stack
-    if (attacker._sharpenStacks > 0) {
-      atk += attacker._sharpenStacks;
-      log(`${attacker.name} uses Sharpen stacks! +${attacker._sharpenStacks} damage.`, 'skill');
-      if (attacker._sharpenStacks === 3 && target.def <= 10) {
-        atk += 1; // +1 vs unarmoured at max stacks
-        log(`CRUSHING BLOW! +1 bonus vs unarmoured target.`, 'crit');
-      }
-      attacker._sharpenStacks = 0; // consumed
-    }
-
-    // Mana Arrows (Ranger): +30% damage
-    if (attacker._manaArrows > 0 && attacker.range > 1) {
-      atk = Math.ceil(atk * 1.3);
-      attacker._manaArrows--;
-      log(`${attacker.name} spends a Mana Arrow! +30% damage (${attacker._manaArrows} left).`, 'skill');
-    }
-
-    // Damage — Option B: Miss if below DEF (except Nat 20)
-    let dmg = 0;
-    let resultType = 'miss';
-
-    if (isHit) {
-      dmg = isCrit ? atk * 2 : atk;
-      
-      // Dragonslayer: +1 vs large
-      const isTargetLarge = target.skills && target.skills.some(s=>s&&s.name==='Large') && !target.moved;
-      if (attacker.equipment && attacker.equipment.includes('dragonslayer') && isTargetLarge) {
-        dmg += 1;
-        log(`${attacker.name}'s Dragonslayer bites deep! +1 bonus damage.`, 'skill');
-      }
-
-      // Rogue sneak attack bonus
-      if (attacker.class==='Rogue' && target.statuses.includes('flanked')) {
-        const bonus = Math.floor(Math.random()*6)+1;
-        dmg += bonus;
-        log(`${attacker.name} Sneak Attack! +${bonus} bonus damage.`, 'skill');
-      }
-      // Sneak attacker bonus: +10% damage (round up)
-      if (attacker.sneaking) dmg = Math.ceil(dmg * 1.1);
-      
-      target.hp = Math.max(0, target.hp - dmg);
-      statsRecordDamage(attacker, target, dmg);
-      resultType = isCrit ? 'crit' : 'hit';
-      
-      // Titanbreaker Cleave: 1 dmg to adj
-      if (attacker.equipment && attacker.equipment.includes('titanbreaker')) {
-        tokens.filter(o=>!o.dead && o.side!==attacker.side && o.id!==target.id && Math.abs(o.row-target.row)<=1 && Math.abs(o.col-target.col)<=1).forEach(o=>{
-          o.hp = Math.max(0, o.hp - 1);
-          spawnFloat(o.row, o.col, '-1', 'fdmg-hit');
-          checkDeath(o);
-        });
-      }
-    }
-
-    if (resultType === 'miss') {
-      spawnFloat(target.row, target.col, `MISS`, 'fdmg-miss');
-      log(`${attacker.name} misses ${target.name}! (${raw}+${attacker.atk} vs ${target.def}${advStr})`, 'miss');
-      animToken(target.id, 'anim-shake');
-    } else if (isCrit) {
-      spawnFloat(target.row, target.col, `CRIT! -${dmg}`, 'fdmg-crit');
-      log(`${attacker.name} CRITICAL HIT on ${target.name}! (${raw}${advStr}) Deals ${dmg} damage.`, 'crit');
-      animCell(target.row, target.col, 'anim-crit');
-      animToken(target.id, 'anim-shake');
-      fxBlast(target.row, target.col, '💥');
-      if (attacker.loyal) changeTrust(1);
+  }
+  
+  // Orc Knockback
+  if (attacker.class === 'Orc') {
+    if (target.equipment && target.equipment.includes('ironGiant')) {
+      log(`${target.name} stands firm! Iron Giant Boots prevent knockback.`, 'sys');
     } else {
-      spawnFloat(target.row, target.col, `-${dmg}`, 'fdmg-hit');
-      log(`${attacker.name} hits ${target.name}!${advStr?' '+advStr:''} (${raw}+${attacker.atk} vs ${target.def}) Deals ${dmg} damage. HP ${target.hp}/${target.maxHp}.`, 'hit');
-      animCell(target.row, target.col, 'anim-hit');
-      animToken(target.id, 'anim-shake');
-      if (target.hp <= 0) trustEvent(2, `${attacker.name} killed ${target.name}`);
-      if (attacker.loyal && target.hp <= 0) changeTrust(1);
-    }
-
-    // Clear attacker sneak after attacking
-    if (attacker.sneaking) attacker.sneaking = false;
-
-    // Mark action used
-    attacker.actions = false;
-    // Set facing direction toward target
-    attacker.facing = getFacing(attacker.row, attacker.col, target.row, target.col);
-
-    // Goblin Pack Attack
-    const packClasses = ['Goblin','Ranged Goblin','Spear Goblin','Mage Goblin','Goblin King','Orc'];
-    if (packClasses.includes(attacker.class) && (resultType==='hit' || resultType==='crit')) {
-      window._roundPackAttacks = window._roundPackAttacks || {};
-      window._roundPackAttacks[target.id] = (window._roundPackAttacks[target.id]||0)+1;
-      const count = window._roundPackAttacks[target.id];
-      if (count > 1) {
-        const extraDmg = count - 1;
-        target.hp = Math.max(0, target.hp - extraDmg);
-        spawnFloat(target.row, target.col, `+${extraDmg}(pack)`, 'fdmg-crit');
-        log(`Pack Attack! ${count} goblins — +${extraDmg} damage on ${target.name}!`, 'skill');
+      const dr = Math.sign(target.row - attacker.row);
+      const dc = Math.sign(target.col - attacker.col);
+      const nr = target.row + dr, nc = target.col + dc;
+      if (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE &&
+          terrain[nr][nc] !== 'wall' &&
+          !tokens.find(t=>!t.dead && t.row===nr && t.col===nc)) {
+        target.row = nr; target.col = nc;
+        log(`${target.name} is knocked back by ${attacker.name}!`, 'skill');
+        spawnFloat(target.row, target.col, '← KNOCKBACK', 'fdmg-miss');
       }
     }
-    
-    // Orc Knockback
-    if (attacker.class === 'Orc' && (resultType==='hit' || resultType==='crit')) {
-      // Iron Giant Boots: cannot be pushed
-      if (target.equipment && target.equipment.includes('ironGiant')) {
-        log(`${target.name} stands firm! Iron Giant Boots prevent knockback.`, 'sys');
-      } else {
-        const dr = Math.sign(target.row - attacker.row);
-        const dc = Math.sign(target.col - attacker.col);
-        const nr = target.row + dr;
-        const nc = target.col + dc;
-        if (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE &&
-            terrain[nr][nc] !== 'wall' &&
-            !tokens.find(t=>!t.dead && t.row===nr && t.col===nc)) {
-          target.row = nr; target.col = nc;
-          log(`${target.name} is knocked back by ${attacker.name}!`, 'skill');
-          spawnFloat(target.row, target.col, '← KNOCKBACK', 'fdmg-miss');
-        }
-      }
-    }
+  }
 
-    // Hunter Pinning Shot
-    if (attacker.class==='Hunter' && resultType==='hit' && !target.statuses.includes('pinned')) {
-      target.statuses.push('pinned');
-      log(`${target.name} is PINNED by Hunter shot.`, 'skill');
-    }
+  // Hunter Pinning Shot
+  if (attacker.class==='Hunter' && !target.statuses.includes('pinned')) {
+    target.statuses.push('pinned');
+    log(`${target.name} is PINNED by Hunter shot.`, 'skill');
+  }
 
-    checkDeath(target);
-    detectFlanking();
-    renderAll();
-    maybeAutoEndTurn(attacker);
-  });
+  checkDeath(target);
+  detectFlanking();
+  renderAll();
+  maybeAutoEndTurn(attacker);
 }
 
 function getFacing(r1, c1, r2, c2) {
@@ -3386,7 +3339,7 @@ function enterSneakMode(id) {
   if (!enforceTurn(tok)) return;
   tok.actions = false;
   tok.sneaking = true;
-  log(`${tok.name} slips into the shadows — sneaking! Next attack may dodge enemy, +10% damage.`, 'skill');
+  log(`${tok.name} slips into the shadows — sneaking! Next attack deals +10% damage.`, 'skill');
   spawnFloat(tok.row, tok.col, '🥷 SNEAK', 'fdmg-heal');
   renderCards();
 }
@@ -3803,6 +3756,12 @@ function renderGrid() {
           <span class="tok-name" style="font-size:0.48rem">${tok.name}</span>
           <div class="tok-hpbar"><div class="tok-hpbar-fill" style="width:${Math.max(0,pct*100)}%"></div></div>
           <span class="tok-hp ${hpClass}" style="font-size:0.55rem">${tok.hp}/${tok.maxHp}</span>
+          ${tok.maxDef?`<div style="display:flex;align-items:center;gap:1px;width:100%;padding:0 2px">
+            <div style="flex:1;height:2px;background:#060a10;border-radius:1px;overflow:hidden">
+              <div style="height:100%;width:${Math.max(0,(tok.def||0)/tok.maxDef*100)}%;background:#7a6ab0;border-radius:1px"></div>
+            </div>
+            <span style="font-size:0.45rem;color:#9a8acf;white-space:nowrap;line-height:1">🛡${tok.def||0}</span>
+          </div>`:''}
         </div>`;
       } else if (largeTok) {
         // Show "ghost" fill for large token body
@@ -4037,7 +3996,7 @@ function openGMTokenModal(id) {
       </div>
       <!-- Stat editors -->
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
-        ${[['hp','HP','maxHp'],['atk','ATK',null],['def','DEF',null],['speed','SPD',null],['range','RNG',null],['mana','MP','maxMana']].map(([k,label,maxKey])=>`
+        ${[['hp','HP','maxHp'],['atk','ATK',null],['def','DEF SHIELD','maxDef'],['speed','SPD',null],['range','RNG',null],['mana','MP','maxMana']].map(([k,label,maxKey])=>`
           <div style="text-align:center">
             <div style="color:#888;font-size:0.6rem;letter-spacing:1px">${label}${maxKey?` / MAX`:''}</div>
             <div style="display:flex;align-items:center;gap:3px;justify-content:center">
@@ -4084,11 +4043,13 @@ function gmTokAdj(id, key, delta) {
   // Sync maxHp/maxMana if adjusting current
   if (key==='hp' && tok.hp > tok.maxHp) tok.maxHp = tok.hp;
   if (key==='mana' && tok.mana > tok.maxMana) tok.maxMana = tok.mana;
+  if (key==='def' && tok.def > tok.maxDef) tok.maxDef = tok.def;
   const el = document.getElementById(`gmv-${id}-${key}`);
   if (el) el.textContent = tok[key];
   const maxEl = document.getElementById(`gmv-${id}-maxHp`) || document.getElementById(`gmv-${id}-maxMana`);
   if (key==='hp') { const m = document.getElementById(`gmv-${id}-maxHp`); if(m) m.textContent=tok.maxHp; }
   if (key==='mana') { const m = document.getElementById(`gmv-${id}-maxMana`); if(m) m.textContent=tok.maxMana; }
+  if (key==='def') { const m = document.getElementById(`gmv-${id}-maxDef`); if(m) m.textContent=tok.maxDef; }
   renderAll();
 }
 function gmTokToggleStatus(id, status) {
@@ -4109,7 +4070,7 @@ function gmTokClearStatuses(id) {
 function gmTokAction(id, action) {
   const tok = tokens.find(t=>t.id===id);
   if (!tok) return;
-  if (action==='fullheal') { tok.hp = tok.maxHp; log(`${tok.name} fully healed by GM.`,'heal'); }
+  if (action==='fullheal') { tok.hp = tok.maxHp; tok.def = tok.maxDef; log(`${tok.name} fully healed by GM.`,'heal'); }
   else if (action==='fullmana') { tok.mana = tok.maxMana; log(`${tok.name} MP restored by GM.`,'skill'); }
   else if (action==='revive') { tok.dead=false; tok.hp=Math.ceil(tok.maxHp/2); log(`${tok.name} revived by GM.`,'heal'); }
   else if (action==='kill') { tok.dead=true; tok.hp=0; log(`${tok.name} killed by GM.`,'miss'); checkDeath(tok); }
@@ -4257,6 +4218,10 @@ function cardHTML(tok) {
       <div class="hp-bar-bg"><div class="hp-bar-fill ${pct>0.5?'':pct>0.25?'low':'crit'}" style="width:${Math.max(0,pct*100)}%;background:${bc}"></div></div>
       <span class="hp-nums">${tok.hp}/${tok.maxHp}</span>
     </div>
+    ${tok.maxDef?`<div class="def-row">
+      <div class="def-bar-bg"><div class="def-bar-fill" style="width:${Math.max(0,(tok.def||0)/tok.maxDef*100)}%;background:#7a6ab0;"></div></div>
+      <span class="def-nums">🛡 ${tok.def||0}/${tok.maxDef}</span>
+    </div>`:''}
     <div class="ctrl-row">
       <button class="mini-btn" onclick="event.stopPropagation();changeHp(${tok.id},-1)">&minus;1</button>
       <input class="mini-input" type="number" value="5" min="1" max="99" id="dmgInput-${tok.id}" onclick="event.stopPropagation()">
@@ -4839,7 +4804,7 @@ function nextRound(){
         const tmpl = ENEMY_CLASSES.find(e=>e.name===nextClass) || ALLY_CLASSES.find(a=>a.name===nextClass);
         if (tmpl) {
           const old = t.class;
-          Object.assign(t, {class:nextClass, maxHp:tmpl.hp, hp:tmpl.hp, atk:tmpl.atk, def:tmpl.def, speed:tmpl.speed, range:tmpl.range, classSkill:tmpl.classSkill, growthTimer: growthTurns[nextClass]||undefined});
+          Object.assign(t, {class:nextClass, maxHp:tmpl.hp, hp:tmpl.hp, atk:tmpl.atk, def:tmpl.def, maxDef:tmpl.def, speed:tmpl.speed, range:tmpl.range, classSkill:tmpl.classSkill, growthTimer: growthTurns[nextClass]||undefined});
           log(`🌳 ${t.name} grew from ${old} into ${nextClass}!`, 'skill');
           fxBlast(t.row, t.col, '🌿');
         }
@@ -6271,7 +6236,7 @@ function confirmParty() {
       hp: base.hp, maxHp: base.hp,
       mana: base.maxMana, maxMana: base.maxMana,
       manaRegen: base.manaRegen,
-      atk: base.atk, def: base.def, speed: base.speed, range: base.range,
+      atk: base.atk, def: base.def, maxDef: base.def, speed: base.speed, range: base.range,
       str: r.str ?? tpl.str, vit: r.vit ?? tpl.vit, int: r.int ?? tpl.int, dex: r.dex ?? tpl.dex,
       skills: [null, null],
       equipment: [],
@@ -6576,6 +6541,8 @@ function startCombatNode(node) {
   // Place enemies from encounter
   const enc = ENCOUNTERS[node.encounter] || [];
   enc.forEach(e => placeEnemyFromEncounter(e.cls, e.r, e.c));
+  // Regenerate hero shields at start of each combat
+  tokens.forEach(t => { if (t.side === 'ally') t.def = t.maxDef; });
   rebuildTurnOrder();
   rollInitiative();
   detectFlanking();
@@ -6600,7 +6567,7 @@ function placeHeroFromCampaign(h, r, c) {
     row:r, col:c,
     hp:h.hp, maxHp:h.maxHp,
     mana:h.mana, maxMana:h.maxMana, manaRegen:h.manaRegen,
-    atk:h.atk, def:h.def, speed:h.speed, range:h.range,
+    atk:h.atk, def:h.def, maxDef:h.maxDef||h.def, speed:h.speed, range:h.range,
     str:h.str, vit:h.vit, int:h.int, dex:h.dex,
     color:tpl.color, bcolor:tpl.bcolor,
     cooldowns:{...h.cooldowns}, statuses:[...h.statuses],
@@ -6620,7 +6587,7 @@ function placeEnemyFromEncounter(clsName, r, c) {
     row:r, col:c,
     hp:tpl.hp, maxHp:tpl.hp,
     mana:tpl.maxMana||0, maxMana:tpl.maxMana||0, manaRegen:tpl.manaRegen||0,
-    atk:tpl.atk, def:tpl.def, speed:tpl.speed, range:tpl.range,
+    atk:tpl.atk, def:tpl.def, maxDef:tpl.def, speed:tpl.speed, range:tpl.range,
     str:tpl.str||1, vit:tpl.vit||1, int:tpl.int||1, dex:tpl.dex||1,
     color:tpl.color||'#2a0a0a', bcolor:tpl.bcolor||'#8b3030',
     cooldowns:{}, statuses:[],
@@ -6813,10 +6780,10 @@ function applyShopItem(it, hero) {
     case 'mana':      hero.mana = Math.min(hero.maxMana, hero.mana + it.value); break;
     case 'full-mana': hero.mana = hero.maxMana; break;
     case 'buff-atk':  hero.atk += it.value; break;
-    case 'buff-def':  hero.def += it.value; break;
-    case 'full-heal': CAMPAIGN.heroes.forEach(h => { if (!h.dead) h.hp = h.maxHp; }); break;
-    case 'revive':    if (hero) { hero.dead = false; hero.hp = Math.floor(hero.maxHp/2); } break;
-    case 'all-buff':  CAMPAIGN.heroes.forEach(h => { if (!h.dead) { h.atk += it.value; h.def += it.value; h.maxHp += it.value*2; h.hp += it.value*2; } }); break;
+    case 'buff-def':  hero.maxDef = (hero.maxDef||hero.def) + it.value; hero.def += it.value; break;
+    case 'full-heal': CAMPAIGN.heroes.forEach(h => { if (!h.dead) { h.hp = h.maxHp; h.def = h.maxDef; } }); break;
+    case 'revive':    if (hero) { hero.dead = false; hero.hp = Math.floor(hero.maxHp/2); hero.def = hero.maxDef||0; } break;
+    case 'all-buff':  CAMPAIGN.heroes.forEach(h => { if (!h.dead) { h.atk += it.value; h.maxDef = (h.maxDef||h.def) + it.value; h.def += it.value; h.maxHp += it.value*2; h.hp += it.value*2; } }); break;
   }
   document.getElementById('shopGold').textContent = gold;
   document.getElementById('shopTargetPrompt').innerHTML = `<div class="shop-target-prompt" style="border-color:#7fb87f;color:#7fb87f">✓ ${it.name} applied${hero?` to ${hero.name}`:''}.</div>`;
@@ -6896,13 +6863,13 @@ setInterval(() => {
 // =============================================================================
 const TERRAIN_INFO = {
   'normal':      {emoji:'', name:'Normal Floor', short:'No effect.', desc:'Standard ground. No special effects.', example:'Most of the grid.'},
-  'high-ground': {emoji:'⛰️', name:'High Ground', short:'+Advantage on ranged attacks', desc:'Ranged attacks from this tile gain Advantage (roll 2d20, take higher). No effect on melee.', example:'A Ranger on a hill shoots a Goblin below — roll 2d20, take the higher result.'},
+  'high-ground': {emoji:'⛰️', name:'High Ground', short:'+1 ATK for ranged attacks', desc:'Ranged attacks from this tile deal +1 damage.', example:'A Ranger on a hill shoots a Goblin below — +1 ATK bonus.'},
   'fire':        {emoji:'🔥', name:'Fire Barrel', short:'1d4 damage on entry', desc:'When a token enters this tile, it takes 1d4 fire damage immediately. Triggers each time entered.', example:'Varn walks into the barrel — roll 1d4. On a 3, he takes 3 fire damage.'},
   'crack':       {emoji:'✱', name:'Cracked Floor', short:'Roll d20: 16-20 = 1d4 damage', desc:'Roll d20 when entering. On 16-20, the floor gives way — token takes 1d4 damage. On 1-15, crosses safely.', example:'Goblin crosses cracked floor. Roll 18 (≥16) — takes 3 damage!'},
   'ledge':       {emoji:'⬇️', name:'Ledge / Drop', short:'Push targets here = 1d6 fall damage', desc:'Tokens pushed onto a Ledge fall to lower level. Takes 1d6 fall damage and is repositioned at the bottom by the GM.', example:'Fighter uses Shield Bash — pushes Goblin onto a Ledge. Roll 1d6 = 4 fall damage.'},
   'wall':        {emoji:'🟫', name:'Wall', short:'Impassable', desc:'Cannot be entered or moved through. Blocks line-of-sight for ranged attacks.', example:'A pillar in the throne room — ranged shots cannot pass through it.'},
   'water':       {emoji:'🌊', name:'Water', short:'Electric spreads; Icefish can freeze', desc:'Tokens standing in water can be hit by Electric Eel zone attacks and frozen by Icefish.', example:'Electric Eel activates — all tokens in connected water take damage.'},
-  'grass':       {emoji:'🌿', name:'Tall Grass', short:'50% dodge chance', desc:'Tokens in tall grass have a 50% chance to dodge any incoming attack automatically before it is resolved.', example:'Elf stands in grass — attacker rolls to hit, but first a 50% dodge check fires. On success, the attack misses entirely.'}
+  'grass':       {emoji:'🌿', name:'Tall Grass', short:'Grants +2 DEF (shield)', desc:'Tokens in tall grass gain +2 DEF while standing in the grass. Good for holding a position.', example:'Varn stands in grass — +2 DEF from cover (shield capacity +2).'}
 };
 
 // =============================================================================
@@ -6910,11 +6877,11 @@ const TERRAIN_INFO = {
 // =============================================================================
 const HELP_TOPICS = {
   'turn.order':  {title:'Turn Order', desc:'Each round, every token rolls initiative = Speed + 1d4. Highest goes first. The GM can re-roll initiative each round or keep the same order — official rule is one roll per combat.', example:'Fighter (SPD 3) + d4 roll 4 = 7 init. Goblin (SPD 3) + d4 roll 2 = 5 init. Fighter goes first.'},
-  'action.attack': {title:'Attack Action', desc:'Roll 1d20 + ATK. If total ≥ target DEF → hit, deals ATK damage. Natural 20 = critical (×2 damage). Natural 1 = fumble (lose bonus action).', example:'Varn (ATK 5) rolls 14 vs Goblin DEF 10. 14+5=19 ≥10 → hit, deals 5 damage.'},
+  'action.attack': {title:'Attack Action', desc:'Auto-hit. Damage = ATK (×2 on 10% crit). Target DEF absorbs damage as shield before HP is reduced.', example:'Varn (ATK 5) attacks Goblin (DEF 3). Deal 5 damage: 3 absorbed by shield, 2 goes to HP.'},
   'action.move':   {title:'Move Action', desc:'Each turn you can move up to your SPEED in squares (Manhattan distance — no diagonals). Walls block movement. Some terrain has effects on entry.', example:'Ranger (SPD 3) can move 3 squares per turn, in any combination of up/down/left/right.'},
   'action.skill':  {title:'Skill / Spell', desc:'Click a skill pip on the character card to enter targeting mode, then click the target on the grid. Skills cost MP and may have cooldowns (rounds before reuse).', example:'Wizard casts Fireball (4 MP, 2 cd) — pick a tile in range, deals 1d6+3 damage in 2×2 area.'},
   'mana':        {title:'Mana (MP)', desc:'Resource for casting skills. Regenerates by manaRegen each round end. Max varies by class (Wizard 10, Fighter 4, etc.).', example:'Wizard ends turn with 5 MP, regen 3 → starts next round with 8 MP (capped at max).'},
-  'flanking':    {title:'Flanking', desc:'A token is Flanked when two enemies are on directly opposite sides of it (N+S or E+W). Flanked targets are easier to hit — attackers gain Advantage. Rogues get bonus 1d6 Sneak Attack damage vs Flanked.', example:'Goblin between two allies (above and below) → Flanked. Rogue attacks → roll 2d20 take higher, +1d6 damage.'},
+  'flanking':    {title:'Flanking', desc:'A token is Flanked when two enemies are on directly opposite sides of it (N+S or E+W). Rogues get bonus 1d6 Sneak Attack damage vs Flanked targets.', example:'Goblin between two allies (above and below) → Flanked. Rogue attacks → +1d6 bonus damage.'},
   'trust':       {title:'Trust System', desc:'Varn\'s party trust (0-100). High trust = loyal. Roll d100 before commanding a low-trust ally — if roll > Trust+40, GM controls them; >Trust+70 they flee. Trust=0 → they attack Varn.', example:'Trust=30. Roll 75 → GM controls (75 > 30+40=70). Roll 110 → flees.'},
   'souls':       {title:'Soul Track', desc:'Every kill feeds the Demon Lord\'s Sword (+1 soul). At 3/7/12/20 souls, Visions unlock revealing the story. 20 = final truth. Higher souls also unlock Monster Recruitment.', example:'Party kills 3 enemies → Vision I plays automatically. From now on, recruited common monsters can join.'},
   'terrain':     {title:'Terrain Tiles', desc:'Click a terrain button then click grid cells to paint. Each tile has effects shown when you hover over it on the grid.', example:'Place Fire on G5. Any token entering G5 takes 1d4 damage.'},

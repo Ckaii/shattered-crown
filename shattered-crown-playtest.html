@@ -2577,19 +2577,14 @@ function _executeEffect_override(sk, user, target) {
   }
   if (sk.name === 'Heavy Shot') {
     if (!target) return;
-    const roll = Math.floor(Math.random()*20)+1;
     const atk = user.atk * 2;
-    if (roll + user.atk >= target.def) {
-      target.hp = Math.max(0, target.hp - atk);
-      statsRecordDamage(user, target, atk);
-      spawnFloat(target.row, target.col, `-${atk}`, 'fdmg-crit');
-      animCell(target.row, target.col, 'anim-crit'); animToken(target.id, 'anim-shake');
-      log(`[Heavy Shot] ${roll}+${user.atk}=${roll+user.atk} vs DEF${target.def}. HITS for ${atk} damage!`, 'crit');
-      checkDeath(target);
-    } else {
-      spawnFloat(target.row, target.col, 'MISS', 'fdmg-miss');
-      log(`[Heavy Shot] ${roll}+${user.atk}=${roll+user.atk} vs DEF${target.def}. Misses.`, 'miss');
-    }
+    target.hp = Math.max(0, target.hp - atk);
+    statsRecordDamage(user, target, atk);
+    spawnFloat(target.row, target.col, `-${atk}`, 'fdmg-crit');
+    animCell(target.row, target.col, 'anim-crit'); animToken(target.id, 'anim-shake');
+    log(`[Heavy Shot] ${user.name} deals ${atk} damage to ${target.name}. HP ${target.hp}/${target.maxHp}.`, 'crit');
+    if (!target.statuses.includes('pinned')) { target.statuses.push('pinned'); log(`${target.name} is Pinned!`, 'skill'); }
+    checkDeath(target);
     return true;
   }
   if (sk.name === 'Mana Coin') {
@@ -3385,24 +3380,29 @@ function _executeEffect(sk, user, target) {
   switch(sk.effectType) {
     case 'damage': {
       if (!target) break;
+      // Skills always connect (MP cost + cooldown is the tradeoff); crit on nat 20
       const roll = Math.floor(Math.random()*20)+1;
-      const atk = user.atk + (v < 0 ? v : 0);
-      if (roll + atk >= target.def) {
-        const d = Math.max(0, user.atk + v);
-        target.hp = Math.max(0, target.hp - d);
-        spawnFloat(target.row, target.col, `-${d}`, 'fdmg-hit');
-        log(`Skill hit! ${roll}+${atk}=${roll+atk} vs DEF${target.def}. Deals ${d} damage.`, 'hit');
-        checkDeath(target);
-      } else {
-        log(`Skill misses. ${roll}+${atk}=${roll+atk} vs DEF${target.def}.`, 'miss');
-      }
+      const isCrit = roll === 20;
+      const base = Math.max(0, user.atk + v);
+      const d = isCrit ? base * 2 : base;
+      target.hp = Math.max(0, target.hp - d);
+      statsRecordDamage(user, target, d);
+      spawnFloat(target.row, target.col, isCrit ? `CRIT! -${d}` : `-${d}`, isCrit ? 'fdmg-crit' : 'fdmg-hit');
+      if (isCrit) { animCell(target.row, target.col, 'anim-crit'); fxCritFlash(); }
+      else animCell(target.row, target.col, 'anim-hit');
+      animToken(target.id, 'anim-shake');
+      log(`[${sk.name}] ${user.name} → ${target.name}: ${d} damage${isCrit?' (CRIT!)':''}. HP ${target.hp}/${target.maxHp}.`, isCrit?'crit':'hit');
+      checkDeath(target);
       break;
     }
     case 'damage-flat': {
       if (!target) break;
-      target.hp = Math.max(0, target.hp - v);
-      spawnFloat(target.row, target.col, `-${v}`, 'fdmg-hit');
-      log(`${target.name} takes ${v} damage from skill.`, 'hit');
+      const d = Math.max(0, v);
+      target.hp = Math.max(0, target.hp - d);
+      statsRecordDamage(user, target, d);
+      spawnFloat(target.row, target.col, `-${d}`, 'fdmg-hit');
+      animCell(target.row, target.col, 'anim-hit'); animToken(target.id, 'anim-shake');
+      log(`[${sk.name}] ${target.name} takes ${d} flat damage. HP ${target.hp}/${target.maxHp}.`, 'hit');
       checkDeath(target);
       break;
     }
@@ -5369,22 +5369,38 @@ function renderHeroSelectUI() {
   const grid = document.getElementById('heroSelectGrid');
 
   if (!_preRoll) {
-    // === PHASE 1: Roll stats first ===
-    grid.innerHTML = `
-      <div style="grid-column:1/-1;text-align:center;padding:40px 20px">
-        <div style="font-size:2.5rem;margin-bottom:12px">🎲</div>
-        <h2 style="color:#c9a84c;letter-spacing:2px;margin-bottom:8px">Roll Your Stats First</h2>
-        <p style="color:#aaa;font-size:0.85rem;max-width:400px;margin:0 auto 24px auto">
-          Roll the dice to determine your base stats, then choose a class to apply its bonuses.
-        </p>
-        <div id="preRollDiceDisplay" style="display:none;background:#0a0f1c;border:1px solid #2a3050;border-radius:6px;padding:14px;max-width:420px;margin:0 auto 20px auto">
-          <div style="color:#dfaf3a;font-size:0.7rem;letter-spacing:1px;margin-bottom:10px">🎲 BASE STATS ROLLED</div>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px" id="preRollStatGrid"></div>
+    // === PHASE 1: Dice rolling — happens on the hero select screen itself ===
+    const diceGrid = ['hp','atk','speed','mana'].map(k => {
+      const label = k==='hp'?'HP':k==='atk'?'ATK':k==='speed'?'SPD':'MP';
+      const isDouble = k==='hp'||k==='mana';
+      return `<div style="text-align:center;background:#0a0f1c;border:1px solid #2a3050;border-radius:6px;padding:12px 8px">
+        <div style="color:#888;font-size:0.65rem;letter-spacing:1px;margin-bottom:8px">${label}${isDouble?' ×2':''}</div>
+        <div style="display:flex;gap:6px;justify-content:center;margin-bottom:6px">
+          ${renderDie3D(k,0)} ${renderDie3D(k,1)}
         </div>
-        <button onclick="doPreRoll(false)" style="background:#2a4a2a;border:2px solid #7fb87f;color:#9fdf9f;padding:12px 32px;font-size:1rem;cursor:pointer;border-radius:5px;letter-spacing:1px">
-          🎲 Roll Stats
-        </button>
-        <div id="preRollHint" style="color:#555;font-size:0.75rem;margin-top:12px">Roll to reveal your stats, then pick a class.</div>
+        <button onclick="rerollDiePair('${k}')" style="background:#0d1420;border:1px solid #2a3050;color:#4a6a8a;padding:2px 8px;cursor:pointer;border-radius:3px;font-size:0.6rem;margin-bottom:4px">↻ reroll</button>
+        <div class="die-pair-sum${k==='mana'?' mp-stat':''}" id="dsum-${k}" style="color:#c9a84c;font-weight:bold;font-size:1rem;min-height:1.4em">—</div>
+      </div>`;
+    }).join('');
+
+    grid.innerHTML = `
+      <div style="grid-column:1/-1;padding:24px 20px">
+        <div style="text-align:center;margin-bottom:20px">
+          <h2 style="color:#c9a84c;letter-spacing:2px;font-size:1.1rem;margin:0 0 6px 0">🎲 Roll Your Party Stats</h2>
+          <p style="color:#888;font-size:0.78rem;margin:0">Every player rolls once. Confirm to lock in, then choose your class.</p>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:520px;margin:0 auto 20px auto">
+          ${diceGrid}
+        </div>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+          <button onclick="doPreRoll(false)" style="background:#2a4a2a;border:2px solid #4a8f4a;color:#7fb87f;padding:10px 28px;font-size:0.9rem;cursor:pointer;border-radius:5px;letter-spacing:1px">
+            🎲 Roll All
+          </button>
+          <button id="btnPickClass" onclick="confirmPreRoll()" disabled
+            style="background:#1a1f3c;border:2px solid #2a3050;color:#444;padding:10px 28px;font-size:0.9rem;cursor:not-allowed;border-radius:5px;letter-spacing:1px">
+            ✓ Confirm Stats — Pick Class →
+          </button>
+        </div>
       </div>`;
     document.getElementById('heroSelectInfo').innerHTML = renderSlotPanel();
     const picked = _heroSlots.filter(s=>s).length;
@@ -5490,13 +5506,46 @@ function clearSlot(idx) {
   renderHeroSelectUI();
 }
 function doPreRoll(isReroll) {
-  if (isReroll && !confirm('Reroll base stats? Existing hero slots will be cleared.')) return;
-  if (isReroll) _heroSlots = [null, null, null, null];
+  // Roll the dice on-screen with animation; "Pick Class" button unlocks after
+  if (isReroll) {
+    if (!confirm('Reroll stats? All picked hero slots will be cleared.')) return;
+    _heroSlots = [null, null, null, null];
+    _preRoll = null;
+    renderHeroSelectUI(); // back to dice screen
+    setTimeout(() => _rollAllOnScreen(), 100); // slight delay so DOM exists
+    return;
+  }
+  _rollAllOnScreen();
+}
+function _rollAllOnScreen() {
+  // Animate all 4 stat pairs on the hero-select dice grid
+  const stats = ['hp','atk','speed','mana'];
+  stats.forEach((st, i) => {
+    window._diceState[st] = [rollD4(), rollD4()];
+    animateDie(st, 0, window._diceState[st][0], i * 120);
+    animateDie(st, 1, window._diceState[st][1], i * 120 + 80);
+  });
+  // After animation settles, enable "Pick Class" button
+  setTimeout(() => {
+    ['hp','atk','speed','mana'].forEach(st => updateDiceSum(st));
+    const btn = document.getElementById('btnPickClass');
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '✓ Confirm Stats — Pick Class →';
+      btn.style.background = '#1a3a1a';
+      btn.style.borderColor = '#7fb87f';
+      btn.style.color = '#9fdf9f';
+    }
+  }, 1300);
+}
+function confirmPreRoll() {
+  // Freeze dice values into _preRoll, then show class cards
+  const d = window._diceState;
   _preRoll = {
-    hp:    [rollD4(), rollD4()],
-    atk:   [rollD4(), rollD4()],
-    speed: [rollD4(), rollD4()],
-    mana:  [rollD4(), rollD4()],
+    hp:    [...(d.hp    || [1,1])],
+    atk:   [...(d.atk   || [1,1])],
+    speed: [...(d.speed || [1,1])],
+    mana:  [...(d.mana  || [1,1])],
   };
   renderHeroSelectUI();
 }
@@ -5563,80 +5612,71 @@ function renderHeroRollModal() {
   if (!s) return;
   const cls = ALLY_CLASSES.find(c => c.name === s.clsName);
   const spr = spriteFor(s.clsName);
+  const bon = CLASS_STAT_BONUSES[s.clsName] || {};
   const existing = document.getElementById('heroRollModal');
   if (existing) existing.remove();
+
+  // Stat summary row (rolled + class bonus = final)
+  const statCols = [
+    ['HP',  s.hp,    '#7fb87f', bon.hp],
+    ['ATK', s.atk,   '#e08050', bon.atk],
+    ['SPD', s.speed, '#50d0d0', bon.speed],
+    ['MP',  s.mana,  '#9f7fdf', bon.mana],
+    ['DEF', '0+gear','#5080e0', null],
+  ];
+  const statSummary = statCols.map(([lbl,val,col,b])=>`
+    <div style="text-align:center;background:#0a0f1c;border:1px solid #2a3050;border-radius:4px;padding:6px 4px">
+      <div style="color:#555;font-size:0.58rem;letter-spacing:1px">${lbl}</div>
+      <div style="color:${col};font-weight:bold;font-size:1rem">${val}</div>
+      ${b!=null?`<div style="color:${b>=0?'#7fb87f':'#e05555'};font-size:0.6rem">${b>=0?'+':''}${b} class</div>`:''}
+    </div>`).join('');
+
   const html = `
     <div id="heroRollModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;overflow-y:auto">
-      <div style="background:#0d1420;border:2px solid #c9a84c;border-radius:8px;padding:20px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto">
+      <div style="background:#0d1420;border:2px solid #c9a84c;border-radius:8px;padding:20px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
+
         <h2 style="color:#c9a84c;text-align:center;margin-bottom:4px;letter-spacing:2px;font-size:1.2rem">
-          <span style="font-size:1.5rem;vertical-align:middle">${spr.portrait}</span> Recruiting ${s.clsName}
+          <span style="font-size:1.5rem;vertical-align:middle">${spr.portrait}</span> ${s.clsName}
         </h2>
-        <div style="text-align:center;margin-bottom:12px;color:#aaa;font-size:0.8rem">
+
+        <!-- Name -->
+        <div style="text-align:center;margin-bottom:14px">
           <input id="rollNameInput" value="${s.name}" oninput="window._rollState.name=this.value"
             style="background:#1a1f3c;border:1px solid #4a8fbf;color:#c9a84c;font-size:1rem;font-weight:bold;text-align:center;padding:4px 8px;border-radius:4px;width:200px"/>
-          <button onclick="rerollHeroName2()" style="margin-left:6px;background:#1a1f3c;border:1px solid #4a8fbf;color:#4a8fbf;padding:4px 8px;cursor:pointer;border-radius:3px;font-size:0.7rem">&#127922; Roll Name</button>
+          <button onclick="rerollHeroName2()" style="margin-left:6px;background:#1a1f3c;border:1px solid #4a8fbf;color:#4a8fbf;padding:4px 8px;cursor:pointer;border-radius:3px;font-size:0.7rem">🎲</button>
         </div>
 
-        <!-- 3D DICE STAT ROLLER -->
-        <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 8px 0">
-          <span style="color:#dfaf3a;font-size:0.75rem;letter-spacing:1px">🎲 ROLL FOR STATS <span style="color:#555;font-size:0.6rem;font-weight:normal">(4 pairs of 2d4 · HP & MP ×2)</span></span>
-          <button onclick="rollAllDice3D()" style="background:#2a4a2a;border:1px solid #7fb87f;color:#9fdf9f;padding:4px 10px;cursor:pointer;border-radius:3px;font-size:0.7rem">🎲 Roll All</button>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;background:#0a0f1c;padding:10px;border-radius:4px;align-items:end" id="diceGrid">
-          ${['hp','atk','speed','def','mana'].map(k => {
-            const label = k==='hp'?'HP':k==='atk'?'ATK':k==='speed'?'SPD':k==='def'?'DEF':'MP';
-            const isDouble = k==='hp' || k==='mana';
-            const isDef = k==='def';
-            const cls = k==='mana' ? 'mp-stat' : '';
-            const dsum = isDef ? '0' : isDouble ? `${window._diceState[k][0]+window._diceState[k][1]} ×2 = ${(window._diceState[k][0]+window._diceState[k][1])*2}` : s[k];
-            return `<div style="text-align:center">
-              <div class="die-pair-label">${label}${isDouble?' ×2':''}</div>
-              ${isDef ? `
-                <div style="font-size:1.1rem;color:#555;padding:8px 0">🛡️</div>
-                <div style="font-size:0.6rem;color:#555;line-height:1.4">From<br>equipment</div>
-              ` : `
-                <div style="display:flex;gap:4px;justify-content:center;margin-bottom:4px">
-                  ${renderDie3D(k,0)} ${renderDie3D(k,1)}
-                </div>
-                <button onclick="rerollDiePair('${k}')" style="background:#0d1420;border:1px solid #2a3050;color:#4a6a8a;padding:2px 6px;cursor:pointer;border-radius:3px;font-size:0.55rem">↻ reroll</button>
-              `}
-              <div class="die-pair-sum ${cls}" id="dsum-${k}">${dsum}</div>
-            </div>`;
-          }).join('')}
-        </div>
+        <!-- Final stats (rolled + class bonus) -->
+        <div style="color:#888;font-size:0.65rem;letter-spacing:1px;margin-bottom:6px">FINAL STATS (rolled + class bonus)</div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:14px">${statSummary}</div>
 
-        <!-- COLLAR: class-specific, auto-applied -->
+        <!-- Collar -->
         ${(()=>{ const col = CLASS_COLLARS[s.clsName]; return col ? `
-        <div style="margin-top:14px;background:#12201a;border:1px solid #4a8f4a;border-radius:6px;padding:8px">
-          <div style="color:#7fb87f;font-size:0.7rem;letter-spacing:1px;margin-bottom:4px">🔱 CLASS COLLAR — AUTO-APPLIED</div>
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <div style="color:#9fdf9f;font-weight:bold;font-size:0.9rem">${col.name}</div>
-              <div style="color:#7fb87f;font-size:0.65rem;margin:2px 0">${col.stats}</div>
-              <div style="color:#aaa;font-size:0.65rem">${col.desc}</div>
-            </div>
-            <span style="font-size:1.4rem">🔱</span>
-          </div>
+        <div style="margin-bottom:14px;background:#12201a;border:1px solid #4a8f4a;border-radius:6px;padding:8px">
+          <div style="color:#7fb87f;font-size:0.65rem;letter-spacing:1px;margin-bottom:3px">🔱 CLASS COLLAR</div>
+          <div style="color:#9fdf9f;font-weight:bold;font-size:0.85rem">${col.name}</div>
+          <div style="color:#7fb87f;font-size:0.62rem">${col.stats} · ${col.desc}</div>
         </div>` : ''; })()}
 
-        <!-- STARTING SKILL: choose 1 of 2 -->
-        <div style="margin-top:14px;color:#dfaf3a;font-size:0.75rem;letter-spacing:1px">✨ STARTING SKILL <span style="color:#888;font-size:0.65rem;font-weight:normal">(pick 1)</span></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+        <!-- Starting skill -->
+        <div style="color:#dfaf3a;font-size:0.75rem;letter-spacing:1px;margin-bottom:6px">✨ STARTING SKILL <span style="color:#888;font-size:0.65rem">(pick 1)</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
           ${s.skillChoices.length > 0 ? s.skillChoices.map((sk,i)=>`
             <div onclick="window._rollState.skillIdx=${i};renderHeroRollModal()"
               style="background:${s.skillIdx===i?'#0a1428':'#0a0f1c'};border:2px solid ${s.skillIdx===i?'#c9a84c':'#2a3050'};border-radius:6px;padding:8px;cursor:pointer">
-              <div style="color:#c9a84c;font-weight:bold;font-size:0.85rem">${sk.name}</div>
+              <div style="color:#c9a84c;font-weight:bold;font-size:0.82rem">${sk.name}</div>
               <div style="color:#7a9aba;font-size:0.6rem;margin:2px 0">${sk.manaCost}MP · ${sk.cooldown>0?sk.cooldown+'cd':'no cd'}</div>
-              <div style="color:#aaa;font-size:0.62rem;line-height:1.3">${sk.desc||''}</div>
-            </div>`).join('') : '<div style="color:#555;font-style:italic;font-size:0.75rem;grid-column:span 2">No skills available for this class yet.</div>'}
+              <div style="color:#aaa;font-size:0.6rem;line-height:1.3">${sk.desc||''}</div>
+            </div>`).join('') :
+            '<div style="color:#555;font-style:italic;font-size:0.75rem;grid-column:span 2">No skills yet.</div>'}
         </div>
         <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end">
-          <button onclick="window._rollState.skillIdx=null;renderHeroRollModal()" style="background:#0d1420;border:1px solid #888;color:#888;padding:4px 10px;cursor:pointer;border-radius:3px;font-size:0.7rem">No Skill</button>
-          <button onclick="rerollSkillChoices()" style="background:#1a1f3c;border:1px solid #4a8fbf;color:#4a8fbf;padding:4px 10px;cursor:pointer;border-radius:3px;font-size:0.7rem">🎲 Re-roll Skills</button>
+          <button onclick="window._rollState.skillIdx=null;renderHeroRollModal()" style="background:#0d1420;border:1px solid #888;color:#888;padding:3px 8px;cursor:pointer;border-radius:3px;font-size:0.65rem">No Skill</button>
+          <button onclick="rerollSkillChoices()" style="background:#1a1f3c;border:1px solid #4a8fbf;color:#4a8fbf;padding:3px 8px;cursor:pointer;border-radius:3px;font-size:0.65rem">🎲 Reroll Skills</button>
         </div>
 
         <div style="display:flex;gap:8px;justify-content:center;margin-top:16px;padding-top:12px;border-top:1px solid #2a3050">
-          <button onclick="confirmHeroRoll2()" class="big-btn" style="padding:8px 18px;font-size:0.85rem">✓ Confirm Hero</button>
+          <button onclick="confirmHeroRoll2()" class="big-btn" style="padding:8px 18px;font-size:0.85rem">✓ Add to Party</button>
           <button onclick="closeHeroRollModal()" style="background:#1a1f3c;border:1px solid #5a1a1a;color:#e05555;padding:8px 16px;cursor:pointer;border-radius:4px;font-size:0.85rem">Cancel</button>
         </div>
       </div>
